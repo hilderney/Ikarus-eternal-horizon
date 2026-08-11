@@ -1,2 +1,8 @@
 .docs/
 node_modules/
+dev.err
+dev.out
+
+#POC
+poc/dist/
+poc/node_modules/
