@@ -4,8 +4,9 @@ export interface InputState {
 
 const CONTROLLED = new Set([
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'KeyF',
-  'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyY', 'KeyH',
-  'Tab',
+  'KeyI', 'KeyJ', 'KeyK', 'KeyL',
+  'Numpad2', 'Numpad4', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9',
+  'Digit2', 'Digit4', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
 ])
 

@@ -2,13 +2,6 @@ import type { CameraRig, CameraConfig } from '../gameobjects/cameraRig'
 import type { Ship, ShipTransform } from '../gameobjects/ship'
 import type { ParallaxLayerConfig } from '../gameobjects/parallax'
 
-export type ControlMode = 'camera' | 'ship'
-
-export interface ModeController {
-  get(): ControlMode
-  set(mode: ControlMode): void
-}
-
 export interface DebugBinds {
   rig: CameraRig
   camera: CameraConfig
@@ -17,7 +10,7 @@ export interface DebugBinds {
   parallax: ParallaxLayerConfig[]
   parallaxApply: () => void
   followBox: Vec3Like
-  mode: ModeController
+  follow: { halfX: number; halfZ: number }
 }
 
 interface Row {
@@ -41,22 +34,22 @@ const write = (target: object, key: string, v: number): void => {
 }
 
 export interface DebugControlsHandle {
-  setMode(mode: ControlMode): void
   updateReadout(ship: Vec3Like, camera: Vec3Like): void
 }
 
-export function createDebugControls(binds: DebugBinds): DebugControlsHandle {
+export function createDebugControls(binds: DebugBinds, container: HTMLElement): DebugControlsHandle {
   const rows: Row[] = []
 
   const panel = document.createElement('div')
   panel.className = 'debug-panel'
-  document.body.appendChild(panel)
+  container.appendChild(panel)
 
   const defaults = {
     camera: JSON.parse(JSON.stringify(binds.camera)) as CameraConfig,
     ship: JSON.parse(JSON.stringify(binds.shipTransform)) as ShipTransform,
     parallax: JSON.parse(JSON.stringify(binds.parallax)) as ParallaxLayerConfig[],
     followBox: JSON.parse(JSON.stringify(binds.followBox)),
+    follow: JSON.parse(JSON.stringify(binds.follow)),
   }
 
   const applyCamera = (): void => binds.rig.applyConfig(binds.camera)
@@ -167,26 +160,8 @@ export function createDebugControls(binds: DebugBinds): DebugControlsHandle {
 
   group('Follow Box')
   vec('Position', binds.followBox, () => {})
-
-  group('Mode')
-  const modeRow = document.createElement('div')
-  modeRow.className = 'debug-row'
-  const modeLabel = document.createElement('span')
-  modeLabel.className = 'debug-label'
-  modeLabel.textContent = 'Control'
-  const modeSelect = document.createElement('select')
-  modeSelect.className = 'debug-select'
-  modeSelect.innerHTML = '<option value="camera">Camera</option><option value="ship">Ship</option>'
-  modeSelect.value = binds.mode.get()
-  const modeValue = document.createElement('span')
-  modeValue.className = 'debug-value'
-  modeValue.textContent = binds.mode.get()
-  modeSelect.addEventListener('change', () => {
-    binds.mode.set(modeSelect.value as ControlMode)
-    modeValue.textContent = modeSelect.value
-  })
-  modeRow.append(modeLabel, modeSelect, modeValue)
-  panel.appendChild(modeRow)
+  scalar('Half Width X', binds.follow, 'halfX', 0.5, 60, 0.5, () => {})
+  scalar('Half Depth Z', binds.follow, 'halfZ', 0.5, 60, 0.5, () => {})
 
   group('Parallax')
   const layerLabels = ['1 — stars', '2 — debris', '3 — mesh']
@@ -229,6 +204,7 @@ export function createDebugControls(binds: DebugBinds): DebugControlsHandle {
       r.value.textContent = format(v)
     }
     Object.assign(binds.followBox, defaults.followBox)
+    Object.assign(binds.follow, defaults.follow)
     applyCamera()
     applyShip()
     applyParallax()
@@ -237,10 +213,6 @@ export function createDebugControls(binds: DebugBinds): DebugControlsHandle {
   panel.appendChild(bar)
 
   return {
-    setMode(mode: ControlMode): void {
-      modeSelect.value = mode
-      modeValue.textContent = mode
-    },
     updateReadout(ship: Vec3Like, camera: Vec3Like): void {
       posShip.textContent = `x ${ship.x.toFixed(2)}  y ${ship.y.toFixed(2)}  z ${ship.z.toFixed(2)}`
       posCamera.textContent = `x ${camera.x.toFixed(2)}  y ${camera.y.toFixed(2)}  z ${camera.z.toFixed(2)}`

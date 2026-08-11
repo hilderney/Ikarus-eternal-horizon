@@ -5,23 +5,23 @@ export interface CameraControlConfig {
   moveSpeed: number
   rotSpeed: number
   keys: {
-    moveZPlus: string
-    moveZMinus: string
-    moveXMinus: string
-    moveXPlus: string
-    moveYPlus: string
-    moveYMinus: string
-    rotXPlus: string
-    rotXMinus: string
-    rotZPlus: string
-    rotZMinus: string
-    rotYPlus: string
-    rotYMinus: string
+    moveZPlus: string | string[]
+    moveZMinus: string | string[]
+    moveXMinus: string | string[]
+    moveXPlus: string | string[]
+    moveYPlus: string | string[]
+    moveYMinus: string | string[]
+    rotXPlus: string | string[]
+    rotXMinus: string | string[]
+    rotZPlus: string | string[]
+    rotZMinus: string | string[]
+    rotYPlus: string | string[]
+    rotYMinus: string | string[]
   }
 }
 
-const has = (input: InputState, ...codes: string[]): boolean =>
-  codes.some((c) => input.keys.has(c))
+const has = (input: InputState, ...codes: Array<string | string[]>): boolean =>
+  codes.flat().some((c) => input.keys.has(c))
 
 export function updateCameraFromInput(
   input: InputState,

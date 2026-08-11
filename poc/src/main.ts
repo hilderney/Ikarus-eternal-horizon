@@ -6,20 +6,24 @@ import { createParallaxLayer, type ParallaxLayer, type ParallaxLayerConfig } fro
 import { createShip, type Ship, type ShipTransform } from './gameobjects/ship'
 import { createGizmos } from './gameobjects/gizmos'
 import { createFollowBox, type FollowBox } from './gameobjects/followBox'
-import { createDebugControls, type ControlMode } from './systems/debugControls'
+import { createDebugControls } from './systems/debugControls'
 import { createInput } from './core/input'
-import { updateCameraFromInput, updateCameraRotationFromInput } from './systems/cameraControls'
+import { updateCameraFromInput } from './systems/cameraControls'
 import { updateShipFromInput } from './systems/shipControls'
 import { createFollowCamera } from './systems/followCamera'
+import { createShipPositionLabel } from './systems/shipCoords'
 
 const MAX_FRAME_DT = 0.05
 
 const app = document.getElementById('app')
 if (!app) throw new Error('#app container not found')
 
+const panel = document.getElementById('panel')
+if (!panel) throw new Error('#panel container not found')
+
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.setSize(BALANCE.layout.playfield.width, BALANCE.layout.playfield.height, false)
 app.appendChild(renderer.domElement)
 
 const scene = new THREE.Scene()
@@ -34,6 +38,8 @@ const cameraConfig = {
 }
 const rig = createCameraRig(cameraConfig, scene)
 const camera = rig.camera
+camera.aspect = BALANCE.layout.playfield.width / BALANCE.layout.playfield.height
+camera.updateProjectionMatrix()
 
 const shipTransform: ShipTransform = {
   position: { ...BALANCE.ship.transform.position },
@@ -57,23 +63,24 @@ const followBox: FollowBox = createFollowBox(
   scene,
 )
 const input = createInput()
+const shipCoords = createShipPositionLabel(camera, renderer.domElement)
 
 const cameraControl = {
   moveSpeed: BALANCE.camera.moveSpeed,
   rotSpeed: BALANCE.camera.rotSpeed,
   keys: {
-    moveZPlus: 'KeyW',
-    moveZMinus: 'KeyS',
-    moveXMinus: 'KeyA',
-    moveXPlus: 'KeyD',
+    moveZPlus: 'KeyI',
+    moveZMinus: 'KeyK',
+    moveXMinus: 'KeyJ',
+    moveXPlus: 'KeyL',
     moveYPlus: 'KeyR',
     moveYMinus: 'KeyF',
-    rotXPlus: 'KeyI',
-    rotXMinus: 'KeyK',
-    rotZPlus: 'KeyJ',
-    rotZMinus: 'KeyL',
-    rotYPlus: 'KeyY',
-    rotYMinus: 'KeyH',
+    rotXPlus: ['Numpad8', 'Digit8'],
+    rotXMinus: ['Numpad2', 'Digit2'],
+    rotZPlus: ['Numpad7', 'Digit7'],
+    rotZMinus: ['Numpad9', 'Digit9'],
+    rotYPlus: ['Numpad4', 'Digit4'],
+    rotYMinus: ['Numpad6', 'Digit6'],
   },
 }
 
@@ -89,19 +96,6 @@ const shipControl = {
 
 const follow = createFollowCamera(BALANCE.ship.follow, followBoxPos)
 
-const modeFlag = document.createElement('div')
-modeFlag.className = 'mode-flag'
-document.body.appendChild(modeFlag)
-
-let mode: ControlMode = 'camera'
-
-function setMode(next: ControlMode): void {
-  mode = next
-  modeFlag.textContent = `MODE: ${next.toUpperCase()} — TAB to switch`
-  modeFlag.classList.toggle('flag-ship', next === 'ship')
-  controlsHandle.setMode(mode)
-}
-
 const controlsHandle = createDebugControls({
   rig,
   camera: cameraConfig,
@@ -112,41 +106,17 @@ const controlsHandle = createDebugControls({
     layers.forEach((layer, i) => layer.applyConfig(parallaxConfigs[i]))
   },
   followBox: BALANCE.ship.followBox.position,
-  mode: {
-    get: () => mode,
-    set: setMode,
-  },
-})
-
-window.addEventListener('keydown', (e) => {
-  if (e.code === 'Tab') {
-    e.preventDefault()
-    setMode(mode === 'camera' ? 'ship' : 'camera')
-  }
-})
-
-function onResize(): void {
-  const width = window.innerWidth
-  const height = window.innerHeight
-  camera.aspect = width / height
-  camera.updateProjectionMatrix()
-  renderer.setSize(width, height)
-}
-window.addEventListener('resize', onResize)
-onResize()
+  follow: BALANCE.ship.follow,
+}, panel)
 
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, MAX_FRAME_DT)
   last = now
 
-  if (mode === 'ship') {
-    updateShipFromInput(input, shipTransform, shipControl, dt)
-    ship.applyTransform(shipTransform)
-    follow.update(cameraConfig, shipTransform)
-    updateCameraRotationFromInput(input, cameraConfig, cameraControl, dt)
-  } else {
-    updateCameraFromInput(input, cameraConfig, cameraControl, dt)
-  }
+  updateShipFromInput(input, shipTransform, shipControl, dt)
+  ship.applyTransform(shipTransform)
+  updateCameraFromInput(input, cameraConfig, cameraControl, dt)
+  follow.update(cameraConfig, shipTransform)
   rig.applyConfig(cameraConfig)
 
   followBox.update(
@@ -155,6 +125,7 @@ function frame(now: number): void {
     BALANCE.ship.follow.halfZ,
   )
   followBox.setVisible(true)
+  shipCoords.update(shipTransform.position)
   controlsHandle.updateReadout(shipTransform.position, cameraConfig.position)
 
   for (const layer of layers) layer.update(dt)

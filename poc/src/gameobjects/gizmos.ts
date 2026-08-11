@@ -46,11 +46,11 @@ function createWorldAxes(): THREE.Group {
 }
 
 function createPlayfieldGrid(): THREE.GridHelper {
-  const grid = new THREE.GridHelper(44, 22, 0x2b6fd8, 0x2b6fd8)
+  const grid = new THREE.GridHelper(1000, 1000, 0x2b6fd8, 0x2b6fd8)
   grid.position.y = 0
   const mat = grid.material as THREE.Material
   mat.transparent = true
-  mat.opacity = 0.28
+  mat.opacity = 0.05
   mat.depthWrite = false
   return grid
 }
@@ -72,7 +72,7 @@ function addAxisLine(group: THREE.Group, a: THREE.Vector3, b: THREE.Vector3, col
   const mat = new THREE.LineBasicMaterial({
     color,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.5,
   })
   const line = new THREE.Line(geo, mat)
   line.frustumCulled = false
