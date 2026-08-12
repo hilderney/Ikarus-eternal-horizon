@@ -4,26 +4,38 @@ export interface InputState {
 
 const CONTROLLED = new Set([
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'KeyF',
-  'KeyI', 'KeyJ', 'KeyK', 'KeyL',
-  'Numpad2', 'Numpad4', 'Numpad6', 'Numpad7', 'Numpad8', 'Numpad9',
-  'Digit2', 'Digit4', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
+  'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyU',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'ShiftLeft', 'ShiftRight',
 ])
 
 export function createInput(): InputState {
   const state: InputState = { keys: new Set() }
+  let shiftPressed = false
 
   window.addEventListener('keydown', (e) => {
     if (CONTROLLED.has(e.code)) e.preventDefault()
     state.keys.add(e.code)
+
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      shiftPressed = true
+    } else if (shiftPressed) {
+      state.keys.add('Shift+' + e.code)
+    }
   })
 
   window.addEventListener('keyup', (e) => {
     state.keys.delete(e.code)
+    state.keys.delete('Shift+' + e.code)
+
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      shiftPressed = false
+    }
   })
 
   window.addEventListener('blur', () => {
     state.keys.clear()
+    shiftPressed = false
   })
 
   return state

@@ -16,17 +16,47 @@
         <div class="legend-title">CAMERA MOVE</div>
         <div class="legend-row"><span>I / K</span><span>Z</span></div>
         <div class="legend-row"><span>J / L</span><span>X</span></div>
-        <div class="legend-row"><span>R / F</span><span>Y</span></div>
+        <div class="legend-row"><span>U / O</span><span>Y</span></div>
       </div>
       <div class="legend-group">
-        <div class="legend-title">CAMERA ROT (NUMPAD)</div>
-        <div class="legend-row"><span>8 / 2</span><span>pitch</span></div>
-        <div class="legend-row"><span>7 / 9</span><span>roll</span></div>
-        <div class="legend-row"><span>4 / 6</span><span>yaw</span></div>
+        <div class="legend-title">CAMERA ROT</div>
+        <div class="legend-row"><span>Shift+I / Shift+K</span><span>pitch</span></div>
+        <div class="legend-row"><span>Shift+U / Shift+O</span><span>roll</span></div>
+        <div class="legend-row"><span>Shift+J / Shift+L</span><span>yaw</span></div>
       </div>
     </aside>
     <div id="app"></div>
-    <aside class="stage-sidebar right" id="panel"></aside>
+    <aside class="stage-sidebar right" id="panel">
+      <div class="debug-panel">
+        <input type="radio" name="debug-tab" id="dbg-cam" class="debug-tab-input" checked />
+        <input type="radio" name="debug-tab" id="dbg-ship" class="debug-tab-input" />
+        <input type="radio" name="debug-tab" id="dbg-follow" class="debug-tab-input" />
+        <input type="radio" name="debug-tab" id="dbg-para" class="debug-tab-input" />
+        <div class="debug-pos">
+          <span class="debug-poslabel">Ship</span>
+          <span class="debug-posvalue" id="pos-ship">x 0.00  y 0.00  z 0.00</span>
+        </div>
+        <div class="debug-pos">
+          <span class="debug-poslabel">Camera</span>
+          <span class="debug-posvalue" id="pos-camera">x 0.00  y 0.00  z 0.00</span>
+        </div>
+        <nav class="debug-tabs">
+          <label for="dbg-cam">Cam</label>
+          <label for="dbg-ship">Ship</label>
+          <label for="dbg-follow">Follow Box</label>
+          <label for="dbg-para">Parallax</label>
+        </nav>
+        <div class="debug-tabpanels">
+          <section class="debug-tabpanel" data-tab="cam"></section>
+          <section class="debug-tabpanel" data-tab="ship"></section>
+          <section class="debug-tabpanel" data-tab="follow"></section>
+          <section class="debug-tabpanel" data-tab="para"></section>
+        </div>
+        <div class="debug-bar">
+          <button id="debug-reset" type="button">Reset</button>
+        </div>
+      </div>
+    </aside>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

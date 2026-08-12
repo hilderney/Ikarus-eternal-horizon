@@ -13,6 +13,7 @@ import { createFollowCamera } from './systems/followCamera'
 import { createShipPositionLabel } from './systems/shipCoords'
 
 const MAX_FRAME_DT = 0.05
+const SYNC_INTERVAL = 0.066
 
 const app = document.getElementById('app')
 if (!app) throw new Error('#app container not found')
@@ -58,6 +59,8 @@ const followBox: FollowBox = createFollowBox(
     color: BALANCE.ship.followBox.color,
     opacity: BALANCE.ship.followBox.opacity,
     y: followBoxPos.y,
+    centerLine: BALANCE.ship.followBox.centerLine,
+    restLine: BALANCE.ship.followBox.restLine,
   },
   scene,
 )
@@ -76,7 +79,11 @@ const controllers = createControllers(
   input,
 )
 
-const follow = createFollowCamera(BALANCE.ship.follow, followBoxPos)
+const follow = createFollowCamera(
+  BALANCE.ship.follow,
+  followBoxPos,
+  BALANCE.ship.followBox.restLine.position,
+)
 
 const controlsHandle = createDebugControls({
   rig,
@@ -89,6 +96,7 @@ const controlsHandle = createDebugControls({
   },
   followBox: BALANCE.ship.followBox.position,
   follow: BALANCE.ship.follow,
+  recenterPoint: BALANCE.ship.followBox.restLine,
   controls: BALANCE.controls,
 }, panel)
 
@@ -98,7 +106,7 @@ function frame(now: number): void {
 
   controllers.update(dt)
   ship.applyTransform(shipTransform)
-  follow.update(cameraConfig, shipTransform)
+  follow.update(cameraConfig, shipTransform, dt)
   rig.applyConfig(cameraConfig)
 
   followBox.update(
@@ -109,6 +117,11 @@ function frame(now: number): void {
   followBox.setVisible(true)
   shipCoords.update(shipTransform.position)
   controlsHandle.updateReadout(shipTransform.position, cameraConfig.position)
+  syncAcc += dt
+  if (syncAcc >= SYNC_INTERVAL) {
+    syncAcc = 0
+    controlsHandle.sync()
+  }
 
   for (const layer of layers) layer.update(dt, camera)
   ship.update(dt)
@@ -118,4 +131,5 @@ function frame(now: number): void {
   requestAnimationFrame(frame)
 }
 let last = performance.now()
+let syncAcc = 0
 requestAnimationFrame(frame)
