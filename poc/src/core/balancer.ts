@@ -110,7 +110,7 @@ export const BALANCE = {
     
     // DYNAMIC VIEW
     fov: 85,
-    position: { x: 2.7, y: 12, z: 6 },
+    position: { x: 3, y: 14, z: 6 },
     rotation: { x: -55, y: 24, z: -14 },
     near: 5.00,
     far: 10000,
