@@ -34,6 +34,19 @@ npm run preview # prévia do build de produção
 - **Movimento por força** (`controls.motion`): cada eixo acelera na direção do input com `accel` (m/s²), desacelera até parar com `decel` ao soltar as teclas, e freia contra a direção oposta com `brake` (mais forte que `accel`) — pressionando o lado contrário do movimento, a troca de direção é mais rápida. A velocidade é limitada a `maxSpeed`.
 - **Tilt/bank** (`controls.tilt`): ao virar (A/D) a nave inclina em **`rotation.z`** até `maxDeg` (90°) com rampa de `riseMs` (300ms); soltando, volta a zero em `fallMs` (400ms). Eixo (`axis`) e direção (`sign`) configuráveis.
 
+### Como o parallax se resolve a partir do movimento
+
+A sensação de velocidade/deslocamento no fundo não é calculada direto da nave — ela **herda do movimento real da câmera**. A cadeia é:
+
+1. **Nave por força** (`controllers.ts` — `axisVelocity`): o input vira aceleração (`accel`/`brake`), integrada a cada frame em `vx/vz` e limitada por `maxSpeed`; `shipTransform.position` desloca-se.
+2. **Dead-zone** (`follow.ts` / `followBox`): a nave se move **livremente dentro** do follow box (`halfX`/`halfZ`) em torno da âncora. Enquanto não encosta na borda, a câmera não se move — a nave "navega no box".
+3. **Follow da câmera** (`followCamera.ts`): só quando a nave ultrapassa a borda a âncora desliza (`nx/nz`), puxando `camera.position` junto. Ou seja, **translação de câmera por input de nave só existe quando a nave transborda o box**. As teclas de câmera (IJKL/R/F) deslocam a câmera à parte, a qualquer momento.
+4. **Parallax** (`parallax.ts`): a cada frame, cada camada mede o **Δ da posição da câmera** (`camDX/DY/DZ` entre frames) e desloca suas estrelas em **sentido contrário** multiplicado por `parallaxGain` da camada:
+   `estrela −= Δcâmera × parallaxGain × (1 ± jitter)`.
+   As grades (presas à posição da câmera, orientação/rotação independentes) ficam paradas; só as estrelas "escorregam" nelas — isso produz a profundidade. Além disso, as estrelas têm voo próprio em Z (`speed`) com wrap (`zNearWrap`, `zFar`).
+
+**Resultado prático:** com a câmera parada, o fundo não reage ao WASD (a nave apenas se move no box). Parallax de movimento acontece quando (a) a nave empurra a borda do box e arrasta a câmera, ou (b) a câmera é movida por IJKL/R/F. Cada camada é disposta em profundidade pelo `position` relativo à câmera (hoje: `Y = −300 → −800 → −3000`, com grades de `gridSize` crescente), e o quanto suas estrelas "escorregam" ao movimento da câmera é o fator `parallaxGain` (hoje `0.15` uniforme). A escala de profundidade é diretamente `position` + `gridSize` + `parallaxGain`.
+
 ---
 
 ## O que a POC tem hoje
@@ -43,12 +56,12 @@ npm run preview # prévia do build de produção
 - **Nave** (`ship.ts`) — caixa wireframe neon + semicone como thruster com flicker `.update(dt)`, transform aplicado via `applyTransform`.
 - **Câmera** (`cameraRig.ts`) — `PerspectiveCamera` com `rotation.order = 'YXZ'`, config aplicada por `applyConfig` (FOV/aspect/near/far/posição/rotação).
 - **Follow Box** (`followBox.ts`) — `LineLoop` desenhado no plano XZ ao redor de um centro configurável (posição) com meia-largura/meia-profundidade; **dead-zone** da câmera (`followCamera.ts`) usa o mesmo centro/tamanho — resize/posição ao vivo pelo painel.
-- **Parallax** (`parallax.ts`) — camadas são "telas" presas à câmera (grade grid rotacionada perpendicular à visão), cada uma com posição e rotação ajustáveis em relação à câmera; as estrelas passam pela tela e deslizam sob a grade. Configuráveis por layer.
+- **Parallax** (`parallax.ts`) — camadas horizontais paralelas à base da nave, **presas à posição da câmera** (não à rotação: cada grade mantém rotação própria editável). Cada camada tem grade (`gridSize`, `gridOpacity`) e estrelas que reagem ao Δ da câmera com `parallaxGain`, além de voo próprio em Z (`speed`, `zNearWrap`, `zFar`). Configuráveis por layer.
 - **Gizmos** (`gizmos.ts`) — eixos do mundo (XY Z), grade de playfield e eixos da câmera (sprite labels), acompanhando a câmera a cada frame.
 
 ### Overlays (DOM sobre o canvas)
 - **Coordenadas da nave** (`shipCoords.ts`) — etiqueta `X / Y / Z` projetada "sobre a nave"; mapeia World→screen com `vector.project` + `getBoundingClientRect` do canvas (letterbox-safe), clamp nas margens, some quando atrás da câmera.
-- **Painel de debug** (`debugControls.ts`) — coluna direita: readouts ao vivo (posição da nave/câmera), sliders/spins para Câmera (FOV, posição, rotação, near/far **+ Control:** move/rot speed), Nave (posição, rotação, escala **+ Motion:** maxSpeed/time to max/stop **+ Tilt:** axis/sign/maxDeg/rise/fall), **Follow Box** (posição X/Y/Z, Half Width X, Half Depth Z), Parallax (todos os parâmetros por camada) e botão **Reset**.
+- **Painel de debug** (`debugControls.ts`) — coluna direita: readouts ao vivo (posição da nave/câmera), sliders/spins para Câmera (FOV, posição, rotação, near/far **+ Control:** move/rot speed), Nave (posição, rotação, escala **+ Motion:** maxSpeed/accel/decel/brake **+ Tilt:** axis/sign/maxDeg/rise/fall), **Follow Box** (posição X/Y/Z, Half Width X, Half Depth Z), Parallax (por camada: count/speed/jitter/gain/tamanho/posição/rotação/tamanho da grade/opacidade/profundidades) e botão **Reset**.
 - **Legenda de controles** — coluna esquerda, estática em `index.html`.
 
 ### Input (`src/core/input.ts`)
@@ -95,7 +108,7 @@ Tudo em `src/core/balancer.ts`:
 | `ship.transform / follow / followBox` | Posição inicial, tamanho do dead-zone e posição/estilo da caixa |
 | `ship.visual` | Dimensões e cores wireframe da nave/thruster |
 | `camera` | FOV, posição/rotação iniciais, near/far |
-| `parallax.layers[]` | Por camada: contagem, velocidade/scroll das estrelas, cores, tamanho, posição (`screen.position`) e rotação (`screen.rotation`) da tela em relação à câmera, dimensões da grade (`gridSize`) e da tela (`screenHeight`) |
+| `parallax.layers[]` | Por camada: contagem, velocidade/scroll das estrelas, `parallaxGain` (reação ao Δ da câmera), posição relativa à câmera e rotação da grade, tamanho (`gridSize`) e opacidade da grade (`gridOpacity`), profundidades de voo (`zNearWrap`/`zFar`) |
 | `thruster` | Posição/dimensões do jato |
 
 ---
