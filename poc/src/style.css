@@ -36,6 +36,7 @@ canvas {
   overflow-y: auto;
   padding: 12px;
   color: #b7e6ff;
+  background-color: #050505;
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 12px;
 }
