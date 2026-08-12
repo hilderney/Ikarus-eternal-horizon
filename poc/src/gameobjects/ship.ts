@@ -38,8 +38,8 @@ export function createShip(visual: ShipVisual, scene: THREE.Scene): Ship {
   const accentGeo = new THREE.BoxGeometry(visual.size.w * 0.82, visual.size.h * 0.82, visual.size.d * 0.82)
   const accentMat = new THREE.MeshBasicMaterial({
     color: visual.accentColor,
-    wireframe: true,
-    transparent: true,
+    wireframe: false,
+    transparent: false,
     opacity: 0.45,
   })
   const accent = new THREE.Mesh(accentGeo, accentMat)

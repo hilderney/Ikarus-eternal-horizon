@@ -8,8 +8,7 @@ import { createGizmos } from './gameobjects/gizmos'
 import { createFollowBox, type FollowBox } from './gameobjects/followBox'
 import { createDebugControls } from './systems/debugControls'
 import { createInput } from './core/input'
-import { updateCameraFromInput } from './systems/cameraControls'
-import { updateShipFromInput } from './systems/shipControls'
+import { createControllers } from './systems/controllers'
 import { createFollowCamera } from './systems/followCamera'
 import { createShipPositionLabel } from './systems/shipCoords'
 
@@ -65,34 +64,17 @@ const followBox: FollowBox = createFollowBox(
 const input = createInput()
 const shipCoords = createShipPositionLabel(camera, renderer.domElement)
 
-const cameraControl = {
-  moveSpeed: BALANCE.camera.moveSpeed,
-  rotSpeed: BALANCE.camera.rotSpeed,
-  keys: {
-    moveZPlus: 'KeyI',
-    moveZMinus: 'KeyK',
-    moveXMinus: 'KeyJ',
-    moveXPlus: 'KeyL',
-    moveYPlus: 'KeyR',
-    moveYMinus: 'KeyF',
-    rotXPlus: ['Numpad8', 'Digit8'],
-    rotXMinus: ['Numpad2', 'Digit2'],
-    rotZPlus: ['Numpad7', 'Digit7'],
-    rotZMinus: ['Numpad9', 'Digit9'],
-    rotYPlus: ['Numpad4', 'Digit4'],
-    rotYMinus: ['Numpad6', 'Digit6'],
+const controllers = createControllers(
+  {
+    shipKeys: BALANCE.controls.shipKeys,
+    motion: BALANCE.controls.motion,
+    tilt: BALANCE.controls.tilt,
+    camera: BALANCE.controls.camera,
   },
-}
-
-const shipControl = {
-  speed: BALANCE.ship.moveSpeed,
-  keys: {
-    moveXMinus: 'KeyA',
-    moveXPlus: 'KeyD',
-    moveZPlus: 'KeyS',
-    moveZMinus: 'KeyW',
-  },
-}
+  shipTransform,
+  cameraConfig,
+  input,
+)
 
 const follow = createFollowCamera(BALANCE.ship.follow, followBoxPos)
 
@@ -107,15 +89,15 @@ const controlsHandle = createDebugControls({
   },
   followBox: BALANCE.ship.followBox.position,
   follow: BALANCE.ship.follow,
+  controls: BALANCE.controls,
 }, panel)
 
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, MAX_FRAME_DT)
   last = now
 
-  updateShipFromInput(input, shipTransform, shipControl, dt)
+  controllers.update(dt)
   ship.applyTransform(shipTransform)
-  updateCameraFromInput(input, cameraConfig, cameraControl, dt)
   follow.update(cameraConfig, shipTransform)
   rig.applyConfig(cameraConfig)
 
@@ -128,7 +110,7 @@ function frame(now: number): void {
   shipCoords.update(shipTransform.position)
   controlsHandle.updateReadout(shipTransform.position, cameraConfig.position)
 
-  for (const layer of layers) layer.update(dt)
+  for (const layer of layers) layer.update(dt, camera)
   ship.update(dt)
   gizmos.update()
 

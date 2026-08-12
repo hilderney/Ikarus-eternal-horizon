@@ -30,6 +30,10 @@ npm run preview # prévia do build de produção
 
 > Este mapa é **único e simultâneo**: não existe troca de modo. WASD move a nave o tempo todo; IJKL + numpads controlam a câmera o tempo todo. A câmera ainda respeita o **dead-zone** (followBox): quando a nave encosta na borda da caixa, câmera e caixa acompanham.
 
+### Movimento e "feel" da nave
+- **Movimento por força** (`controls.motion`): cada eixo acelera na direção do input com `accel` (m/s²), desacelera até parar com `decel` ao soltar as teclas, e freia contra a direção oposta com `brake` (mais forte que `accel`) — pressionando o lado contrário do movimento, a troca de direção é mais rápida. A velocidade é limitada a `maxSpeed`.
+- **Tilt/bank** (`controls.tilt`): ao virar (A/D) a nave inclina em **`rotation.z`** até `maxDeg` (90°) com rampa de `riseMs` (300ms); soltando, volta a zero em `fallMs` (400ms). Eixo (`axis`) e direção (`sign`) configuráveis.
+
 ---
 
 ## O que a POC tem hoje
@@ -39,12 +43,12 @@ npm run preview # prévia do build de produção
 - **Nave** (`ship.ts`) — caixa wireframe neon + semicone como thruster com flicker `.update(dt)`, transform aplicado via `applyTransform`.
 - **Câmera** (`cameraRig.ts`) — `PerspectiveCamera` com `rotation.order = 'YXZ'`, config aplicada por `applyConfig` (FOV/aspect/near/far/posição/rotação).
 - **Follow Box** (`followBox.ts`) — `LineLoop` desenhado no plano XZ ao redor de um centro configurável (posição) com meia-largura/meia-profundidade; **dead-zone** da câmera (`followCamera.ts`) usa o mesmo centro/tamanho — resize/posição ao vivo pelo painel.
-- **Parallax** (`parallax.ts`) — 3 camadas (stars / debris / mesh) com velocidade, spans e grade próprios, configuráveis por layer.
+- **Parallax** (`parallax.ts`) — camadas são "telas" presas à câmera (grade grid rotacionada perpendicular à visão), cada uma com posição e rotação ajustáveis em relação à câmera; as estrelas passam pela tela e deslizam sob a grade. Configuráveis por layer.
 - **Gizmos** (`gizmos.ts`) — eixos do mundo (XY Z), grade de playfield e eixos da câmera (sprite labels), acompanhando a câmera a cada frame.
 
 ### Overlays (DOM sobre o canvas)
 - **Coordenadas da nave** (`shipCoords.ts`) — etiqueta `X / Y / Z` projetada "sobre a nave"; mapeia World→screen com `vector.project` + `getBoundingClientRect` do canvas (letterbox-safe), clamp nas margens, some quando atrás da câmera.
-- **Painel de debug** (`debugControls.ts`) — coluna direita: readouts ao vivo (posição da nave/câmera), sliders/spins para Câmera (FOV, posição, rotação, near/far), Nave (posição, rotação, escala), **Follow Box** (posição X/Y/Z, Half Width X, Half Depth Z), Parallax (todos os parâmetros por camada) e botão **Reset**.
+- **Painel de debug** (`debugControls.ts`) — coluna direita: readouts ao vivo (posição da nave/câmera), sliders/spins para Câmera (FOV, posição, rotação, near/far **+ Control:** move/rot speed), Nave (posição, rotação, escala **+ Motion:** maxSpeed/time to max/stop **+ Tilt:** axis/sign/maxDeg/rise/fall), **Follow Box** (posição X/Y/Z, Half Width X, Half Depth Z), Parallax (todos os parâmetros por camada) e botão **Reset**.
 - **Legenda de controles** — coluna esquerda, estática em `index.html`.
 
 ### Input (`src/core/input.ts`)
@@ -70,8 +74,7 @@ poc/
       followBox.ts                # caixa dead-zone (LineLoop)
       gizmos.ts                   # eixos mundiais, grade, eixos da câmera
     systems/
-      cameraControls.ts           # move/rotate da câmera por input
-      shipControls.ts             # move da nave por input
+      controllers.ts              # input -> movimento da nave (acel/tilt) + câmera
       followCamera.ts             # dead-zone follow (âncora = centro da caixa)
       shipCoords.ts               # label X/Y/Z sobre a nave
       debugControls.ts            # painel de debug (sliders/readouts/reset)
@@ -88,11 +91,11 @@ Tudo em `src/core/balancer.ts`:
 | Bloco | O que controla |
 |---|---|
 | `layout.playfield` | Resolução base do canvas portrait |
-| `ship.transform / moveSpeed` | Posição inicial e velocidade de deslocamento da nave |
-| `ship.follow / followBox` | Tamanho do dead-zone e posição/estilo da caixa |
+| `controls.shipKeys / motion / tilt / camera` | Mapa de teclas, força (accel/decel/brake) + `maxSpeed`, bank (graus + ms) e move/rot speed da câmera |
+| `ship.transform / follow / followBox` | Posição inicial, tamanho do dead-zone e posição/estilo da caixa |
 | `ship.visual` | Dimensões e cores wireframe da nave/thruster |
-| `camera` | FOV, posição/rotação iniciais, near/far, velocidades de move/rot |
-| `parallax.layers[]` | Contagem, velocidade, cores, spans, Y dos layers e grade |
+| `camera` | FOV, posição/rotação iniciais, near/far |
+| `parallax.layers[]` | Por camada: contagem, velocidade/scroll das estrelas, cores, tamanho, posição (`screen.position`) e rotação (`screen.rotation`) da tela em relação à câmera, dimensões da grade (`gridSize`) e da tela (`screenHeight`) |
 | `thruster` | Posição/dimensões do jato |
 
 ---
