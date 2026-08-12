@@ -47,10 +47,10 @@ function createWorldAxes(): THREE.Group {
 
 function createPlayfieldGrid(): THREE.GridHelper {
   const grid = new THREE.GridHelper(1000, 1000, 0x2b6fd8, 0x2b6fd8)
-  grid.position.y = 0
+  grid.position.y = -1
   const mat = grid.material as THREE.Material
   mat.transparent = true
-  mat.opacity = 0.01
+  mat.opacity = 0.00
   mat.depthWrite = false
   return grid
 }
