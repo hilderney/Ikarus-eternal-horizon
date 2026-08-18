@@ -891,10 +891,10 @@ flowchart TD
 | Gate | **G0** |
 | Hub version | 4.2.0 |
 | Reference build | POC-1 (`poc/`) — frozen, playable (not a workstream) |
-| Target build | POC2 (`poc2/`) — Stage A done; B01 Camera next |
+| Target build | POC2 (`poc2/`) — Stage A–B and C01 done; C02 Controller next |
 | Phase docs | `phase-0-poc.md` (history) · `phase-0-poc2.md` (architecture) |
 | SDD specs | one file per Stage A–G card under `.docs/specs/` + `_template.spec.ts` |
 | Agents | Orchestrator · Programming/Three.js · Game Design · TDD (§6.3, `D17`) |
 | Backlog | [`poc2/todo.md`](../../poc2/todo.md) — one entry per card |
 
-**Next steps:** 1) TDD writes failing tests for `SDD-B01` Camera; 2) Programming implements until green; 3) then C01 Ship → C02 Controller for Fase 0 motion.
+**Next steps:** 1) TDD writes failing tests for `SDD-C02` Controller; 2) Programming implements until green; 3) then C03 ShipHealth (or keep Fase 0 motion wired once G03 exists).

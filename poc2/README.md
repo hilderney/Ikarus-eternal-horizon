@@ -31,7 +31,7 @@ npm run verify     # all three — the gate every card must pass (hub §6.1)
 
 ## State
 
-**Stage A is done** (Balancer, Input, Math, GameLoop, ObjectPool). Next slice is **`SDD-B01` Camera**. `src/main.ts` is still a walking skeleton until G01/G03. Follow the build order in the hub §5 / the graph in §10.
+**Stages A–B and C01 are done.** Next slice is **`SDD-C02` Controller**. `src/main.ts` is still a walking skeleton until G01/G03. Follow the build order in the hub §5 / the graph in §10.
 
 ---
 

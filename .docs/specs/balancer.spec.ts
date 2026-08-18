@@ -220,6 +220,7 @@ export declare const BALANCE: Balance
  *   camera                      = { fov: 85, position {3,14,6}, rotation {-55,24,-14}, near: 5, far: 10000 }
  *   ship.follow                 = { halfX: 6, halfZ: 8, bounce.timeMs: 500, recenter delay 1500 / still 800 / accel 3 / maxSpeed 12 }
  *   ship.visual                 = { size {1.5,1,2}, wireframe 0x22d3ee, accent 0x6d28d9, thruster 0x60c5ff }
+ *   ship.inventory.caps         = { metalScrap: 999, prismaticCrystal: 99, denseCore: 49, darkMatter: 9 }
  *   weapons.loadout             = ['laser'] initially; catalog holds all four
  *
  * New sections (placeholders, Q08 owns the hull curve):
@@ -274,6 +275,7 @@ export declare const BALANCE: Balance
  *   it('exposes gamepad W3C map: deadzone 0.18, RT 7, LB 4, Start 9')      // D18, A02
  *   it('exposes haptics presets shieldHit / hullHit / shieldBreak / destroyed') // D18, F05
  *   it('exposes loop maxFrameDt 0.05 and sidecarHz 15')                    // A04, RUL-01
+ *   it('exposes ship inventory caps 999 / 99 / 49 / 9')                    // C01, RES-05
  *   it('treats BALANCE as a frozen object (Object.isFrozen or as const)')  // R2
  *
  * Manual:

@@ -49,4 +49,4 @@ POC-1 is frozen. These specs describe **`poc2/` only**.
 | G10 | [run-state.spec.ts](./run-state.spec.ts) | `poc2/src/systems/run-state.test.ts` |
 | G11 | [pause-scene.spec.ts](./pause-scene.spec.ts) | `poc2/src/scenes/pause-scene.test.ts` |
 
-Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stage A (A01–A05) is **done**. Next implementation is B01 Camera.
+Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B and C01 are **done**. Next implementation is C02 Controller.

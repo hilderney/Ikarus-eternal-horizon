@@ -23,12 +23,12 @@ Scaffold is done. This phase is the POC-1 “feel” port: move the ship, camera
 - [x] Generic `ObjectPool<T>` (exhaustion returns `null`, never allocates) · `SDD-A05` · [object-pool.spec.ts](../.docs/specs/object-pool.spec.ts) · **new**
 - [ ] Portrait 9:16 renderer, letterbox, relative paths · `SDD-G09` · [renderer.spec.ts](../.docs/specs/renderer.spec.ts) · **new**
 - [ ] Three-area layout `area-inputs · game-area · debugger-area`, collapse ≤760px · `SDD-G06` · [ui-areas.spec.ts](../.docs/specs/ui-areas.spec.ts) · **port**
-- [ ] Perspective camera (`YXZ`, live `applyConfig`) · `SDD-B01` · [game-camera.spec.ts](../.docs/specs/game-camera.spec.ts) · **port**
-- [ ] Ship as `THREE.Group` (hull, thruster flicker, weapon tip) · `SDD-C01` · [ship.spec.ts](../.docs/specs/ship.spec.ts) · **port**
+- [x] Perspective camera (`YXZ`, live `applyConfig`) · `SDD-B01` · [game-camera.spec.ts](../.docs/specs/game-camera.spec.ts) · **port**
+- [x] Ship as `THREE.Group` (hull, thruster flicker, weapon tip) · `SDD-C01` · [ship.spec.ts](../.docs/specs/ship.spec.ts) · **port**
 - [ ] Force motion (`accel`/`decel`/`brake`, `maxSpeed`) + tilt/bank · `SDD-C02` · [controller.spec.ts](../.docs/specs/controller.spec.ts) · **port**
-- [ ] LimitBox: dead-zone follow, edge bounce, auto-recenter to Recenter Point · `SDD-B03` · [limit-box.spec.ts](../.docs/specs/limit-box.spec.ts) · **port**
-- [ ] Parallax: 3 layers pinned to camera, stars slide by `parallaxGain` · `SDD-B02` · [parallax.spec.ts](../.docs/specs/parallax.spec.ts) · **port**
-- [ ] Gizmos: world axes, playfield grid, camera axes (toggle, Q09) · `SDD-B04` · [gizmos.spec.ts](../.docs/specs/gizmos.spec.ts) · **port**
+- [x] LimitBox: dead-zone follow, edge bounce, auto-recenter to Recenter Point · `SDD-B03` · [limit-box.spec.ts](../.docs/specs/limit-box.spec.ts) · **port**
+- [x] Parallax: 3 layers pinned to camera, stars slide by `parallaxGain` · `SDD-B02` · [parallax.spec.ts](../.docs/specs/parallax.spec.ts) · **port**
+- [x] Gizmos: world axes, playfield grid, camera axes (toggle, Q09) · `SDD-B04` · [gizmos.spec.ts](../.docs/specs/gizmos.spec.ts) · **port**
 - [ ] Run scene owns camera / parallax / limit-box / gizmos / ship and drives the loop · `SDD-G03` · [run-scene.spec.ts](../.docs/specs/run-scene.spec.ts) · **new**
 
 **Fase 0 done when:** ship flies with POC-1 inertia and bank; camera follows the box with bounce + recenter; three parallax speeds read at a glance.

@@ -42,8 +42,8 @@
  * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
  * Programming  : hub-v4.1 / 2026-08-17  contract, Δ-shift, wrap, dispose
  * Game Design  : hub-v4.1 / 2026-08-17  DYNAMIC VIEW three-layer numbers
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
- * Status: spec-complete
+ * TDD          : hub-v4.2 / 2026-08-18  parallax.test.ts green
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

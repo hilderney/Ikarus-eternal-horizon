@@ -88,6 +88,21 @@ describe('BALANCE', () => {
     expect(BALANCE.loop.sidecarHz).toBe(15)
   })
 
+  it('exposes ship inventory caps 999 / 99 / 49 / 9', () => {
+    expect(BALANCE.ship.inventory.caps).toEqual({
+      metalScrap: 999,
+      prismaticCrystal: 99,
+      denseCore: 49,
+      darkMatter: 9,
+    })
+  })
+
+  it('exposes gizmos gridSize 1000 and worldAxisSize 4', () => {
+    expect(BALANCE.gizmos.gridSize).toBe(1000)
+    expect(BALANCE.gizmos.worldAxisSize).toBe(4)
+    expect(BALANCE.gizmos.cameraAxisSize).toBe(2.2)
+  })
+
   it('treats BALANCE as a frozen object (Object.isFrozen or as const)', () => {
     expect(Object.isFrozen(BALANCE)).toBe(true)
     expect(Object.isFrozen(BALANCE.layout)).toBe(true)

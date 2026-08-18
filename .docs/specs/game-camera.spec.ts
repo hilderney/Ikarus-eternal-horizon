@@ -47,8 +47,8 @@
  * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
  * Programming  : hub-v4.1 / 2026-08-17  contract, YXZ, applyConfig, dispose
  * Game Design  : hub-v4.1 / 2026-08-17  DYNAMIC VIEW numbers from POC-1
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
- * Status: spec-complete
+ * TDD          : hub-v4.2 / 2026-08-18  game-camera.test.ts green
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

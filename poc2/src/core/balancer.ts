@@ -100,6 +100,18 @@ export interface LoopConfig {
   readonly sidecarHz: number
 }
 
+export interface GizmosConfig {
+  readonly gridSize: number
+  readonly gridDivisions: number
+  readonly gridColor: number
+  readonly gridY: number
+  readonly gridOpacity: number
+  readonly worldAxisSize: number
+  readonly cameraAxisSize: number
+  readonly axis: { readonly x: number; readonly y: number; readonly z: number }
+  readonly lineOpacity: number
+}
+
 export interface FollowConfig {
   readonly halfX: number
   readonly halfZ: number
@@ -131,6 +143,15 @@ export interface ShipVisualConfig {
   readonly wireframeColor: number
   readonly accentColor: number
   readonly thrusterColor: number
+}
+
+export interface ShipInventoryConfig {
+  readonly caps: {
+    readonly metalScrap: number
+    readonly prismaticCrystal: number
+    readonly denseCore: number
+    readonly darkMatter: number
+  }
 }
 
 export interface ShipHealthConfig {
@@ -246,6 +267,7 @@ export interface Balance {
     readonly follow: FollowConfig
     readonly followBox: FollowBoxConfig
     readonly visual: ShipVisualConfig
+    readonly inventory: ShipInventoryConfig
     readonly health: ShipHealthConfig
   }
   readonly camera: CameraConfig
@@ -257,6 +279,7 @@ export interface Balance {
   readonly vfx: VfxConfig
   readonly haptics: HapticsConfig
   readonly loop: LoopConfig
+  readonly gizmos: GizmosConfig
 }
 
 const PARALLAX_GAIN_UNIT = 0.015
@@ -412,6 +435,14 @@ const BALANCE_DATA: Balance = {
       accentColor: 0x6d28d9,
       thrusterColor: 0x60c5ff,
     },
+    inventory: {
+      caps: {
+        metalScrap: 999,
+        prismaticCrystal: 99,
+        denseCore: 49,
+        darkMatter: 9,
+      },
+    },
     health: {
       integrityMax: 100,
       shieldMax: 50,
@@ -525,6 +556,17 @@ const BALANCE_DATA: Balance = {
   loop: {
     maxFrameDt: 0.05,
     sidecarHz: 15,
+  },
+  gizmos: {
+    gridSize: 1000,
+    gridDivisions: 1000,
+    gridColor: 0x2b6fd8,
+    gridY: -1,
+    gridOpacity: 0,
+    worldAxisSize: 4,
+    cameraAxisSize: 2.2,
+    axis: { x: 0xff4455, y: 0x55ff77, z: 0x55aaff },
+    lineOpacity: 0.1,
   },
 }
 
