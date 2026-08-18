@@ -44,8 +44,8 @@
  * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
  * Programming  : hub-v4.1 / 2026-08-17  contract, scratch reuse, zero alloc
  * Game Design  : hub-v4.1 / 2026-08-17  decay steps = laser damage readability
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
- * Status: spec-complete
+ * TDD          : hub-v4.2 / 2026-08-17  math.test.ts green (11/11)
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

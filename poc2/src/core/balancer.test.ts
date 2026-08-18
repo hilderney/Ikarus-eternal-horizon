@@ -83,6 +83,11 @@ describe('BALANCE', () => {
     expect(BALANCE.haptics.presets.fireLaser.weakMagnitude).toBe(0.08)
   })
 
+  it('exposes loop maxFrameDt 0.05 and sidecarHz 15', () => {
+    expect(BALANCE.loop.maxFrameDt).toBe(0.05)
+    expect(BALANCE.loop.sidecarHz).toBe(15)
+  })
+
   it('treats BALANCE as a frozen object (Object.isFrozen or as const)', () => {
     expect(Object.isFrozen(BALANCE)).toBe(true)
     expect(Object.isFrozen(BALANCE.layout)).toBe(true)

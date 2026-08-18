@@ -167,6 +167,7 @@ export interface Balance {
   readonly drops: DropsConfig
   readonly vfx: VfxConfig
   readonly haptics: HapticsConfig
+  readonly loop: { readonly maxFrameDt: number; readonly sidecarHz: number }
 }
 
 export declare const BALANCE: Balance
@@ -242,6 +243,8 @@ export declare const BALANCE: Balance
  *   haptics.presets.shieldBreak = { durationMs: 180, strongMagnitude: 0.85, weakMagnitude: 0.50 }
  *   haptics.presets.destroyed   = { durationMs: 420, strongMagnitude: 1.00, weakMagnitude: 0.70 }
  *   haptics.presets.fireLaser   = { durationMs: 16,  strongMagnitude: 0.00, weakMagnitude: 0.08 }
+ *   loop.maxFrameDt             = 0.05
+ *   loop.sidecarHz              = 15
  *
  * Feel:      POC-1 motion and camera are the law. New sections must not leak into
  *            Stage A behaviour — they exist so later cards do not invent literals.
@@ -270,6 +273,7 @@ export declare const BALANCE: Balance
  *   it('exposes score and drops and vfx.shake.maxAmplitude')               // G10 F02 F05
  *   it('exposes gamepad W3C map: deadzone 0.18, RT 7, LB 4, Start 9')      // D18, A02
  *   it('exposes haptics presets shieldHit / hullHit / shieldBreak / destroyed') // D18, F05
+ *   it('exposes loop maxFrameDt 0.05 and sidecarHz 15')                    // A04, RUL-01
  *   it('treats BALANCE as a frozen object (Object.isFrozen or as const)')  // R2
  *
  * Manual:

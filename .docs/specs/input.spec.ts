@@ -49,8 +49,8 @@
  * Orchestrator : hub-v4.2 / 2026-08-17  scope, requires, DoD, D18
  * Programming  : hub-v4.2 / 2026-08-17  contract, pad poll, rumble no-op, inject
  * Game Design  : hub-v4.2 / 2026-08-17  W3C map, deadzone, trigger, haptic presets
- * TDD          : hub-v4.2 / 2026-08-17  cases named; test file not yet written (red next)
- * Status: spec-complete
+ * TDD          : hub-v4.2 / 2026-08-17  input.test.ts green (26/26)
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

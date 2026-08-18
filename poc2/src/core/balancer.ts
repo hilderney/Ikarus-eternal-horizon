@@ -95,6 +95,11 @@ export interface HapticsConfig {
   }
 }
 
+export interface LoopConfig {
+  readonly maxFrameDt: number
+  readonly sidecarHz: number
+}
+
 export interface FollowConfig {
   readonly halfX: number
   readonly halfZ: number
@@ -251,6 +256,7 @@ export interface Balance {
   readonly drops: DropsConfig
   readonly vfx: VfxConfig
   readonly haptics: HapticsConfig
+  readonly loop: LoopConfig
 }
 
 const PARALLAX_GAIN_UNIT = 0.015
@@ -515,6 +521,10 @@ const BALANCE_DATA: Balance = {
       destroyed: { durationMs: 420, strongMagnitude: 1, weakMagnitude: 0.7 },
       fireLaser: { durationMs: 16, strongMagnitude: 0, weakMagnitude: 0.08 },
     },
+  },
+  loop: {
+    maxFrameDt: 0.05,
+    sidecarHz: 15,
   },
 }
 

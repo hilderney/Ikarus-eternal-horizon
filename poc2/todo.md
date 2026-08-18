@@ -17,10 +17,10 @@ Scaffold is done. This phase is the POC-1 “feel” port: move the ship, camera
 
 - [x] Scaffold: folder tree, Vite/TS/eslint/vitest, three-area shell, `npm run verify` green
 - [x] `BALANCE` as the only source of numbers (add `ship.health`, `difficulty`, `score`, `drops`, `vfx`) · `SDD-A01` · [balancer.spec.ts](../.docs/specs/balancer.spec.ts) · **port**
-- [ ] Input: keyboard + Gamepad API (left stick / RT fire / LB switch / Start pause) + dual-rumble haptics · `SDD-A02` · [input.spec.ts](../.docs/specs/input.spec.ts) · **port** (+ `D18`)
-- [ ] Math helpers + scratch vectors (zero alloc) · `SDD-A03` · [math.spec.ts](../.docs/specs/math.spec.ts) · **new**
-- [ ] Game loop: rAF, `dt` clamp 0.05, pause gate, ~15 Hz debugger sidecar · `SDD-A04` · [game-loop.spec.ts](../.docs/specs/game-loop.spec.ts) · **new**
-- [ ] Generic `ObjectPool<T>` (exhaustion returns `null`, never allocates) · `SDD-A05` · [object-pool.spec.ts](../.docs/specs/object-pool.spec.ts) · **new**
+- [x] Input: keyboard + Gamepad API (left stick / RT fire / LB switch / Start pause) + dual-rumble haptics · `SDD-A02` · [input.spec.ts](../.docs/specs/input.spec.ts) · **port** (+ `D18`)
+- [x] Math helpers + scratch vectors (zero alloc) · `SDD-A03` · [math.spec.ts](../.docs/specs/math.spec.ts) · **new**
+- [x] Game loop: rAF, `dt` clamp 0.05, pause gate, ~15 Hz debugger sidecar · `SDD-A04` · [game-loop.spec.ts](../.docs/specs/game-loop.spec.ts) · **new**
+- [x] Generic `ObjectPool<T>` (exhaustion returns `null`, never allocates) · `SDD-A05` · [object-pool.spec.ts](../.docs/specs/object-pool.spec.ts) · **new**
 - [ ] Portrait 9:16 renderer, letterbox, relative paths · `SDD-G09` · [renderer.spec.ts](../.docs/specs/renderer.spec.ts) · **new**
 - [ ] Three-area layout `area-inputs · game-area · debugger-area`, collapse ≤760px · `SDD-G06` · [ui-areas.spec.ts](../.docs/specs/ui-areas.spec.ts) · **port**
 - [ ] Perspective camera (`YXZ`, live `applyConfig`) · `SDD-B01` · [game-camera.spec.ts](../.docs/specs/game-camera.spec.ts) · **port**

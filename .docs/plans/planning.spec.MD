@@ -285,7 +285,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-A01` Core / Balancer
 - **Folder:** `src/core/balancer.ts` (module: data only, no behavior)
-- **Scope:** the single source of numbers: `layout.playfield` (540×960 portrait), `weapons.catalog + loadout`, `gameplay` (fire/switch/**pause** keys, energy start/max/regen), `controls` (shipKeys/motion/tilt/camera/**gamepad**), `ship` (transform/follow/followBox/visual/**health**), `camera` (fov/pos/rot/near/far), `parallax.layers[]`, `thruster`, **`difficulty`**, **`score`**, **`drops`**, **`vfx`**, **`haptics`**.
+- **Scope:** the single source of numbers: `layout.playfield` (540×960 portrait), `weapons.catalog + loadout`, `gameplay` (fire/switch/**pause** keys, energy start/max/regen), `controls` (shipKeys/motion/tilt/camera/**gamepad**), `ship` (transform/follow/followBox/visual/**health**), `camera` (fov/pos/rot/near/far), `parallax.layers[]`, `thruster`, **`difficulty`**, **`score`**, **`drops`**, **`vfx`**, **`haptics`**, **`loop`**.
 - **Requires:** —
 - **Lib:** — (no dependency — data-only config)
 - **Design:** typed config namespace `BALANCE` (one interface per section); read-only at runtime except debugger-driven tuning slices.
@@ -891,10 +891,10 @@ flowchart TD
 | Gate | **G0** |
 | Hub version | 4.2.0 |
 | Reference build | POC-1 (`poc/`) — frozen, playable (not a workstream) |
-| Target build | POC2 (`poc2/`) — A01 done; A02 Input (Gamepad + haptics) next |
+| Target build | POC2 (`poc2/`) — Stage A done; B01 Camera next |
 | Phase docs | `phase-0-poc.md` (history) · `phase-0-poc2.md` (architecture) |
 | SDD specs | one file per Stage A–G card under `.docs/specs/` + `_template.spec.ts` |
 | Agents | Orchestrator · Programming/Three.js · Game Design · TDD (§6.3, `D17`) |
 | Backlog | [`poc2/todo.md`](../../poc2/todo.md) — one entry per card |
 
-**Next steps:** 1) TDD writes failing tests for `SDD-A02` from `input.spec.ts` (keyboard + Gamepad API + rumble); 2) Programming implements `InputState` until green; 3) Game Design play-checks stick-up = W and RT = Space; 4) continue A03–A05.
+**Next steps:** 1) TDD writes failing tests for `SDD-B01` Camera; 2) Programming implements until green; 3) then C01 Ship → C02 Controller for Fase 0 motion.
