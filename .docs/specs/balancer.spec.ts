@@ -35,8 +35,8 @@
  * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
  * Programming  : hub-v4.1 / 2026-08-17  contract, immutability, section interfaces
  * Game Design  : hub-v4.1 / 2026-08-17  starting values from POC-1 + new sections
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
- * Status: spec-complete
+ * TDD          : hub-v4.1 / 2026-08-17  cases named; poc2/src/core/balancer.test.ts green (8/8)
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -199,6 +199,7 @@ export declare const BALANCE: Balance
  *   score                       = { enemy: 100, meteor: 25, miniBoss: 2500, megaAsteroid: 5000, boss: 25000, noDamageStreakMul: 1.5 }
  *   drops                       = { magnetRadius: 2.5, metalScrapChance: 0.4 }
  *   vfx.shake.maxAmplitude      = 0.18
+ *   vfx.shake.decayPerSec       = 6
  *   vfx.hitStopFrames           = 3
  *
  * Feel:      POC-1 motion and camera are the law. New sections must not leak into

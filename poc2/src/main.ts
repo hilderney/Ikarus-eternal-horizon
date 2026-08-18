@@ -27,7 +27,7 @@ function bootstrap(): void {
 
   const status = document.createElement('p')
   status.className = 'scaffold-status'
-  status.textContent = 'POC2 scaffold ready — start at SDD-A01 (Balancer). See poc2/todo.md.'
+  status.textContent = 'POC2 — SDD-A01 Balancer live. Next: A03 Math / A05 ObjectPool. See poc2/todo.md.'
   gameArea.append(status)
 }
 

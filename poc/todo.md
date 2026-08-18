@@ -2,7 +2,7 @@
 
 > **This is not a roadmap.** POC-1 is frozen. This file records what the spike actually delivered and what it deliberately did not, so the port to POC2 knows exactly which behavior already exists as a reference.
 >
-> **Live backlog:** [`poc2/todo.md`](../poc2/todo.md) — one entry per SDD card.
+> **Live backlog:** [`poc2/todo.md`](../poc2/todo.md) — functional phases (same shape as this list) plus SDD card order.
 > **Build order and cards:** [`.docs/plans/planning.spec.MD`](../.docs/plans/planning.spec.MD) §5.
 > **Port map (which POC-1 file becomes which card):** the same document, §5.0.
 
