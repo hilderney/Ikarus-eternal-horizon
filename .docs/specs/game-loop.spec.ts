@@ -20,8 +20,9 @@
  *            a pause gate for G11, and a ~15 Hz debugger sidecar that does not
  *            live on the gameplay step.
  * Does not own: scene contents, render, what `step` does (G01/G03 inject it),
- *            or the debugger UI (G08). Hit-stop (F05) uses the same pause gate;
- *            this class does not know why it is paused.
+ *            the Gamepad poll (A02, ticked from G03), or the debugger UI (G08).
+ *            Hit-stop (F05) uses the same pause gate; this class does not know
+ *            why it is paused.
  * Player-facing: a hitch after a tab-switch must not fling the ship; pause
  *            must freeze the field without killing the canvas.
  */
@@ -128,6 +129,7 @@ export declare class GameLoop {
  *   R7. Memory: created-once. stop() must reach the pending rAF cancel.
  *       No GPU, no DOM. No dispose beyond stop().
  *   R8. Per-frame allocation: none.
+ *   R9. Does not call navigator.getGamepads or InputState.update (D18 / G03).
  */
 
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
@@ -185,6 +187,7 @@ export declare class GameLoop {
  *   it('does not allocate inside the frame callback')                        // R6, R8, RUL-13
  *   it('stop cancels the pending frame so step is not called after stop')    // R7
  *   it('records last timestamp on start so the first dt is not a hitch')     // port fidelity
+ *   it('does not call getGamepads (pad poll belongs to A02 via G03)')        // R9, D18
  *
  * Manual:
  *   A-manual-1. [manual] hide the tab for 2 s, return: ship must not jump
@@ -192,6 +195,6 @@ export declare class GameLoop {
  *   A-manual-2. [manual] Esc pause / unpause: field frozen, then continues
  *               with no burst (G11 play-check; gate lives here).
  *
- * Coverage: R1–R8 + card Acceptance (frame-stable; pause halts step without
+ * Coverage: R1–R9 + card Acceptance (frame-stable; pause halts step without
  *           stopping rAF) + RUL-01 + RUL-13.
  */

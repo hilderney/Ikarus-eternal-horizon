@@ -15,7 +15,7 @@
 
 // ─── 1. Scope ────────────────────────────────────────────────────────────────
 /**
- * Owns:      The Esc pause overlay on top of Run. Full-screen HTML/CSS,
+ * Owns:      The Esc **or Start** pause overlay on top of Run. Full-screen HTML/CSS,
  *            no canvas work. Gates `GameLoop.step` through A04 while keeping
  *            the Run canvas mounted. Shows a read-only inventory (resources
  *            collected this run, from C01), the equipped weapon, and hull /
@@ -25,7 +25,7 @@
  * Does not own: ending the run's scoring (G10.end), reconstructing Run
  *            (G01.next), the rAF clock reset on unpause (A04), mutating
  *            inventory (C01 / F02).
- * Player-facing: Esc that dumps the run; unpause that teleports the ship
+ * Player-facing: Esc/Start that dumps the run; unpause that teleports the ship
  *            (dt catch-up); an inventory the player cannot trust.
  */
 
@@ -34,7 +34,7 @@
  * Must match the card. A mismatch is a documentation bug.
  *
  * Upstream (must exist before this starts):
- *   SDD-A02 Input — Esc / consume so the overlay owns focus
+ *   SDD-A02 Input — isPressed('pause') / consume so the overlay owns focus
  *   SDD-A04 GameLoop — pause gate; unpause must not apply a catch-up dt
  *   SDD-C01 Ship — read-only inventory + equipped weapon
  *   SDD-G01 SceneController — attachOverlay / detachOverlay / next
@@ -48,10 +48,10 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  contract, memory, THREE / view
- * Game Design  : hub-v4.1 / 2026-08-17  BALANCE, feel, leveling, graphics
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.2 / 2026-08-17  Start + Esc pause, D18
+ * Programming  : hub-v4.2 / 2026-08-17  isPressed('pause')
+ * Game Design  : hub-v4.2 / 2026-08-17  pauseKey Escape, pad Start
+ * TDD          : hub-v4.2 / 2026-08-17  cases named; test file not yet written (red next)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
@@ -76,6 +76,7 @@ import type { InventoryRead } from './hud.spec'
 
 export interface PauseInputPort {
   isDown(code: string): boolean
+  isPressed(action: 'pause' | 'fire' | 'switchWeapon'): boolean
   consume(code: string): void
 }
 
@@ -150,9 +151,10 @@ export declare class PauseScene implements SceneOverlayPort {
  *       timestamp. This class must not inject a fake dt.
  *   R5. Inventory, weapon and hull/shield are read-only snapshots at mount
  *       (re-read on mount, never written).
- *   R6. Esc (BALANCE.scenes.pause.toggleKey) toggles pause/resume. While
- *       open, the overlay owns keyboard focus (input.consume on the toggle
- *       and action keys) so Run does not fire weapons through the menu.
+ *   R6. Esc (`BALANCE.gameplay.pauseKey`) **or** `isPressed('pause')` (Start)
+ *       toggles pause/resume. While open, the overlay owns focus
+ *       (input.consume on the toggle and action keys) so Run does not fire
+ *       weapons through the menu.
  *   R7. Restart reconstructs via G10.restart → G01.next(fresh Run). Quit
  *       ends with cause 'quit' then next(Title).
  *   R8. Memory: overlay DOM on mount, removed on dispose/resume/restart/quit.
@@ -177,8 +179,10 @@ export declare class PauseScene implements SceneOverlayPort {
 
 // ─── 4. BALANCE, feel, leveling, graphics ────────────────────────────────────
 /**
- * New keys (add to SDD-A01):
- *   BALANCE.scenes.pause.toggleKey    = 'Escape'
+ *   BALANCE.gameplay.pauseKey         = 'Escape'
+ *   BALANCE.controls.gamepad.buttons.pause = 9  // Start
+ * New keys (add to SDD-A01, scenes slice still valid for restart/quit):
+ *   BALANCE.scenes.pause.toggleKey    = 'Escape'  // alias of gameplay.pauseKey
  *   BALANCE.scenes.pause.resumeKey    = 'Escape'   // same key closes
  *   BALANCE.scenes.pause.restartKey   = 'KeyR'
  *   BALANCE.scenes.pause.quitKey      = 'KeyQ'
@@ -224,6 +228,7 @@ export declare class PauseScene implements SceneOverlayPort {
  *   it('renders metalScrap, weapon name, shield and integrity read-only')   // R5, SHIP-06
  *   it('does not mutate ship.inventory when Resume is clicked')             // R5
  *   it('Escape consumes the key and toggles resume')                        // R6
+ *   it('Start (isPressed pause) toggles resume')                            // R6, D18
  *   it('while open, fire key is consumed and does not reach Run')           // R6
  *   it('Restart calls runState.restart with a fresh Run factory')           // R7
  *   it('Quit ends the run with cause quit then next(title)')                // R7
@@ -235,7 +240,7 @@ export declare class PauseScene implements SceneOverlayPort {
  *               no position jump after a several-second wait
  *   A-manual-2. [manual] collected Metal Scrap listed on pause matches HUD
  *
- * Coverage: R1–R9 + card Acceptance (Esc freezes the field and lists
+ * Coverage: R1–R9 + card Acceptance (Esc or Start freezes the field and lists
  * resources; unpause continues the same run without a movement jump) +
- * RUL-04, SHIP-06.
+ * RUL-04, SHIP-06, D18.
  */

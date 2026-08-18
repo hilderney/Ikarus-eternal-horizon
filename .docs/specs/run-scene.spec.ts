@@ -18,9 +18,9 @@
  * Owns:      The playable run. Owns the canvas + `game-area`. Constructs and
  *            disposes camera, parallax, limit-box, gizmos (D14: scene-owned)
  *            plus the ship and every manager. Drives the body of
- *            `GameLoop.step` while mounted: update → managers → collision →
- *            syncRender → renderer.render. Wires `area-inputs` (active input
- *            map) and `debugger-area`.
+ *            `GameLoop.step` while mounted: **input.update(dt)** → update →
+ *            managers → collision → syncRender → renderer.render. Wires
+ *            `area-inputs` (active input map) and `debugger-area`.
  * Does not own: the rAF driver (A04), screen transitions (G01), HTML menus
  *            (G02/G04/G05), pause overlay markup (G11). Ending a run is G10;
  *            this scene only reacts when G10 says `over`.
@@ -33,7 +33,7 @@
  * Must match the card. A mismatch is a documentation bug.
  *
  * Upstream (must exist before this starts):
- *   Stage B — B01 GameCamera, B02 Parallax, B03 LimitBox, B04 Gizmos
+ *   SDD-A02 Input — update(dt) polled at the start of this scene's step
  *   Stage C — C01 Ship, C02 Controller, C03 ShipHealth
  *   Stage D — D01–D06 weapons / energy
  *   Stage E — E01–E07 enemies / meteors / shots / firing
@@ -54,10 +54,10 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  contract, memory, THREE / view
- * Game Design  : hub-v4.1 / 2026-08-17  BALANCE, feel, leveling, graphics
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.2 / 2026-08-17  input.update first in step, D18
+ * Programming  : hub-v4.2 / 2026-08-17  InputPort on options
+ * Game Design  : hub-v4.2 / 2026-08-17  pad map in area-inputs
+ * TDD          : hub-v4.2 / 2026-08-17  cases named; test file not yet written (red next)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
@@ -75,6 +75,7 @@ import type { UiAreasPort } from './ui-areas.spec'
 import type { GameRendererPort } from './renderer.spec'
 import type { HudPort } from './hud.spec'
 import type { RunStatePort } from './run-state.spec'
+import type { InputPort } from './input.spec'
 
 /** Disposable world object constructed by this scene (D14 + managers). */
 export interface Disposable {
@@ -127,6 +128,7 @@ export interface RunSceneOptions {
   readonly renderer: GameRendererPort
   readonly router: SceneRouter
   readonly world: RunWorldFactory
+  readonly input: Pick<InputPort, 'update'>
   readonly inputMap: InputMapPort
   /** Result scene factory — called once when runState.phase becomes 'over'. */
   readonly createResult: () => ScenePort
@@ -159,9 +161,9 @@ export declare class RunScene implements ScenePort {
  *   mount     — constructs world via factory, areas.setMode('run'), appends
  *               canvas into game-area (renderer.attach), input map into
  *               area-inputs, debugger into debugger-area
- *   update    — controllers → ship → limit-box/camera → managers → collision
- *               → damage → vfx → runState. If runState.phase === 'over',
- *               router.next(createResult()) once
+ *   update    — **input.update(dt)** → controllers → ship → limit-box/camera →
+ *               managers → collision → damage → vfx → runState. If
+ *               runState.phase === 'over', router.next(createResult()) once
  *   syncRender — every RenderSyncable then renderer.render(camera)
  *   dispose   — reverse order: hud/debugger, managers, ship, gizmos,
  *               limit-box, parallax, camera; renderer.detach canvas; input map
@@ -174,9 +176,10 @@ export declare class RunScene implements ScenePort {
  *       scene on mount and disposed by this scene on dispose. Managers do not
  *       own them.
  *   R3. `update(dt)` is logic only. GPU / transform writes wait for `syncRender`.
- *   R4. Frame order: controllers → ship → follow/limit-box → camera → parallax
- *       → energy → firing → enemy/meteor/shot managers → collision → damage
- *       → drops → vfx → runState → hud.read. Then `syncRender` then `render`.
+ *   R4. Frame order: **input.update** → controllers → ship → follow/limit-box →
+ *       camera → parallax → energy → firing → enemy/meteor/shot managers →
+ *       collision → damage → drops → vfx → runState → hud.read. Then
+ *       `syncRender` then `render`. GameLoop never polls pads.
  *   R5. When `runState.phase` becomes `'over'`, this scene calls
  *       `router.next(createResult())` exactly once (G10 ends the run; G01
  *       disposes this scene).
@@ -214,7 +217,8 @@ export declare class RunScene implements ScenePort {
  *   BALANCE.layout.playfield  = { width: 540, height: 960 }  // G09 letterbox
  *   BALANCE.camera.*          = POC-1 dynamic view            // B01
  *   BALANCE.gameplay.*        = fire/switch/energy            // D03 E07
- *   BALANCE.controls.*        = motion + tilt                 // C02
+ *   BALANCE.controls.*        = motion + tilt + gamepad           // C02 A02
+ *   BALANCE.haptics.*         = rumble presets                    // F05
  *   BALANCE.ship.*            = follow / visual / health      // C01 C03 B03
  *   BALANCE.score.*           = G10
  *   BALANCE.difficulty.*      = F03
@@ -224,7 +228,7 @@ export declare class RunScene implements ScenePort {
  *            middle. Death must cut to Result without a hitch (pillar 5).
  * Leveling:  weapon levels D02; hull levels C03 — this scene only hosts them.
  * Graphics:  canvas pixel-crisp, letterboxed; area-inputs shows the live
- *            key map (WASD / IJKL / Space / F / Esc) in the same neon chrome
+ *            key map (WASD / stick / Space+RT / F+LB / Esc+Start) in the same neon chrome
  *            as Title (`--neon` #4de2ff, monospace). No extra vignette here
  *            (F05 owns hull vignette).
  * Pillars:   1 visible risk (HUD) · 4 legibility at speed · 5 one more kill
@@ -248,6 +252,7 @@ export declare class RunScene implements ScenePort {
  *   it('mount constructs ship and every manager via factory')               // R2
  *   it('mount sets areas mode to run and attaches the canvas to game-area') // R7
  *   it('mount writes the input map into area-inputs')                       // R7
+ *   it('update calls input.update(dt) before controllers')                  // R4, D18
  *   it('update then syncRender then renderer.render on a step')             // R3, R4, RUL-01
  *   it('update does not call renderer.render')                              // R3
  *   it('when runState.phase becomes over, next(result) fires once')         // R5, RUL-03

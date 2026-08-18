@@ -16,9 +16,10 @@
 // ─── 1. Scope ────────────────────────────────────────────────────────────────
 /**
  * Owns:      The typed, read-only `BALANCE` namespace — the single source of every
- *            gameplay, camera, layout, weapon, health, difficulty, score, drop and
- *            vfx number. One interface per section. Debugger-driven tuning slices
- *            may mutate at runtime; production code only reads.
+ *            gameplay, camera, layout, weapon, health, difficulty, score, drop,
+ *            vfx, **gamepad** and **haptics** number. One interface per section.
+ *            Debugger-driven tuning slices may mutate at runtime; production code
+ *            only reads.
  * Does not own: behaviour, THREE objects, input wiring, weapon factories (those
  *            consume BALANCE). Weapon *data* lives here via the catalog import (D02).
  * Player-facing: none directly. Wrong numbers feel like a different game.
@@ -32,10 +33,10 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  contract, immutability, section interfaces
- * Game Design  : hub-v4.1 / 2026-08-17  starting values from POC-1 + new sections
- * TDD          : hub-v4.1 / 2026-08-17  cases named; poc2/src/core/balancer.test.ts green (8/8)
+ * Orchestrator : hub-v4.2 / 2026-08-17  gamepad + haptics sections (D18)
+ * Programming  : hub-v4.2 / 2026-08-17  GamepadConfig / HapticsConfig frozen
+ * Game Design  : hub-v4.2 / 2026-08-17  W3C map, deadzone 0.18, rumble presets
+ * TDD          : hub-v4.2 / 2026-08-17  cases named; balancer.test.ts extended
  * Status: done
  */
 
@@ -107,9 +108,35 @@ export interface DropsConfig {
   readonly metalScrapChance: number
 }
 
-export interface VfxConfig {
-  readonly shake: { readonly maxAmplitude: number; readonly decayPerSec: number }
-  readonly hitStopFrames: number
+export interface GamepadConfig {
+  readonly deadzone: number
+  readonly triggerThreshold: number
+  readonly invertMoveZ: boolean
+  readonly axes: { readonly moveX: number; readonly moveZ: number }
+  readonly buttons: {
+    readonly fire: number
+    readonly switchWeapon: number
+    readonly pause: number
+    readonly boost: number
+    readonly special: number
+  }
+}
+
+export interface HapticPreset {
+  readonly durationMs: number
+  readonly strongMagnitude: number
+  readonly weakMagnitude: number
+}
+
+export interface HapticsConfig {
+  readonly enabled: boolean
+  readonly presets: {
+    readonly shieldHit: HapticPreset
+    readonly hullHit: HapticPreset
+    readonly shieldBreak: HapticPreset
+    readonly destroyed: HapticPreset
+    readonly fireLaser: HapticPreset
+  }
 }
 
 export interface Balance {
@@ -117,11 +144,13 @@ export interface Balance {
   readonly gameplay: {
     readonly fireKey: string
     readonly switchKey: string
+    readonly pauseKey: string
     readonly energy: EnergyConfig
   }
   readonly controls: {
     readonly motion: MotionConfig
     readonly tilt: TiltConfig
+    readonly gamepad: GamepadConfig
   }
   readonly ship: {
     readonly health: ShipHealthConfig
@@ -137,6 +166,7 @@ export interface Balance {
   readonly score: ScoreConfig
   readonly drops: DropsConfig
   readonly vfx: VfxConfig
+  readonly haptics: HapticsConfig
 }
 
 export declare const BALANCE: Balance
@@ -154,8 +184,9 @@ export declare const BALANCE: Balance
 /**
  *   R1. Every gameplay number in poc2/src is reachable from BALANCE (RUL-12).
  *   R2. Production code treats BALANCE as read-only (except G08 tuning slices).
- *   R3. New sections required by later cards (health, difficulty, score, drops, vfx)
- *       exist in the type even if their first consumer is not yet implemented.
+ *   R3. New sections required by later cards (health, difficulty, score, drops, vfx,
+ *       gamepad, haptics) exist in the type even if their first consumer is not yet
+ *       implemented.
  *   R4. Memory: N/A — no GPU, no pool. Module-level const, created once.
  *   R5. Per-frame allocation: none.
  */
@@ -179,8 +210,12 @@ export declare const BALANCE: Balance
  *   gameplay.energy             = { start: 100, max: 100, regenPerSec: 8 }
  *   gameplay.fireKey            = 'Space'
  *   gameplay.switchKey          = 'KeyF'
+ *   gameplay.pauseKey           = 'Escape'
  *   controls.motion             = { maxSpeed: 12, accel: 60, decel: 60, brake: 120 }
  *   controls.tilt               = { axis: 'z', sign: -1, maxDeg: 22, riseMs: 150, fallMs: 200 }
+ *   controls.gamepad            = { deadzone: 0.18, triggerThreshold: 0.35, invertMoveZ: false,
+ *                                   axes { moveX: 0, moveZ: 1 },
+ *                                   buttons { fire: 7, switchWeapon: 4, pause: 9, boost: 6, special: 0 } }
  *   camera                      = { fov: 85, position {3,14,6}, rotation {-55,24,-14}, near: 5, far: 10000 }
  *   ship.follow                 = { halfX: 6, halfZ: 8, bounce.timeMs: 500, recenter delay 1500 / still 800 / accel 3 / maxSpeed 12 }
  *   ship.visual                 = { size {1.5,1,2}, wireframe 0x22d3ee, accent 0x6d28d9, thruster 0x60c5ff }
@@ -201,6 +236,12 @@ export declare const BALANCE: Balance
  *   vfx.shake.maxAmplitude      = 0.18
  *   vfx.shake.decayPerSec       = 6
  *   vfx.hitStopFrames           = 3
+ *   haptics.enabled             = true
+ *   haptics.presets.shieldHit   = { durationMs: 40,  strongMagnitude: 0.12, weakMagnitude: 0.35 }
+ *   haptics.presets.hullHit     = { durationMs: 80,  strongMagnitude: 0.45, weakMagnitude: 0.28 }
+ *   haptics.presets.shieldBreak = { durationMs: 180, strongMagnitude: 0.85, weakMagnitude: 0.50 }
+ *   haptics.presets.destroyed   = { durationMs: 420, strongMagnitude: 1.00, weakMagnitude: 0.70 }
+ *   haptics.presets.fireLaser   = { durationMs: 16,  strongMagnitude: 0.00, weakMagnitude: 0.08 }
  *
  * Feel:      POC-1 motion and camera are the law. New sections must not leak into
  *            Stage A behaviour — they exist so later cards do not invent literals.
@@ -227,6 +268,8 @@ export declare const BALANCE: Balance
  *   it('exposes ship.health with four speedMul slots')                     // R3, C03
  *   it('exposes difficulty milestones 50 / 100 / 500')                     // F03
  *   it('exposes score and drops and vfx.shake.maxAmplitude')               // G10 F02 F05
+ *   it('exposes gamepad W3C map: deadzone 0.18, RT 7, LB 4, Start 9')      // D18, A02
+ *   it('exposes haptics presets shieldHit / hullHit / shieldBreak / destroyed') // D18, F05
  *   it('treats BALANCE as a frozen object (Object.isFrozen or as const)')  // R2
  *
  * Manual:

@@ -37,7 +37,7 @@
  *   SDD-F01 CollisionManager — HitPair stream
  *
  * Downstream (who breaks if this contract changes):
- *   SDD-F05 VfxManager  — listens to events
+ *   SDD-F05 VfxManager  — listens to events (bursts, shake, rumble)
  *   SDD-G07 HUD         — bar flicker
  *   SDD-G10 RunState    — killed / destroyed (only G10 ends a run)
  *   SDD-F02 DropManager — killed enemy/meteor

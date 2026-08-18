@@ -31,9 +31,7 @@ npm run verify     # all three — the gate every card must pass (hub §6.1)
 
 ## State
 
-Scaffold only. The folder tree, the configs and the three-area shell exist; **no gameplay card is implemented yet**. `src/main.ts` is a walking skeleton that asserts the three structural areas and nothing more.
-
-Start at **`SDD-A01`** (Balancer) and follow the build order in the hub §5 / the graph in §10.
+**`SDD-A01` Balancer is done.** Next playable slice is **`SDD-A02` Input** (keyboard + Gamepad API + dual-rumble, `D18`). `src/main.ts` is still a walking skeleton until G01/G03. Follow the build order in the hub §5 / the graph in §10.
 
 ---
 

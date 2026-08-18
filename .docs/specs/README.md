@@ -49,4 +49,4 @@ POC-1 is frozen. These specs describe **`poc2/` only**.
 | G10 | [run-state.spec.ts](./run-state.spec.ts) | `poc2/src/systems/run-state.test.ts` |
 | G11 | [pause-scene.spec.ts](./pause-scene.spec.ts) | `poc2/src/scenes/pause-scene.test.ts` |
 
-Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Implementation starts at A01: TDD writes the failing test, then Programming implements.
+Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. A01 is **done**. Next implementation is A02 (keyboard + Gamepad API + haptics, `D18`): TDD writes the failing test, then Programming implements.

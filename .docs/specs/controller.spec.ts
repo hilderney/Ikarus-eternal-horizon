@@ -3,7 +3,7 @@
  *
  * Card:         SDD-C02 PlayerController + CameraController
  * Hub:          .docs/plans/planning.spec.MD §5 (card) · §6.1 (DoD) · §6.3 (agents)
- * Requirements: SHIP-01, SHIP-04 (Q07 pointer deferred)
+ * Requirements: SHIP-01, SHIP-13 (POC2 play), SHIP-04 (Q07 pointer deferred)
  * Change type:  split
  * POC-1 origin: poc/src/systems/controllers.ts  — frozen reference
  * Test file:    poc2/src/gameobjects/controller/controller.test.ts
@@ -16,12 +16,14 @@
 // ─── 1. Scope ────────────────────────────────────────────────────────────────
 /**
  * Owns:      Input → force mapping for the ship and the debug camera.
- *            PlayerController: axis force (accel/decel/brake, maxSpeed) and
- *            tilt/bank on rotation.z. CameraController: IJKL/UO translation
- *            and Shift+IJKL/UO rotation.
+ *            PlayerController: analog axis force (accel/decel/brake, maxSpeed)
+ *            from `InputPort.axis('moveX'|'moveZ')` and tilt/bank on rotation.z.
+ *            CameraController: IJKL/UO translation and Shift+IJKL/UO rotation
+ *            (keyboard debug rig — not a pad camera).
  * Does not own: InputState wiring (A02), GameCamera object (B01), Ship mesh
  *            (C01), why motion is slower (C03) — it only reads speedMul/accelMul.
  *            Fire/switch (E07). Pointer control (SHIP-04) is deferred (Q07).
+ *            Deadzone / stick invert (A02).
  * Player-facing: the POC-1 inertia and bank. Wrong accel/brake/tilt feels like
  *            a different game. Camera keys are a debug rig, not combat control.
  */
@@ -31,8 +33,8 @@
  * Must match the card. A mismatch is a documentation bug.
  *
  * Upstream (must exist before this starts):
- *   SDD-A01 Balancer  — BALANCE.controls.motion / tilt / camera / shipKeys
- *   SDD-A02 Input     — isDown(code), including synthetic Shift+KeyX
+ *   SDD-A01 Balancer  — BALANCE.controls.motion / tilt / camera / shipKeys / gamepad
+ *   SDD-A02 Input     — axis('moveX'|'moveZ'), isDown(code) including Shift+KeyX
  *   SDD-A03 Math      — clamp / integration helpers; no per-frame alloc
  *   SDD-B01 Camera    — pose the CameraController writes (position/rotation deg)
  *   SDD-C01 Ship      — applyTransform target
@@ -45,10 +47,10 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  contract, memory, THREE / view
- * Game Design  : hub-v4.1 / 2026-08-17  BALANCE, feel, leveling, graphics
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.2 / 2026-08-17  analog axes, D18
+ * Programming  : hub-v4.2 / 2026-08-17  axis() dir, no pad knowledge
+ * Game Design  : hub-v4.2 / 2026-08-17  stick-up = W, analog scales accel
+ * TDD          : hub-v4.2 / 2026-08-17  cases named; test file not yet written (red next)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
@@ -69,6 +71,7 @@
 /** Port owned by SDD-A02. Copied so this spec is self-contained. */
 export interface InputPort {
   isDown(code: string): boolean
+  axis(id: 'moveX' | 'moveZ'): number
 }
 
 /** Port owned by SDD-C03. Injected — PlayerController never imports ShipHealth. */
@@ -177,9 +180,12 @@ export declare class CameraController {
  *
  * Non-obvious — PlayerController:
  *   Pre:  dt in seconds, clamped by A04 upstream.
- *   Axis: dir = (plus?1:0) - (minus?1:0) ∈ {-1,0,1}.
+ *   Axis: dirX = input.axis('moveX'), dirZ = input.axis('moveZ') ∈ [−1, 1].
+ *         A02 already merged stick + keyboard; this class does not read shipKeys
+ *         for motion (shipKeys remain on the options bag for debug dumps only).
  *   Force: if dir==0 → coastToZero(decel); else if braking against velocity
- *          → brake; else accel. Then pushVelocity capped at effective maxSpeed.
+ *          → brake * |dir|; else accel * |dir|. Then pushVelocity capped at
+ *          effective maxSpeed. Analog magnitude scales accel/brake.
  *   effective maxSpeed = motion.maxSpeed * modifiers.speedMul
  *   effective accel    = motion.accel    * modifiers.accelMul
  *   brake/decel are NOT multiplied (hub: maxSpeed/accel only).
@@ -209,6 +215,8 @@ export declare class CameraController {
  *       moveSpeed 12, rotSpeed 45. No mode toggle — ship and camera coexist.
  *   R8. Pointer/mouse ship control is out of scope (Q07 deferred). No pointer
  *       branch in either class.
+ *   R11. Motion dirs come from axis(), not from isDown(shipKeys). Stick and
+ *        keyboard already coexist inside A02 (R9 there). |dir| scales accel.
  *   R9. Memory: no GPU. Per-frame allocation: none (no new Vector3).
  *   R10. dispose() drops input references; nothing to free on GPU.
  */
@@ -260,7 +268,7 @@ export declare class CameraController {
  *            Controller has no hull-level table.
  * Graphics:  N/A — tilt is presented by C01.
  * Pillars:   playable pillar fragment "move on X/Y". Q07: pointer deferred;
- *            keyboard-only in POC2 (SHIP-04 should, not must, this gate).
+ *            keyboard + left stick in POC2 (D18). Pointer stays Q07.
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -284,6 +292,8 @@ export declare class CameraController {
  *   it('settles tilt back to 0 in 200ms when input is released')                   // R5
  *   it('writes transform.position.x/z and does not write y')                       // R6, SHIP-01
  *   it('has no pointer or mouse code path')                                        // R8, Q07
+ *   it('uses axis moveX/moveZ rather than isDown of shipKeys')                     // R11, D18
+ *   it('half-stick (|axis|=0.5) accelerates at half of accel 60')                  // R11 analog
  *   it('update(dt) allocates no objects')                                          // R9
  *
  * describe('CameraController')
@@ -296,5 +306,5 @@ export declare class CameraController {
  *   A-manual-1. [manual] WASD inertia + bank matches POC-1 by eye
  *   A-manual-2. [manual] IJKL/UO + Shift combos frame the ship without stealing WASD
  *
- * Coverage: R1–R10 + card Acceptance (POC-1 inertia + bank preserved) + Q07.
+ * Coverage: R1–R11 + card Acceptance (POC-1 inertia + bank preserved) + Q07 + D18.
  */

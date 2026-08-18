@@ -34,6 +34,6 @@ A spec with an empty agent section is incomplete. `N/A` is allowed; blank is not
 - Spec before code. Tests before implementation.
 - `interface` + `class`, one public class per `kebab-case.ts`.
 - `update(dt)` = logic; `syncRender()` = transforms/opacity/material only.
-- Gameplay numbers only in `BALANCE` (`RUL-12`).
+- Gameplay numbers only in `BALANCE` (`RUL-12`). Gamepad indices, deadzone, trigger threshold and haptic presets live in `BALANCE.controls.gamepad` and `BALANCE.haptics` (`D18`). No third-party pad library.
 - Zero per-frame allocation on hot paths.
 - `npm run verify` in `poc2/` must be green before Orchestrator marks done.

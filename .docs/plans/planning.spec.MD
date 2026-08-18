@@ -12,10 +12,14 @@
 #tag/difficulty #tag/ranking #tag/survivor #tag/craft
 #tag/g0 #tag/g1 #tag/g2 #tag/g3
 
-**Version:** 4.1.0 · **Status:** active (POC2 SDD hub — multi-agent, TDD-backed)
+**Version:** 4.2.0 · **Status:** active (POC2 SDD hub — multi-agent, TDD-backed)
 **Purpose:** the single planning document for **POC2** (`poc2/`). It transposes the design from [`README.md`](../../README.md) (public GDD) and the architecture contract from [`phase-0-poc2.md`](../phases/phase-0-poc2.md). Organized **by subject** and in **logical build order**, ready to generate per-subject SDD+TDD specs (`.docs/specs/{subject}.spec.ts`) and the backlog in [`poc2/todo.md`](../../poc2/todo.md). **POC-1 (`poc/`) is frozen and is not planned here** — it is cited only as a behavior/tuning reference.
 **Sources:** README.md · [`phase-0-poc2.md`](../phases/phase-0-poc2.md) · poc/README.md (frozen feel reference only)
-**Supersedes:** hub v4.0.0.
+**Supersedes:** hub v4.1.0.
+
+**What changed in 4.2.0:**
+- **Gamepad API + dual-rumble haptics** ship in POC2 (`D18`). `SDD-A02` polls `navigator.getGamepads()`, maps the W3C standard layout, and owns `rumble()`. Persistent remap stays G3 (`SHIP-13`).
+- `BALANCE.controls.gamepad` and `BALANCE.haptics` added to A01. C02 reads analog axes; E07 reads the fire trigger; F04/F05 call haptic presets.
 
 **What changed in 4.1.0:**
 - This hub is **POC2-only**. POC-1 is a frozen reference, not a workstream.
@@ -131,7 +135,7 @@ IDs are **stable and never renumbered**. Origin of the definitions is `.docs/pla
 | `SHIP-01` | G0 | must | Ship game object with X/Y motion and light inertia | Moves inside playfield bounds, never leaves the frame | `C01` `C02` |
 | `SHIP-02` | G0 | must | Simple Integrity + destruction | Enough damage ends the run | `C03` `G10` |
 | `SHIP-03` | G0 | must | Laser fire wired to the projectile pool | Shots leave the ship and remove enemies | `D01` `D02` `E07` |
-| `SHIP-04` | G0 | should | Alternative pointer control | Mouse moves the ship without breaking the keyboard | `A02` `C02` (Q07) |
+| `SHIP-04` | G0 | should | Alternative pointer control | Mouse moves the ship without breaking the keyboard | `A02` `C02` (Q07 deferred) |
 | `SHIP-05` | G1 | must | Force Field absorbs before Integrity | Shield bar drains first; hull only after it hits zero | `C03` |
 | `SHIP-06` | G1 | must | Minimal inventory with Metal Scrap | Collected resource shows in the UI | `C01` `F02` `G11` |
 | `SHIP-07` | G1 | must | Repair in the CraftSlot consuming Metal Scrap | Integrity rises when the craft completes | §7 craft |
@@ -140,7 +144,7 @@ IDs are **stable and never renumbered**. Origin of the definitions is `.docs/pla
 | `SHIP-10` | G2 | must | Equipment slots applying effects | Equipping changes the matching attribute | §7 `EQP-` |
 | `SHIP-11` | G2 | must | Tech tree with the 3 branches | Spent points change run stats | §7 |
 | `SHIP-12` | G2 | must | Hull damage levels applying penalties | Level 1/2/3 degrades motion and fire | `C03` |
-| `SHIP-13` | G3 | must | Full gamepad with persistent remap | Full run on the pad; remap survives restart | §7 |
+| `SHIP-13` | G3 | must | Persistent gamepad remap + Steam Input | Remap survives restart; Steam Deck checklist | §7 remap. **POC2 play** = `A02` `C02` `E07` (`D18`) |
 
 **`WPN-` — weapons and shots** (`weapons-plan.spec.MD`)
 
@@ -281,7 +285,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-A01` Core / Balancer
 - **Folder:** `src/core/balancer.ts` (module: data only, no behavior)
-- **Scope:** the single source of numbers: `layout.playfield` (540×960 portrait), `weapons.catalog + loadout`, `gameplay` (fire/switch keys, energy start/max/regen), `controls` (shipKeys/motion/tilt/camera), `ship` (transform/follow/followBox/visual/**health**), `camera` (fov/pos/rot/near/far), `parallax.layers[]`, `thruster`, **`difficulty`**, **`score`**, **`drops`**, **`vfx`**.
+- **Scope:** the single source of numbers: `layout.playfield` (540×960 portrait), `weapons.catalog + loadout`, `gameplay` (fire/switch/**pause** keys, energy start/max/regen), `controls` (shipKeys/motion/tilt/camera/**gamepad**), `ship` (transform/follow/followBox/visual/**health**), `camera` (fov/pos/rot/near/far), `parallax.layers[]`, `thruster`, **`difficulty`**, **`score`**, **`drops`**, **`vfx`**, **`haptics`**.
 - **Requires:** —
 - **Lib:** — (no dependency — data-only config)
 - **Design:** typed config namespace `BALANCE` (one interface per section); read-only at runtime except debugger-driven tuning slices.
@@ -290,12 +294,12 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-A02` Core / Input
 - **Folder:** `src/core/input.ts`
-- **Scope:** central input state: keyboard + pointer; controlled `preventDefault` list; `blur` clears; Shift combos synthesize `Shift+KeyX` codes (camera rotation on Shift+IJKL/UO) without key-map conflict.
-- **Class:** `InputState` — `{ isDown(code): boolean; consume/capture for UI (optional) }`, module-level singleton + factory.
-- **Requires:** —
-- **Lib:** — (no dependency — pure TS event wiring)
-- **Rules:** simultaneous ship+camera control (no mode toggle); combos never shadow the base key.
-- **Maps:** `SHIP-01`, `SHIP-04` (Q07). **Acceptance:** WASD + IJKL + Shift+IJKL co-exist.
+- **Scope:** central input state for **keyboard + Gamepad API**. Keyboard: controlled `preventDefault` list; `blur` clears; Shift combos synthesize `Shift+KeyX` (camera rotation on Shift+IJKL/UO) without key-map conflict. Gamepad: poll `navigator.getGamepads()` once per `update(dt)` (W3C **standard** mapping); analog sticks after deadzone; analog triggers as buttons above threshold. **Haptics:** `rumble(preset)` → `GamepadHapticActuator.playEffect('dual-rumble', …)` on the active pad (`vibrationActuator`). Pointer stays out (Q07). Persistent remap stays G3 (`SHIP-13`).
+- **Class:** `InputState implements InputPort` — `{ update(dt); isDown(code); axis(id); isPressed(action); rumble(preset); connectedPadCount; dispose() }`. Gamepad source and haptic actuator injected for tests.
+- **Requires:** A01 (gamepad + haptics numbers).
+- **Lib:** — (browser **Gamepad API** + `GamepadHapticActuator`; no third-party pad library)
+- **Rules:** keyboard and gamepad coexist (no mode toggle); combos never shadow the base key; rumble no-ops when no actuator (keyboard-only); `playEffect` may preempt an in-flight effect; no per-frame allocation.
+- **Maps:** `SHIP-01`, `SHIP-13` (POC2 play slice), `SHIP-04` (Q07). **Acceptance:** WASD + IJKL + Shift+IJKL co-exist; left stick moves the ship; RT fires; a shield-hit preset rumbles when an actuator is present.
 
 #### `SDD-A03` Core / Math
 - **Folder:** `src/core/math.ts`
@@ -307,7 +311,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-A04` Core / GameLoop
 - **Folder:** `src/core/loop.ts`
-- **Scope:** `GameLoop` class: rAF driver, `dt` clamp (`MAX_FRAME_DT = 0.05`), one pluggable `step(dt)` per active scene; start/stop; **pause gate** (`G11`); sync-sidecar hook for debugger throttled sync (~15Hz).
+- **Scope:** `GameLoop` class: rAF driver, `dt` clamp (`MAX_FRAME_DT = 0.05`), one pluggable `step(dt)` per active scene; start/stop; **pause gate** (`G11`); sync-sidecar hook for debugger throttled sync (~15Hz). Does **not** poll the Gamepad API — `InputState.update(dt)` runs inside Run `step` (`G03`).
 - **Requires:** —
 - **Rules:** never allocates; scene stepping owns pausable runs.
 - **Lib:** — (no dependency — rAF + `performance.now`)
@@ -373,11 +377,11 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-C02` Controller
 - **Folder:** `src/gameobjects/controller/`
-- **Scope:** `class PlayerController` maps inputs to ship commands — axis-based force motion (`accel`/`decel`/`brake`, `maxSpeed`), tilt/bank (`rotation.z`, `maxDeg`, `riseMs`/`fallMs`). `class CameraController` maps IJKL/UO + Shift combos to camera move/rot (`moveSpeed`/`rotSpeed`).
+- **Scope:** `class PlayerController` maps inputs to ship commands — axis-based force motion (`accel`/`decel`/`brake`, `maxSpeed`), tilt/bank (`rotation.z`, `maxDeg`, `riseMs`/`fallMs`). Analog **left stick** (`InputPort.axis('moveX'|'moveZ')`) and keyboard WASD **coexist**: stick wins when `|axis| > 0` after deadzone. `class CameraController` stays keyboard (IJKL/UO + Shift) — debug rig, not a pad camera.
 - **Requires:** A01, A02, A03, B01, C01.
 - **Lib:** — (no dependency — input→force mapping; Three.js vectors for integration)
 - **Rules:** ship control is continuous force; tilt ramps in `riseMs`, settles in `fallMs`; **effective `maxSpeed`/`accel` read the degradation multiplier from `C03`** — the controller never knows why it is slower.
-- **Maps:** `SHIP-01`, `SHIP-04` (Q07). **Acceptance:** the tuned feel of POC-1 (inertia + bank) is preserved.
+- **Maps:** `SHIP-01`, `SHIP-13` (POC2 play), `SHIP-04` (Q07). **Acceptance:** the tuned feel of POC-1 (inertia + bank) is preserved on keyboard; left stick produces the same force curve after deadzone.
 
 #### `SDD-C03` ShipHealth (Force Field · Integrity · degradation)
 - **Folder:** `src/gameobjects/ship/ship-health.ts`
@@ -492,10 +496,10 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-E07` FiringManager
 - **Folder:** `src/systems/firing-manager.ts`
-- **Scope:** input fire → active weapon `.update({ dt, holding, muzzle, services { energy, targets }, mods })`; weapon switch (cyclic + selector); constructs/owns the active `Weapon`. Applies `fireRateMul` from `C03`.
+- **Scope:** input fire → active weapon `.update({ dt, holding, muzzle, services { energy, targets }, mods })`; `holding` is `isPressed('fire')` (Space **or** RT). Weapon switch is `isPressed('switchWeapon')` edge (F **or** LB). Constructs/owns the active `Weapon`. Applies `fireRateMul` from `C03`. Does not call `rumble('fireLaser')` for Laser (Q13).
 - **Requires:** A01, A02, C01, C03, D02, D03, F01.
 - **Lib:** — (no dependency — behavior wiring; Three.js vectors only)
-- **Maps:** `WPN-03`, `WPN-05`, `SHIP-03`, `SHIP-12`. **Acceptance:** Space fires; F/selector switches; energy gate respected; a damaged hull visibly slows the cadence.
+- **Maps:** `WPN-03`, `WPN-05`, `SHIP-03`, `SHIP-12`, `SHIP-13` (POC2 play). **Acceptance:** Space or RT (`isPressed('fire')`) fires; F or LB switches; energy gate respected; a damaged hull visibly slows the cadence.
 
 ---
 
@@ -542,11 +546,11 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-F05` VfxManager
 - **Folder:** `src/systems/vfx-manager.ts`
-- **Scope:** `class VfxManager` — pooled feedback for the events `F04` emits: wireframe explosion bursts (enemy/meteor/ship), hit flash on the target, screen shake with a hard intensity cap, hit-stop of a few frames on major impacts, damage vignette on hull hits.
-- **Requires:** A01, A03, A04, A05, F04.
+- **Scope:** `class VfxManager` — pooled feedback for the events `F04` emits: wireframe explosion bursts (enemy/meteor/ship), hit flash on the target, screen shake with a hard intensity cap, hit-stop of a few frames on major impacts, damage vignette on hull hits, and **`InputPort.rumble(preset)`** for shield/hull/break/destroyed (`D18`). F04 emits only; this class is the rumble consumer.
+- **Requires:** A01, A02, A03, A04, A05, F04.
 - **Lib:** **Three.js** (pooled `Points`/`LineSegments` bursts) + **HTML/CSS** (vignette overlay)
 - **Rules:** every particle is pooled — an explosion allocates nothing; shake never exceeds the readability cap (`BALANCE.vfx.shake.maxAmplitude`); hit-stop is applied by `A04`'s pause gate, never by sleeping.
-- **Maps:** `RUL-13`. **Acceptance:** killing an enemy shows a burst with no GC spike; worst case (Mega + full wave) stays frame-stable and readable.
+- **Maps:** `RUL-13`. **Acceptance:** killing an enemy shows a burst with no GC spike; a shield-hit rumble plays when an actuator is present; worst case (Mega + full wave) stays frame-stable and readable.
 
 ---
 
@@ -572,7 +576,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 #### `SDD-G02` TitleScene · `SDD-G03` RunScene · `SDD-G04` ResultScene · `SDD-G05` RankingsScene
 - **Folders:** `src/scenes/{title,run,result,rankings}-scene.ts`
 - **Title/Result/Rankings:** full-page HTML/CSS screens that **organize the three areas** (menu-driven layout); no canvas logic. Result reads the run summary from `G10`.
-- **Run:** owns the canvas + `game-area`; **constructs and disposes** camera/parallax/limit-box/gizmos (`D13`) plus ship and all managers; wires `area-inputs` (active input map) and `debugger-area`; runs the `GameLoop.step`.
+- **Run:** owns the canvas + `game-area`; **constructs and disposes** camera/parallax/limit-box/gizmos (`D13`) plus ship and all managers; wires `area-inputs` (active input map) and `debugger-area`; runs the `GameLoop.step`. **`step` starts with `input.update(dt)`** so pad axes/buttons are fresh before C02/E07.
 - **Requires:** B–F stages + G06–G07 (Run); G08 (debug in Run only); G10 (Result).
 - **Lib:** Title/Result/Rankings — **HTML/CSS**; Run — **Three.js** (canvas game) + **HTML/CSS** (layout areas)
 - **Maps:** `RUL-01`, `RUL-03`. **Acceptance:** a full cycle Title→Run→Result→Rankings→Title is navigable with no leaked object between scenes.
@@ -618,11 +622,11 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-G11` PauseScene + Inventory
 - **Folder:** `src/scenes/pause-scene.ts`
-- **Scope:** `class PauseScene` — Esc opens a full-screen HTML/CSS overlay **on top of the Run**, gating `GameLoop.step` through `A04` while keeping the canvas mounted. Shows the read-only inventory (resources collected this run, from `C01`), the equipped weapon and the hull/shield state; Resume, Restart and Quit-to-Title actions routed through `G01`/`G10`. The CraftSlot surface is declared here and filled in §7.
+- **Scope:** `class PauseScene` — Esc **or Start** (`isPressed('pause')`) opens a full-screen HTML/CSS overlay **on top of the Run**, gating `GameLoop.step` through `A04` while keeping the canvas mounted. Shows the read-only inventory (resources collected this run, from `C01`), the equipped weapon and the hull/shield state; Resume, Restart and Quit-to-Title actions routed through `G01`/`G10`. The CraftSlot surface is declared here and filled in §7.
 - **Requires:** A02, A04, C01, G01, G06, G10.
 - **Lib:** **HTML/CSS** (overlay) — no canvas work
 - **Rules:** pause never disposes the Run scene; unpausing resumes the exact same frame state (no dt catch-up burst); the overlay owns keyboard focus while open.
-- **Maps:** `RUL-04`, `SHIP-06`. **Acceptance:** Esc freezes the field and lists the collected resources; unpausing continues the same run without a movement jump.
+- **Maps:** `RUL-04`, `SHIP-06`, `SHIP-13` (POC2 play). **Acceptance:** Esc or Start freezes the field and lists the collected resources; unpausing continues the same run without a movement jump.
 
 ---
 
@@ -709,7 +713,7 @@ Declared for naming/traceability; detailed cards arrive in later phases:
 - **Audio** — **Howler**-based SFX/music/stingers + radio waveform HUD, post-G1.
 - **Assets** — low-poly neon art pipeline.
 - **Survivor mode** — one-shot from scratch (`D16`).
-- **Gamepad + settings persistence** — `SHIP-13`, `RUL-14`.
+- **Gamepad remap + settings persistence** — user-facing remap UI and Steam Input (`SHIP-13` remainder, `RUL-14`). Default W3C mapping and dual-rumble already ship in `A02` (`D18`).
 - **Narrative delivery** — Bounty Board, AI narrator, sector bands, flavor text (GDD §7/§8.2/§12) — `LORE-`, `BNTY-`, G2 scope.
 
 ## 8. Conventions
@@ -744,15 +748,18 @@ Declared for naming/traceability; detailed cards arrive in later phases:
 | **D15** | Folder name is **`limit-box/`**; the POC-1 `followBox`/`followCamera` names are retired and merged into one `LimitBox` class. *(closes Q05)* | `B03`, tree |
 | **D16** | **Survivor v1 = craft 100% off**, no repair path: base hull and shield, Laser only, no inherited inventory, no contracts. *(closes Q06)* | §7 survivor |
 | **D17** | **SDD + TDD, multi-agent.** Spec before code; TDD writes failing tests before Programming implements. Four agents (Orchestrator, Programming/Three.js, Game Design, TDD) own disjoint spec sections (§6.3). POC-1 is never a workstream. | specs, tests, all cards |
+| **D18** | **Gamepad API + dual-rumble haptics in POC2.** `InputState` polls `navigator.getGamepads()` (W3C standard mapping) and plays `GamepadHapticActuator.playEffect('dual-rumble')`. Keyboard and pad coexist; no mode toggle. Pointer stays Q07. Persistent remap / Steam Input stay G3 (`SHIP-13`). | `A02`, `C02`, `E07`, `F05`, `G11`, A01 BALANCE |
 
 ### Open questions
 | # | Question | Owner | Blocks |
 |---|---|---|---|
-| Q07 | Does pointer control (`SHIP-04`, *should*) ship in POC2 or defer to G1? POC-1 is keyboard-only. | `A02`/`C02` | no |
+| Q07 | Does pointer control (`SHIP-04`, *should*) ship in POC2 or defer to G1? POC-1 is keyboard-only. Gamepad is **in** (`D18`). | `A02`/`C02` | no |
 | Q08 | Exact hull degradation thresholds and multipliers (`C03`) — placeholder 100–75 / 75–50 / 50–25 / <25 with `speedMul` 1/0.85/0.7/0.5. | `C03` | no — tune at first playtest |
 | Q09 | Does the debugger panel (`G08`) + gizmos (`B04`) ship in the Itch build, or behind a `import.meta.env.DEV` flag? | `G08`/`G09` | before `RUL-08` |
 | Q10 | Local persistence for the best score (`RUL-07`): `localStorage` inside `G10`, or a dedicated §7 persistence subject? | `G10` | before G1 |
 | Q11 | Does `F05` own the screen shake, or does `B01` (camera) apply it? Proposal: `F05` computes the offset, `B01` applies it. | `F05`/`B01` | no |
+| Q12 | Invert left-stick Y (`BALANCE.controls.gamepad.invertMoveZ`)? Default **false**: W3C axis 1 up = −1, which already matches C02 dir (−Z = W = forward). Set true for inverted flight. | `A02`/`C02` | no |
+| Q13 | Rumble on every laser pulse vs only on shield/hull events? Default: **hits + shield-break + destroyed**; fire rumble is a preset that E07 skips for Laser. F05 consumes rumble, F04 only emits. | `A02`/`E07`/`F05` | no |
 
 ## 10. Build-order graph
 
@@ -813,6 +820,7 @@ flowchart TD
     G11[G11 Pause + Inventory]
   end
 
+  A01 --> A02
   A01 --> B01
   A03 --> B01
   B01 --> B02
@@ -840,6 +848,7 @@ flowchart TD
   E02 --> E06
   D02 --> E07
   C03 --> E07
+  A02 --> E07
   A03 --> F01
   D01 --> F01
   E01 --> F01
@@ -847,6 +856,7 @@ flowchart TD
   F01 --> F04
   C03 --> F04
   F04 --> F05
+  A02 --> F05
   A04 --> F05
   A05 --> F05
   F04 --> G10
@@ -863,6 +873,7 @@ flowchart TD
   G10 --> G07
   G06 --> G07
   G10 --> G11
+  A02 --> G11
   A04 --> G11
   G06 --> G01
   G07 --> G03
@@ -878,12 +889,12 @@ flowchart TD
 | Field | Value |
 |---|---|
 | Gate | **G0** |
-| Hub version | 4.1.0 |
+| Hub version | 4.2.0 |
 | Reference build | POC-1 (`poc/`) — frozen, playable (not a workstream) |
-| Target build | POC2 (`poc2/`) — scaffolded, Stage A pending |
+| Target build | POC2 (`poc2/`) — A01 done; A02 Input (Gamepad + haptics) next |
 | Phase docs | `phase-0-poc.md` (history) · `phase-0-poc2.md` (architecture) |
 | SDD specs | one file per Stage A–G card under `.docs/specs/` + `_template.spec.ts` |
 | Agents | Orchestrator · Programming/Three.js · Game Design · TDD (§6.3, `D17`) |
 | Backlog | [`poc2/todo.md`](../../poc2/todo.md) — one entry per card |
 
-**Next steps:** 1) TDD writes failing tests for `SDD-A01`–`SDD-A05` from the specs; 2) Programming implements Balancer, Input, Math, GameLoop, ObjectPool until green; 3) Game Design signs the BALANCE numbers against the frozen POC-1 feel; 4) Orchestrator ticks Stage A when §6.1 holds.
+**Next steps:** 1) TDD writes failing tests for `SDD-A02` from `input.spec.ts` (keyboard + Gamepad API + rumble); 2) Programming implements `InputState` until green; 3) Game Design play-checks stick-up = W and RT = Space; 4) continue A03–A05.

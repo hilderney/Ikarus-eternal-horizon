@@ -51,9 +51,43 @@ describe('BALANCE', () => {
     expect(BALANCE.vfx.hitStopFrames).toBe(3)
   })
 
+  it('exposes gamepad W3C map: deadzone 0.18, RT 7, LB 4, Start 9', () => {
+    expect(BALANCE.gameplay.pauseKey).toBe('Escape')
+    expect(BALANCE.controls.gamepad.deadzone).toBe(0.18)
+    expect(BALANCE.controls.gamepad.triggerThreshold).toBe(0.35)
+    expect(BALANCE.controls.gamepad.invertMoveZ).toBe(false)
+    expect(BALANCE.controls.gamepad.axes).toEqual({ moveX: 0, moveZ: 1 })
+    expect(BALANCE.controls.gamepad.buttons).toEqual({
+      fire: 7,
+      switchWeapon: 4,
+      pause: 9,
+      boost: 6,
+      special: 0,
+    })
+  })
+
+  it('exposes haptics presets shieldHit / hullHit / shieldBreak / destroyed', () => {
+    expect(BALANCE.haptics.enabled).toBe(true)
+    expect(BALANCE.haptics.presets.shieldHit).toEqual({
+      durationMs: 40,
+      strongMagnitude: 0.12,
+      weakMagnitude: 0.35,
+    })
+    expect(BALANCE.haptics.presets.hullHit).toEqual({
+      durationMs: 80,
+      strongMagnitude: 0.45,
+      weakMagnitude: 0.28,
+    })
+    expect(BALANCE.haptics.presets.shieldBreak.durationMs).toBe(180)
+    expect(BALANCE.haptics.presets.destroyed.strongMagnitude).toBe(1)
+    expect(BALANCE.haptics.presets.fireLaser.weakMagnitude).toBe(0.08)
+  })
+
   it('treats BALANCE as a frozen object (Object.isFrozen or as const)', () => {
     expect(Object.isFrozen(BALANCE)).toBe(true)
     expect(Object.isFrozen(BALANCE.layout)).toBe(true)
     expect(Object.isFrozen(BALANCE.ship.health)).toBe(true)
+    expect(Object.isFrozen(BALANCE.controls.gamepad)).toBe(true)
+    expect(Object.isFrozen(BALANCE.haptics.presets.shieldHit)).toBe(true)
   })
 })

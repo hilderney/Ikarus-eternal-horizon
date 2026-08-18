@@ -3,7 +3,7 @@
  *
  * Card:         SDD-E07 FiringManager
  * Hub:          .docs/plans/planning.spec.MD §5 (card) · §6.1 (DoD) · §6.3 (agents)
- * Requirements: WPN-03, WPN-05, SHIP-03, SHIP-12
+ * Requirements: WPN-03, WPN-05, SHIP-03, SHIP-12, SHIP-13 (POC2 play)
  * Change type:  class-ify
  * POC-1 origin: poc/src/systems/firing.ts  — frozen reference
  * Test file:    poc2/src/systems/firing-manager.test.ts
@@ -18,11 +18,14 @@
  * Owns:      Input → fire. Constructs and owns the active `Weapon` via the D02
  *            registry seam (D12): FiringManager consumes the registry, never owns
  *            it. Cyclic + selector switch. Energy gate via D03. Applies `fireRateMul`
- *            from C03 into weapon mods. Space fires; F switches.
+ *            from C03 into weapon mods. `isPressed('fire')` (Space or RT) fires;
+ *            `isPressed('switchWeapon')` (F or LB) switches. Does not rumble Laser
+ *            pulses (Q13).
  * Does not own: weapon catalog/registry (D02), energy pool arithmetic (D03), shot
- *            pools (E04), collision (F01), hull math (C03 — only reads fireRateMul).
- * Player-facing: holding Space shoots; F cycles weapons without stalling fire;
- *            empty Energy clicks dry; a wounded hull shoots slower (SHIP-12).
+ *            pools (E04), collision (F01), hull math (C03 — only reads fireRateMul),
+ *            haptics (F05).
+ * Player-facing: holding Space or RT shoots; F or LB cycles weapons without stalling
+ *            fire; empty Energy clicks dry; a wounded hull shoots slower (SHIP-12).
  */
 
 // ─── 8. Requires ─────────────────────────────────────────────────────────────
@@ -30,8 +33,8 @@
  * Must match the card. A mismatch is a documentation bug.
  *
  * Upstream (must exist before this starts):
- *   SDD-A01 Balancer     — fireKey Space, switchKey KeyF, loadout
- *   SDD-A02 Input        — isDown(code)
+ *   SDD-A01 Balancer     — fireKey Space, switchKey KeyF, loadout, gamepad buttons
+ *   SDD-A02 Input        — isPressed('fire' | 'switchWeapon')
  *   SDD-C01 Ship         — muzzle / position
  *   SDD-C03 ShipHealth   — modifiers.fireRateMul
  *   SDD-D02 Weapon+Laser — registry, Weapon.update(ctx)
@@ -46,10 +49,10 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  D12 consume-registry, mods.rateMul, energy gate
- * Game Design  : hub-v4.1 / 2026-08-17  Space/F, cadence vs hull fireRateMul
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.2 / 2026-08-17  isPressed fire/switch, D18
+ * Programming  : hub-v4.2 / 2026-08-17  D12 consume-registry, no fireLaser rumble
+ * Game Design  : hub-v4.2 / 2026-08-17  Space/RT hold, F/LB edge
+ * TDD          : hub-v4.2 / 2026-08-17  cases named; test file not yet written (red next)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
@@ -70,6 +73,7 @@ export type WeaponId = 'laser' | 'plasma' | 'beam' | 'mjolnir'
 
 export interface InputPort {
   isDown(code: string): boolean
+  isPressed(action: 'fire' | 'switchWeapon'): boolean
 }
 
 export interface EnergyPort {
@@ -144,14 +148,12 @@ export declare class FiringManager {
  *   field      | type     | meaning / unit / range
  *   -----------|----------|-----------------------
  *   mods       | WeaponModifiers | rateMul overwritten each update from C03
- *   loadout    | WeaponId[] | BALANCE.weapons.loadout; F cycles this, not the full catalog
- *   fireKey    | string   | BALANCE.gameplay.fireKey = 'Space'
- *   switchKey  | string   | BALANCE.gameplay.switchKey = 'KeyF'
+ *   loadout    | WeaponId[] | BALANCE.weapons.loadout; F/LB cycles this, not the full catalog
  *
- *   update — edge-detect switchKey (was-up, now-down) → cycleWeapon.
+ *   update — edge-detect isPressed('switchWeapon') (was-up, now-down) → cycleWeapon.
  *            muzzle = ship.position + weapon.config.muzzleOffset (scratch vec, no alloc).
  *            mods.rateMul = health.modifiers.fireRateMul.
- *            weapon.update({ dt, holding: isDown(fireKey), muzzle, services, mods }).
+ *            weapon.update({ dt, holding: isPressed('fire'), muzzle, services, mods }).
  *            Energy gate is inside the behaviour via EnergyPort — this class does not
  *            duplicate canAfford, but must pass the port (WPN-05).
  *   setActive / cycleWeapon — dispose previous Weapon, registry.create(next). D12.
@@ -160,8 +162,10 @@ export declare class FiringManager {
 
 // ─── 5. Rules and invariants ─────────────────────────────────────────────────
 /**
- *   R1. Space (fireKey) while holding calls weapon.update with holding=true.
- *   R2. KeyF (switchKey) edge-triggers cycleWeapon; holding F does not spin the loadout.
+ *   R1. isPressed('fire') while holding calls weapon.update with holding=true
+ *       (Space and RT both satisfy this via A02).
+ *   R2. isPressed('switchWeapon') edge-triggers cycleWeapon; holding F/LB does
+ *       not spin the loadout.
  *   R3. cycleWeapon / setActive dispose the previous Weapon and create via registry.
  *   R4. setActive ignores ids not in loadout; does not throw.
  *   R5. Each update writes mods.rateMul from C03 fireRateMul (SHIP-12). No other
@@ -177,6 +181,7 @@ export declare class FiringManager {
  *   R10. Does not call CollisionManager.update — E04/F01 own that (POC-1 firing.ts
  *        did; this is the deliberate split).
  *   R11. loadout of length 1: switch is a no-op.
+ *   R12. Does not call rumble('fireLaser') for Laser (Q13).
  */
 
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
@@ -195,15 +200,17 @@ export declare class FiringManager {
 // ─── 4. BALANCE, feel, leveling, graphics ────────────────────────────────────
 /**
  * Port from POC-1 / A01 — do not retune:
- *   BALANCE.gameplay.fireKey            = 'Space'
- *   BALANCE.gameplay.switchKey          = 'KeyF'
+ *   BALANCE.gameplay.fireKey            = 'Space'   // A02 maps to action 'fire'
+ *   BALANCE.gameplay.switchKey          = 'KeyF'    // A02 maps to action 'switchWeapon'
+ *   BALANCE.controls.gamepad.buttons.fire          = 7  // RT
+ *   BALANCE.controls.gamepad.buttons.switchWeapon  = 4  // LB
  *   BALANCE.weapons.loadout             = ['laser']   // G0; plasma joins D04/WPN-03
  *   BALANCE.gameplay.energy             = { start: 100, max: 100, regenPerSec: 8 }
  *   BALANCE.ship.health.fireRateMul     = [1, 0.9, 0.75, 0.55]  // hull 0/1/2/3
  *   Laser catalog (D02): rate 8, energyPerShot 0.25, damage 1
  *
- * Feel:      POC-1 firing is the law. Space is continuous hold-to-fire, not tap.
- *            F is a clean swap — the next weapon speaks immediately at its own
+ * Feel:      POC-1 firing is the law. Space **or RT** is continuous hold-to-fire, not tap.
+ *            F **or LB** is a clean swap — the next weapon speaks immediately at its own
  *            cadence. Hull degradation is felt as a slower stream, not a jam.
  * Leveling:  weapon level is D02 LASER_LEVELS; hull level is C03. This card only
  *            multiplies rate. Energy cost is D03 × catalog.
@@ -224,7 +231,10 @@ export declare class FiringManager {
  *
  * describe('FiringManager')
  *   it('holding Space calls weapon.update with holding true')                         // R1, SHIP-03
+ *   it('holding RT (isPressed fire) calls weapon.update with holding true')           // R1, D18
  *   it('KeyF edge cycles the loadout once per press')                                 // R2, WPN-03
+ *   it('LB edge cycles the loadout once per press')                                   // R2, D18
+ *   it('does not call rumble fireLaser on a Laser pulse')                             // R12, Q13
  *   it('cycleWeapon disposes the previous weapon and registry.creates the next')      // R3
  *   it('setActive ignores an id outside the loadout')                                 // R4
  *   it('copies health.modifiers.fireRateMul into mods.rateMul every update')          // R5, SHIP-12
@@ -244,5 +254,5 @@ export declare class FiringManager {
  * Manual:
  *   A-manual-1. [manual] hull level 3 fire stream is obviously slower than level 0
  *
- * Coverage: R1–R11 + WPN-03 + WPN-05 + SHIP-03 + SHIP-12 + card Acceptance + port.
+ * Coverage: R1–R12 + WPN-03 + WPN-05 + SHIP-03 + SHIP-12 + SHIP-13 + card Acceptance + port.
  */

@@ -64,6 +64,37 @@ export interface CameraControlConfig {
   readonly keys: CameraKeysConfig
 }
 
+export interface GamepadConfig {
+  readonly deadzone: number
+  readonly triggerThreshold: number
+  readonly invertMoveZ: boolean
+  readonly axes: { readonly moveX: number; readonly moveZ: number }
+  readonly buttons: {
+    readonly fire: number
+    readonly switchWeapon: number
+    readonly pause: number
+    readonly boost: number
+    readonly special: number
+  }
+}
+
+export interface HapticPreset {
+  readonly durationMs: number
+  readonly strongMagnitude: number
+  readonly weakMagnitude: number
+}
+
+export interface HapticsConfig {
+  readonly enabled: boolean
+  readonly presets: {
+    readonly shieldHit: HapticPreset
+    readonly hullHit: HapticPreset
+    readonly shieldBreak: HapticPreset
+    readonly destroyed: HapticPreset
+    readonly fireLaser: HapticPreset
+  }
+}
+
 export interface FollowConfig {
   readonly halfX: number
   readonly halfZ: number
@@ -191,6 +222,7 @@ export interface Balance {
   readonly gameplay: {
     readonly fireKey: string
     readonly switchKey: string
+    readonly pauseKey: string
     readonly energy: EnergyConfig
   }
   readonly controls: {
@@ -198,6 +230,7 @@ export interface Balance {
     readonly motion: MotionConfig
     readonly tilt: TiltConfig
     readonly camera: CameraControlConfig
+    readonly gamepad: GamepadConfig
   }
   readonly ship: {
     readonly transform: {
@@ -217,6 +250,7 @@ export interface Balance {
   readonly score: ScoreConfig
   readonly drops: DropsConfig
   readonly vfx: VfxConfig
+  readonly haptics: HapticsConfig
 }
 
 const PARALLAX_GAIN_UNIT = 0.015
@@ -277,6 +311,7 @@ const BALANCE_DATA: Balance = {
   gameplay: {
     fireKey: 'Space',
     switchKey: 'KeyF',
+    pauseKey: 'Escape',
     energy: {
       start: 100,
       max: 100,
@@ -319,6 +354,19 @@ const BALANCE_DATA: Balance = {
         rotZMinus: 'Shift+KeyO',
         rotYPlus: 'Shift+KeyJ',
         rotYMinus: 'Shift+KeyL',
+      },
+    },
+    gamepad: {
+      deadzone: 0.18,
+      triggerThreshold: 0.35,
+      invertMoveZ: false,
+      axes: { moveX: 0, moveZ: 1 },
+      buttons: {
+        fire: 7,
+        switchWeapon: 4,
+        pause: 9,
+        boost: 6,
+        special: 0,
       },
     },
   },
@@ -457,6 +505,16 @@ const BALANCE_DATA: Balance = {
   vfx: {
     shake: { maxAmplitude: 0.18, decayPerSec: 6 },
     hitStopFrames: 3,
+  },
+  haptics: {
+    enabled: true,
+    presets: {
+      shieldHit: { durationMs: 40, strongMagnitude: 0.12, weakMagnitude: 0.35 },
+      hullHit: { durationMs: 80, strongMagnitude: 0.45, weakMagnitude: 0.28 },
+      shieldBreak: { durationMs: 180, strongMagnitude: 0.85, weakMagnitude: 0.5 },
+      destroyed: { durationMs: 420, strongMagnitude: 1, weakMagnitude: 0.7 },
+      fireLaser: { durationMs: 16, strongMagnitude: 0, weakMagnitude: 0.08 },
+    },
   },
 }
 

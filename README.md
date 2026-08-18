@@ -198,16 +198,16 @@ Enemy chatter and allied radio traffic exist specifically to sell how insane Ika
 
 ### 5.1 Control Scheme
 
-| Action | Keyboard | Mouse |
-|---|---|---|
-| Movement | WASD or arrows | Pointer follow |
-| Jet / thruster | J | — |
-| Switch weapon | K | Scroll |
-| Primary fire | L | Right click |
-| Special Ordnance | — | Left click |
-| Pause (inventory / craft / skills) | Esc | — |
+| Action | Keyboard (POC2 play) | Gamepad (W3C standard, POC2) | Mouse |
+|---|---|---|---|
+| Movement | WASD | Left stick (axes 0/1, deadzone 0.18) | Pointer follow (Q07 deferred) |
+| Jet / thruster | reserved (`SHIP-08`) | LT (button 6) | — |
+| Switch weapon | F | LB (button 4) | Scroll |
+| Primary fire | Space | RT (button 7, analog threshold 0.35) | Right click |
+| Special Ordnance | — | South / A (button 0) | Left click |
+| Pause (inventory / craft / skills) | Esc | Start (button 9) | — |
 
-Gamepad support (Xbox, PlayStation, Steam Deck) with remapping ships in **G3**: left stick moves, right trigger fires, bumper switches weapon, left trigger boosts, face button launches the special.
+Keyboard and gamepad **coexist** — no mode toggle (`D18`). Dual-rumble haptics play on shield hit, hull hit, shield break and ship destroy (`BALANCE.haptics`). Persistent remap and Steam Input stay **G3** (`SHIP-13`). Long-term GDD keys (J / K / L) remain a later remap, not the POC2 default.
 
 ### 5.2 HUD
 
@@ -545,7 +545,7 @@ Four product gates, each shipping a playable vertical slice.
 | **G0** Vertical Slice | Local playable prototype | X/Y movement, pooled Laser, one enemy, simple health, score, death and restart, wireframe visuals |
 | **G1** Itch Prototype | Web build on Itch.io | `index.html` at root with relative paths and responsive canvas, Force Field vs Integrity, Metal Scrap repair in the CraftSlot, asteroid drops, local best score, essential audio, pooled bullets and particles |
 | **G2** Professional Build | Full product | Complete bestiary, 50/100/500 milestones, Mega Asteroid, Boss General, full arsenal and Special Ordnance, Energy economy, Survivor mode, low-poly neon art, event audio, **Bounty Board contracts, AI Narrator/Ikarus voice lines, sector band staging, item flavor text**, balance numbers locked |
-| **G3** Steam 1.0 | Publishable PC build | Steam runtime, gamepad with remapping, 8 leaderboards, 15–30 achievements, Steam Cloud, store assets, Steam Deck checklist |
+| **G3** Steam 1.0 | Publishable PC build | Steam runtime, **gamepad remap** + Steam Input (play + rumble already in G0/`D18`), 8 leaderboards, 15–30 achievements, Steam Cloud, store assets, Steam Deck checklist |
 
 **Ordering rule:** never start required work for the next gate while the current one is incomplete, aside from short technical spikes. Narrative-delivery systems (HUD storytelling, contracts, flavor text) are explicitly G2 scope — G0/G1 stay mechanical so the core loop gets validated before it gets dressed.
 

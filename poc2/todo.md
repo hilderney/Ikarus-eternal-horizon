@@ -17,7 +17,7 @@ Scaffold is done. This phase is the POC-1 “feel” port: move the ship, camera
 
 - [x] Scaffold: folder tree, Vite/TS/eslint/vitest, three-area shell, `npm run verify` green
 - [x] `BALANCE` as the only source of numbers (add `ship.health`, `difficulty`, `score`, `drops`, `vfx`) · `SDD-A01` · [balancer.spec.ts](../.docs/specs/balancer.spec.ts) · **port**
-- [ ] Input: keyboard state, `blur` clear, `Shift+KeyX` combos, WASD + IJKL simultaneous · `SDD-A02` · [input.spec.ts](../.docs/specs/input.spec.ts) · **port**
+- [ ] Input: keyboard + Gamepad API (left stick / RT fire / LB switch / Start pause) + dual-rumble haptics · `SDD-A02` · [input.spec.ts](../.docs/specs/input.spec.ts) · **port** (+ `D18`)
 - [ ] Math helpers + scratch vectors (zero alloc) · `SDD-A03` · [math.spec.ts](../.docs/specs/math.spec.ts) · **new**
 - [ ] Game loop: rAF, `dt` clamp 0.05, pause gate, ~15 Hz debugger sidecar · `SDD-A04` · [game-loop.spec.ts](../.docs/specs/game-loop.spec.ts) · **new**
 - [ ] Generic `ObjectPool<T>` (exhaustion returns `null`, never allocates) · `SDD-A05` · [object-pool.spec.ts](../.docs/specs/object-pool.spec.ts) · **new**
@@ -43,7 +43,7 @@ POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real r
 - [ ] Tune cadence / speed / energy from `BALANCE` only (no literals in fire code) · `SDD-A01` / `SDD-D02`
 - [ ] Energy pool gates every shot; regen; fire blocks at 0 · `SDD-D03` · [energy-manager.spec.ts](../.docs/specs/energy-manager.spec.ts) · **port**
 - [ ] Weapon device + Laser + L1–L10 (`totalShots = level`) + registry seam · `SDD-D02` · [weapon.spec.ts](../.docs/specs/weapon.spec.ts) · **port**
-- [ ] Space fires; `F` / selector switches weapon · `SDD-E07` · [firing-manager.spec.ts](../.docs/specs/firing-manager.spec.ts) · **port**
+- [ ] Space or RT fires; `F` or LB switches weapon · `SDD-E07` · [firing-manager.spec.ts](../.docs/specs/firing-manager.spec.ts) · **port** (+ `D18`)
 - [ ] Shot manager owns pools by origin · `SDD-E04` · [shot-manager.spec.ts](../.docs/specs/shot-manager.spec.ts) · **new**
 - [ ] Collision by layers (matrix is data; no friendly fire) · `SDD-F01` · [collision-manager.spec.ts](../.docs/specs/collision-manager.spec.ts) · **port**
 - [ ] Ship hitbox on layer `Player` · `SDD-C01` / `SDD-F01`
@@ -51,7 +51,7 @@ POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real r
 - [ ] Force Field absorbs first; Integrity only after shield is 0 · `SDD-C03` · [ship-health.spec.ts](../.docs/specs/ship-health.spec.ts) · **new**
 - [ ] Slow shield regen after `regenDelayMs` with no hits · `SDD-C03`
 - [ ] DamageResolver is the only `applyDamage` caller · `SDD-F04` · [damage-resolver.spec.ts](../.docs/specs/damage-resolver.spec.ts) · **new**
-- [ ] Hit feedback: flash, shake cap, shield-hit vs hull-hit (sfx later) · `SDD-F05` · [vfx-manager.spec.ts](../.docs/specs/vfx-manager.spec.ts) · **new**
+- [ ] Hit feedback: flash, shake cap, shield-hit vs hull-hit, dual-rumble presets (sfx later) · `SDD-F05` · [vfx-manager.spec.ts](../.docs/specs/vfx-manager.spec.ts) · **new** (+ `D18`)
 
 **Fase 1 done when:** holding Space drains Energy, bolts fade with range, a hit eats the shield before the hull.
 
@@ -161,12 +161,12 @@ Out of POC2 scope (hub §7, `EQP-`, `SHIP-10`).
 
 ## Fase 10 — Pausa com inventário
 
-- [ ] Esc pauses the field without disposing the Run (no dt catch-up on resume) · `SDD-G11` · [pause-scene.spec.ts](../.docs/specs/pause-scene.spec.ts) · **new**
+- [ ] Esc or Start pauses the field without disposing the Run (no dt catch-up on resume) · `SDD-G11` · [pause-scene.spec.ts](../.docs/specs/pause-scene.spec.ts) · **new** (+ `D18`)
 - [ ] Inventory: resources collected this run (read-only) · `SDD-G11` / `SDD-C01`
 - [ ] Equipped weapon + hull/shield state on the overlay · `SDD-G11`
 - [ ] Resume / Restart / Quit to title · `SDD-G11` / `SDD-G01` / `SDD-G10`
 
-**Fase 10 done when:** Esc freezes the fight, lists scrap, and unpausing continues the same run.
+**Fase 10 done when:** Esc or Start freezes the fight, lists scrap, and unpausing continues the same run.
 
 ---
 
