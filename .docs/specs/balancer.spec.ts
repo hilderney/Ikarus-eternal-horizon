@@ -1,0 +1,236 @@
+/**
+ * #tag/arch #tag/memory
+ *
+ * Card:         SDD-A01 Balancer
+ * Hub:          .docs/plans/planning.spec.MD §5 (card) · §6.1 (DoD) · §6.3 (agents)
+ * Requirements: RUL-12
+ * Change type:  port (+ type each section as an interface)
+ * POC-1 origin: poc/src/core/balancer.ts + poc/src/core/weaponsCatalog.ts  — frozen reference
+ * Test file:    poc2/src/core/balancer.test.ts
+ */
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AGENT: Orchestrator
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─── 1. Scope ────────────────────────────────────────────────────────────────
+/**
+ * Owns:      The typed, read-only `BALANCE` namespace — the single source of every
+ *            gameplay, camera, layout, weapon, health, difficulty, score, drop and
+ *            vfx number. One interface per section. Debugger-driven tuning slices
+ *            may mutate at runtime; production code only reads.
+ * Does not own: behaviour, THREE objects, input wiring, weapon factories (those
+ *            consume BALANCE). Weapon *data* lives here via the catalog import (D02).
+ * Player-facing: none directly. Wrong numbers feel like a different game.
+ */
+
+// ─── 8. Requires ─────────────────────────────────────────────────────────────
+/**
+ * Upstream: none.
+ * Downstream: every other card. A01 is the base of the graph.
+ */
+
+// ─── 9. Agent sign-off ───────────────────────────────────────────────────────
+/**
+ * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
+ * Programming  : hub-v4.1 / 2026-08-17  contract, immutability, section interfaces
+ * Game Design  : hub-v4.1 / 2026-08-17  starting values from POC-1 + new sections
+ * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Status: spec-complete
+ */
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AGENT: Programming / Three.js
+// ═════════════════════════════════════════════════════════════════════════════
+
+export interface Vec3Params {
+  readonly x: number
+  readonly y: number
+  readonly z: number
+}
+
+export interface PlayfieldLayout {
+  readonly width: number
+  readonly height: number
+}
+
+export interface EnergyConfig {
+  readonly start: number
+  readonly max: number
+  readonly regenPerSec: number
+}
+
+export interface MotionConfig {
+  readonly maxSpeed: number
+  readonly accel: number
+  readonly decel: number
+  readonly brake: number
+}
+
+export interface TiltConfig {
+  readonly axis: 'y' | 'z'
+  readonly sign: 1 | -1
+  readonly maxDeg: number
+  readonly riseMs: number
+  readonly fallMs: number
+}
+
+export interface ShipHealthConfig {
+  readonly integrityMax: number
+  readonly shieldMax: number
+  readonly shieldRegenPerSec: number
+  readonly regenDelayMs: number
+  readonly hullThresholds: readonly [number, number, number]
+  readonly speedMul: readonly [number, number, number, number]
+  readonly accelMul: readonly [number, number, number, number]
+  readonly fireRateMul: readonly [number, number, number, number]
+}
+
+export interface DifficultyConfig {
+  readonly miniBossAt: number
+  readonly megaAsteroidAt: number
+  readonly bossAt: number
+  readonly spawnRateMulPerKill: number
+}
+
+export interface ScoreConfig {
+  readonly enemy: number
+  readonly meteor: number
+  readonly miniBoss: number
+  readonly megaAsteroid: number
+  readonly boss: number
+  readonly noDamageStreakMul: number
+}
+
+export interface DropsConfig {
+  readonly magnetRadius: number
+  readonly metalScrapChance: number
+}
+
+export interface VfxConfig {
+  readonly shake: { readonly maxAmplitude: number; readonly decayPerSec: number }
+  readonly hitStopFrames: number
+}
+
+export interface Balance {
+  readonly layout: { readonly playfield: PlayfieldLayout }
+  readonly gameplay: {
+    readonly fireKey: string
+    readonly switchKey: string
+    readonly energy: EnergyConfig
+  }
+  readonly controls: {
+    readonly motion: MotionConfig
+    readonly tilt: TiltConfig
+  }
+  readonly ship: {
+    readonly health: ShipHealthConfig
+  }
+  readonly camera: {
+    readonly fov: number
+    readonly position: Vec3Params
+    readonly rotation: Vec3Params
+    readonly near: number
+    readonly far: number
+  }
+  readonly difficulty: DifficultyConfig
+  readonly score: ScoreConfig
+  readonly drops: DropsConfig
+  readonly vfx: VfxConfig
+}
+
+export declare const BALANCE: Balance
+
+// ─── 3. Key fields and methods ───────────────────────────────────────────────
+/**
+ *   BALANCE            | Balance | the singleton namespace
+ *   BALANCE.weapons    | catalog + loadout | imported from D02 catalog.ts
+ *
+ * No methods. Data only. Debugger writes go through typed setters later (G08),
+ * never by reaching into nested objects from gameplay code.
+ */
+
+// ─── 5. Rules and invariants ─────────────────────────────────────────────────
+/**
+ *   R1. Every gameplay number in poc2/src is reachable from BALANCE (RUL-12).
+ *   R2. Production code treats BALANCE as read-only (except G08 tuning slices).
+ *   R3. New sections required by later cards (health, difficulty, score, drops, vfx)
+ *       exist in the type even if their first consumer is not yet implemented.
+ *   R4. Memory: N/A — no GPU, no pool. Module-level const, created once.
+ *   R5. Per-frame allocation: none.
+ */
+
+// ─── 6. View / syncRender ────────────────────────────────────────────────────
+/**
+ * Visual:      N/A — no visual
+ * Inheritance: N/A (pure data)
+ * syncRender writes: N/A
+ * Scene ownership: N/A
+ */
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AGENT: Game Design
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─── 4. BALANCE, feel, leveling, graphics ────────────────────────────────────
+/**
+ * Port from POC-1 (do not retune until a playtest says so):
+ *   layout.playfield            = { width: 540, height: 960 }  // portrait 9:16
+ *   gameplay.energy             = { start: 100, max: 100, regenPerSec: 8 }
+ *   gameplay.fireKey            = 'Space'
+ *   gameplay.switchKey          = 'KeyF'
+ *   controls.motion             = { maxSpeed: 12, accel: 60, decel: 60, brake: 120 }
+ *   controls.tilt               = { axis: 'z', sign: -1, maxDeg: 22, riseMs: 150, fallMs: 200 }
+ *   camera                      = { fov: 85, position {3,14,6}, rotation {-55,24,-14}, near: 5, far: 10000 }
+ *   ship.follow                 = { halfX: 6, halfZ: 8, bounce.timeMs: 500, recenter delay 1500 / still 800 / accel 3 / maxSpeed 12 }
+ *   ship.visual                 = { size {1.5,1,2}, wireframe 0x22d3ee, accent 0x6d28d9, thruster 0x60c5ff }
+ *   weapons.loadout             = ['laser'] initially; catalog holds all four
+ *
+ * New sections (placeholders, Q08 owns the hull curve):
+ *   ship.health.integrityMax    = 100
+ *   ship.health.shieldMax       = 50
+ *   ship.health.shieldRegenPerSec = 2
+ *   ship.health.regenDelayMs    = 1500
+ *   ship.health.hullThresholds  = [0.75, 0.50, 0.25]
+ *   ship.health.speedMul        = [1, 0.85, 0.7, 0.5]
+ *   ship.health.accelMul        = [1, 0.85, 0.7, 0.5]
+ *   ship.health.fireRateMul     = [1, 0.9, 0.75, 0.55]
+ *   difficulty                  = { miniBossAt: 50, megaAsteroidAt: 100, bossAt: 500, spawnRateMulPerKill: 0.002 }
+ *   score                       = { enemy: 100, meteor: 25, miniBoss: 2500, megaAsteroid: 5000, boss: 25000, noDamageStreakMul: 1.5 }
+ *   drops                       = { magnetRadius: 2.5, metalScrapChance: 0.4 }
+ *   vfx.shake.maxAmplitude      = 0.18
+ *   vfx.hitStopFrames           = 3
+ *
+ * Feel:      POC-1 motion and camera are the law. New sections must not leak into
+ *            Stage A behaviour — they exist so later cards do not invent literals.
+ * Leveling:  weapon levels live in D02 `LASER_LEVELS`; hull levels live in C03.
+ * Graphics:  playfield 540×960; ship cyan/indigo; laser 0x22d3ee. Pillar 4 (legibility).
+ * Pillars:   all six — this file is the numeric spine.
+ */
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AGENT: TDD
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─── 7. Acceptance → executable cases ────────────────────────────────────────
+/**
+ * File: poc2/src/core/balancer.test.ts
+ * Runner: vitest
+ * Mocks: none — import BALANCE
+ *
+ * describe('BALANCE')
+ *   it('exposes a portrait playfield of 540×960')                          // RUL-12, layout
+ *   it('exposes energy start=max=100 and regenPerSec=8')                   // POC-1 port
+ *   it('exposes motion maxSpeed=12, accel=60, brake=120')                  // feel
+ *   it('exposes dynamic camera fov=85 at {3,14,6} / {-55,24,-14}')         // B01 numbers
+ *   it('exposes ship.health with four speedMul slots')                     // R3, C03
+ *   it('exposes difficulty milestones 50 / 100 / 500')                     // F03
+ *   it('exposes score and drops and vfx.shake.maxAmplitude')               // G10 F02 F05
+ *   it('treats BALANCE as a frozen object (Object.isFrozen or as const)')  // R2
+ *
+ * Manual:
+ *   A-manual-1. [manual] grep poc2/src for numeric literals with gameplay meaning
+ *               outside balancer.ts / catalog.ts / laser-levels.ts — must be empty.
+ *
+ * Coverage: R1–R5 + card Acceptance ("every tuned number is reachable from BALANCE").
+ */

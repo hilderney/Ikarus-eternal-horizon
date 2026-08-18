@@ -12,10 +12,16 @@
 #tag/difficulty #tag/ranking #tag/survivor #tag/craft
 #tag/g0 #tag/g1 #tag/g2 #tag/g3
 
-**Version:** 4.0.0 · **Status:** active (SDD-ready build hub for POC2)
-**Purpose:** the single planning document for Ikarus: Eternal Horizon. It transposes the design from [`README.md`](../../README.md) (public GDD), the as-built facts of [`poc/README.md`](../../poc/README.md) (POC-1, frozen), and the architecture contract from [`phase-0-poc2.md`](../phases/phase-0-poc2.md). Organized **by subject** and in **logical build order**, ready to generate per-subject SDD specs (`.docs/specs/{subject}.spec.ts`) and the backlog in [`poc2/todo.md`](../../poc2/todo.md).
-**Sources:** README.md · poc/README.md · [`phase-0-poc.md`](../phases/phase-0-poc.md) · [`phase-0-poc2.md`](../phases/phase-0-poc2.md)
-**Supersedes:** hub v3.0.0.
+**Version:** 4.1.0 · **Status:** active (POC2 SDD hub — multi-agent, TDD-backed)
+**Purpose:** the single planning document for **POC2** (`poc2/`). It transposes the design from [`README.md`](../../README.md) (public GDD) and the architecture contract from [`phase-0-poc2.md`](../phases/phase-0-poc2.md). Organized **by subject** and in **logical build order**, ready to generate per-subject SDD+TDD specs (`.docs/specs/{subject}.spec.ts`) and the backlog in [`poc2/todo.md`](../../poc2/todo.md). **POC-1 (`poc/`) is frozen and is not planned here** — it is cited only as a behavior/tuning reference.
+**Sources:** README.md · [`phase-0-poc2.md`](../phases/phase-0-poc2.md) · poc/README.md (frozen feel reference only)
+**Supersedes:** hub v4.0.0.
+
+**What changed in 4.1.0:**
+- This hub is **POC2-only**. POC-1 is a frozen reference, not a workstream.
+- New **§6.3 Multi-agent SDD** — four named agents (Orchestrator, Programming/Three.js, Game Design, TDD) own distinct sections of every spec; implementation is gated on all four sign-offs.
+- Spec template is SDD **and** TDD: contract first, failing tests second, code third (`D17`).
+- Every Stage A–G card now has a filled `.docs/specs/{subject}.spec.ts`.
 
 **What changed in 4.0.0** (read this if you knew v3):
 - New **§0** separates *as-built POC-1* from *target POC2* — v3 described the target tree as if it already existed.
@@ -620,26 +626,28 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 ---
 
-## 6. SDD generation contract
+## 6. SDD generation contract (POC2 only)
 
-- One **SDD spec per subject**: `.docs/specs/{subject}.spec.ts` (kebab-case, e.g. `weapon-shot.spec.ts`), generated from the card + implemented interface, following [`_template.spec.ts`](../specs/_template.spec.ts).
-- **Spec template:** `scope` → `contract (interface)` → `key fields/methods` → `BALANCE data` → `rules/invariants` → `view/syncRender` → `acceptance` → `requires (upstream cards)`.
+- One **SDD+TDD spec per subject**: `.docs/specs/{subject}.spec.ts` (kebab-case, e.g. `weapon-shot.spec.ts`), generated from the card, following [`_template.spec.ts`](../specs/_template.spec.ts).
+- **Spec shape:** Orchestrator (scope/requires/DoD) → Programming (contract/lifecycle/memory) → Game Design (BALANCE/feel/leveling/graphics) → TDD (failing tests named before code).
 - **Order is a gate:** a subject's implementation starts only after its **requires** list exists (foundation → presentation). Deviations only by short technical spike (≤2 days).
 - **IDs:** `SDD-{stage}{nn}` stable; never renumber, extend only.
 - **Goal:** every Stage A–G card yields exactly one spec; §7 subjects enter the same pipeline when planned.
+- **POC-1 is out of this pipeline.** Do not open a spec, a task, or a PR against `poc/`. Port fidelity is a test assertion, not a workstream.
 
 ### 6.1 Definition of Done (per card)
 
 A card is done only when **all** of these hold. This is the checklist a task copies verbatim.
 
-1. **Spec exists** — `.docs/specs/{subject}.spec.ts` written from the card before the code.
-2. **Shape** — `interface` + `class`, one public class per `kebab-case.ts` file, dependencies injected in the constructor.
-3. **Lifecycle** — `update(dt)` holds logic only; `syncRender()` writes transforms/opacity/material only; `dispose()` exists and frees every geometry, material, texture, DOM node and listener the class created.
-4. **Numbers** — every gameplay number resolves from `BALANCE`; `rg` for a suspicious literal in the new file returns nothing meaningful.
-5. **Memory** — no allocation in the per-frame path; anything spawned in a hot path comes from a pool.
-6. **Traceability** — the card's `Maps:` requirement IDs are cited in the spec, and the entry in [`poc2/todo.md`](../../poc2/todo.md) is checked off.
-7. **Verification** — `npm run typecheck && npm run lint && npm run test` is green, and the card's **Acceptance** line is either covered by a test or recorded as a manual check in the spec.
-8. **Port fidelity** — for a `port`/`class-ify`/`merge` card (§5.0), observable behavior matches POC-1 with the same numbers; deliberate differences are logged in §9.
+1. **Spec exists** — `.docs/specs/{subject}.spec.ts` written from the card **before** the code, with all four agent sections filled (§6.3).
+2. **TDD first** — the TDD agent's test file exists and **fails** for the right reason before production code is written (`D17`).
+3. **Shape** — `interface` + `class`, one public class per `kebab-case.ts` file, dependencies injected in the constructor.
+4. **Lifecycle** — `update(dt)` holds logic only; `syncRender()` writes transforms/opacity/material only; `dispose()` exists and frees every geometry, material, texture, DOM node and listener the class created.
+5. **Numbers** — every gameplay number resolves from `BALANCE`; `rg` for a suspicious literal in the new file returns nothing meaningful. Game Design signed the BALANCE block.
+6. **Memory** — no allocation in the per-frame path; anything spawned in a hot path comes from a pool. Programming signed the memory block.
+7. **Traceability** — the card's `Maps:` requirement IDs are cited in the spec, and the entry in [`poc2/todo.md`](../../poc2/todo.md) is checked off. Orchestrator signed the DoD block.
+8. **Verification** — `npm run typecheck && npm run lint && npm run test` is green in `poc2/`; every TDD case in the spec is either a passing test or a named `[manual]` check.
+9. **Port fidelity** — for a `port`/`class-ify`/`merge` card (§5.0), a TDD case asserts observable behavior matches the frozen POC-1 reference with the same numbers; deliberate differences are logged in §9.
 
 ### 6.2 Task generation
 
@@ -652,6 +660,42 @@ SDD-C03  →  .docs/specs/ship-health.spec.ts      (the contract)
 ```
 
 Task title format: `SDD-{id} {Subject} — {requirement IDs} — requires {cards}`. The task body is the card text plus §6.1 verbatim. A task is never opened while an entry in its `requires` list is unchecked.
+
+Work the task as **four agents in sequence** (§6.3). Never skip TDD.
+
+### 6.3 Multi-agent SDD (POC2)
+
+Every spec and every implementation task is owned by **four agents**. They do not write each other's sections. A spec is incomplete until all four sign-off lines are filled. An implementation is incomplete until all four have reviewed the result.
+
+```mermaid
+flowchart LR
+  Orch[Orchestrator] --> Prog[Programming Three.js]
+  Orch --> Design[Game Design]
+  Prog --> Tdd[TDD]
+  Design --> Tdd
+  Tdd --> Orch
+```
+
+| Agent | Role | Owns in the spec | Owns in `poc2/` | Must not |
+|---|---|---|---|---|
+| **Orchestrator** | Sequence, boundaries, DoD, traceability | Header, §1 Scope, §8 Requires, §9 Agent sign-off | Task order, `poc2/todo.md` checkoff, refusing work whose `requires` are open | Invent numbers, write THREE code, write tests |
+| **Programming / Three.js** | Architecture and rendering | §2 Contract, §3 Fields, §5 Rules (memory/lifecycle), §6 View/syncRender | Classes, THREE inheritance, `dispose()`, pooling, scene graph | Change BALANCE values, skip TDD, invent gameplay rules |
+| **Game Design** | Feel, balance, leveling, graphics | §4 BALANCE, feel/leveling/graphics notes | `BALANCE` numbers, palette, silhouette, cadence, difficulty ramps | Rewrite class shape, write tests, add gameplay constants outside BALANCE |
+| **TDD** | Tests first, then green | §7 Acceptance as executable cases | `{subject}.test.ts` written **red** before code; runs `npm run test` to green | Implement production logic to make tests pass (Programming does that) |
+
+**Workflow (one card):**
+1. **Orchestrator** copies [`_template.spec.ts`](../specs/_template.spec.ts) → `.docs/specs/{subject}.spec.ts`, fills header + Scope + Requires from the card, confirms `requires` are done.
+2. **Programming** fills Contract, Fields, Rules, View. Declares THREE base, `syncRender` writes, pool/dispose plan.
+3. **Game Design** fills BALANCE paths with starting values and *why*; writes feel, leveling, and graphics/legibility notes (silhouette <0.3s, palette).
+4. **TDD** turns Rules + Acceptance into named `describe`/`it` cases and a `{subject}.test.ts` that **fails**. No production code yet.
+5. **Programming** implements until tests pass. **TDD** re-runs `npm run verify`. **Game Design** play-checks feel against the BALANCE block. **Orchestrator** ticks §6.1 and `poc2/todo.md`.
+
+**Hard rules:**
+- Spec before code. Tests before implementation (`D17`).
+- Agents edit only their columns. Cross-edits are a documentation bug.
+- `N/A` is allowed (e.g. Game Design on `math.ts`; Programming visual on a pure manager). Empty is not.
+- Tests live in `poc2/src/**/{subject}.test.ts` next to the class. Specs live in `.docs/specs/` and are **not** imported by the game.
+- The Orchestrator is the only agent allowed to mark a card done.
 
 ## 7. Future SDD subjects (stubs)
 
@@ -699,6 +743,7 @@ Declared for naming/traceability; detailed cards arrive in later phases:
 | **D14** | `camera`, `parallax`, `limit-box` and `gizmos` are **scene-owned**: `RunScene` constructs and disposes them. Managers own *populations* only (enemies, meteors, shots, drops). *(closes Q03)* | `G03`, `B01`–`B04` |
 | **D15** | Folder name is **`limit-box/`**; the POC-1 `followBox`/`followCamera` names are retired and merged into one `LimitBox` class. *(closes Q05)* | `B03`, tree |
 | **D16** | **Survivor v1 = craft 100% off**, no repair path: base hull and shield, Laser only, no inherited inventory, no contracts. *(closes Q06)* | §7 survivor |
+| **D17** | **SDD + TDD, multi-agent.** Spec before code; TDD writes failing tests before Programming implements. Four agents (Orchestrator, Programming/Three.js, Game Design, TDD) own disjoint spec sections (§6.3). POC-1 is never a workstream. | specs, tests, all cards |
 
 ### Open questions
 | # | Question | Owner | Blocks |
@@ -833,11 +878,12 @@ flowchart TD
 | Field | Value |
 |---|---|
 | Gate | **G0** |
-| Hub version | 4.0.0 |
-| Reference build | POC-1 (`poc/`) — frozen, playable |
+| Hub version | 4.1.0 |
+| Reference build | POC-1 (`poc/`) — frozen, playable (not a workstream) |
 | Target build | POC2 (`poc2/`) — scaffolded, Stage A pending |
 | Phase docs | `phase-0-poc.md` (history) · `phase-0-poc2.md` (architecture) |
-| SDD specs | `_template.spec.ts` only — first batch = Stage A–B |
+| SDD specs | one file per Stage A–G card under `.docs/specs/` + `_template.spec.ts` |
+| Agents | Orchestrator · Programming/Three.js · Game Design · TDD (§6.3, `D17`) |
 | Backlog | [`poc2/todo.md`](../../poc2/todo.md) — one entry per card |
 
-**Next steps:** 1) generate `SDD-A01`–`SDD-A05` specs from §5 and §6.1; 2) port `balancer`/`input` and write `math`/`loop`/`object-pool` into the `poc2` scaffold; 3) port Stage B (camera, parallax, limit-box, gizmos) **without behavior change**, validating against POC-1 side by side; 4) resolve Q09 before the first Itch packaging attempt.
+**Next steps:** 1) TDD writes failing tests for `SDD-A01`–`SDD-A05` from the specs; 2) Programming implements Balancer, Input, Math, GameLoop, ObjectPool until green; 3) Game Design signs the BALANCE numbers against the frozen POC-1 feel; 4) Orchestrator ticks Stage A when §6.1 holds.

@@ -1,0 +1,39 @@
+---
+description: POC2 multi-agent SDD+TDD — Orchestrator, Programming/Three.js, Game Design, TDD
+globs: poc2/**/*,.docs/specs/**/*,.docs/plans/planning.spec.MD,poc2/todo.md
+alwaysApply: false
+---
+
+# POC2 multi-agent SDD + TDD
+
+Hub: `.docs/plans/planning.spec.MD` §6.3 · `D17`. Template: `.docs/specs/_template.spec.ts`.
+
+POC-1 (`poc/`) is **frozen**. Do not edit it. Do not open tasks against it.
+
+## Agents (disjoint ownership)
+
+| Agent | Spec sections | Code | Forbidden |
+|---|---|---|---|
+| **Orchestrator** | header, §1 Scope, §8 Requires, §9 sign-off | `poc2/todo.md` checkoff, refuse open `requires` | numbers, THREE, tests |
+| **Programming / Three.js** | §2 Contract, §3 Fields, §5 Rules, §6 View | classes, `extends THREE.*`, `dispose()`, pools | BALANCE values, skipping tests |
+| **Game Design** | §4 BALANCE / feel / leveling / graphics | `BALANCE` numbers, palette, cadence | class shape, tests, literals outside BALANCE |
+| **TDD** | §7 cases | `{subject}.test.ts` written **red** first; runs `npm run test` | production implementation |
+
+## Order on every card
+
+1. Orchestrator copies the template and fills Scope + Requires.
+2. Programming fills contract / memory / view.
+3. Game Design fills BALANCE + feel + leveling + graphics.
+4. TDD names cases and writes the failing test file.
+5. Programming implements until green. TDD re-runs `verify`. Game Design play-checks. Orchestrator ticks DoD.
+
+A spec with an empty agent section is incomplete. `N/A` is allowed; blank is not.
+
+## Implementation gates
+
+- Spec before code. Tests before implementation.
+- `interface` + `class`, one public class per `kebab-case.ts`.
+- `update(dt)` = logic; `syncRender()` = transforms/opacity/material only.
+- Gameplay numbers only in `BALANCE` (`RUL-12`).
+- Zero per-frame allocation on hot paths.
+- `npm run verify` in `poc2/` must be green before Orchestrator marks done.

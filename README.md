@@ -577,7 +577,7 @@ Detailed, versioned planning lives in `.docs/`, with `#tag/*` markers for fast s
 | [`plans/planning.spec.MD`](.docs/plans/planning.spec.MD) | **The hub.** Canonical names, decisions, engine composition, the enumerated requirement index (§3.5), the SDD subject cards in build order (§5), the POC-1 → POC2 port map (§5.0), Definition of Done (§6.1) |
 | [`phases/phase-0-poc.md`](.docs/phases/phase-0-poc.md) | POC-1 phase document — history, gate question, acceptance checklist |
 | [`phases/phase-0-poc2.md`](.docs/phases/phase-0-poc2.md) | Architecture blueprint: pattern constructor, Model/View by inheritance, layers, managers, target folder tree |
-| `specs/{subject}.spec.ts` | One SDD spec per subject, generated from the hub cards; shape defined by `specs/_template.spec.ts` |
+| `specs/{subject}.spec.ts` | One SDD+TDD spec per POC2 card (all Stage A–G written). Four agent sections (Orchestrator, Programming/Three.js, Game Design, TDD). Shape: `specs/_template.spec.ts`. Index: `specs/README.md` |
 
 **Domain plans — `.docs/plans-later/`** (Portuguese legacy; they own the requirement ID definitions)
 

@@ -1,6 +1,8 @@
 # POC2 backlog — one entry per SDD card
 
-> **Derived, not authored.** Every entry below is a card in [`.docs/plans/planning.spec.MD`](../.docs/plans/planning.spec.MD) §5. The card text is the task body; this file is only the order and the state. If a card changes, the hub changes first.
+> **Derived, not authored.** Every entry below is a card in [`.docs/plans/planning.spec.MD`](../.docs/plans/planning.spec.MD) §5. Specs live in [`.docs/specs/`](../.docs/specs/_template.spec.ts) — **all Stage A–G specs are written** (status `spec-complete`). Next work is TDD: failing `{subject}.test.ts` before Programming implements.
+>
+> **Agents (§6.3):** Orchestrator · Programming/Three.js · Game Design · TDD. Spec before code. Tests before implementation (`D17`).
 >
 > **Entry format:** `SDD-{id} {Subject} — {requirement IDs} — requires {cards} — {change type}`
 > **Change types** (hub §5.0): `port` · `class-ify` · `split` · `merge` · `new`

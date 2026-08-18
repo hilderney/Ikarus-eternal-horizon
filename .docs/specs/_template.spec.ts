@@ -1,135 +1,170 @@
 /**
- * SDD spec template — copy to `.docs/specs/{subject}.spec.ts` and fill in.
+ * SDD + TDD spec template (POC2 only).
  *
- * #tag/arch  (+ the domain tags of the card)
+ * Copy to `.docs/specs/{subject}.spec.ts` and fill every section.
+ * This file is a design artifact: it is NOT compiled or imported by `poc2/`.
  *
- * A spec is a design artifact, not shipped code: it is not compiled or imported by
- * `poc2/`. It exists so the contract is agreed *before* the class is written, and so a
- * reviewer can check the implementation against something other than the author's memory.
+ * Pipeline (hub §6.3, D17):
+ *   1. Orchestrator  — header, scope, requires, DoD
+ *   2. Programming   — contract, fields, memory/lifecycle, syncRender
+ *   3. Game Design   — BALANCE, feel, leveling, graphics
+ *   4. TDD           — executable cases; write the failing test file BEFORE code
  *
- * Rules for writing one:
- *   - One spec per SDD card. Filename is the kebab-case subject (`ship-health.spec.ts`).
- *   - Copy the eight sections below in order; delete none of them. "N/A" is a valid answer,
- *     an empty section is not.
- *   - Interfaces here are the real signatures the implementation must expose. If the
- *     implementation needs to diverge, the spec is edited first.
- *   - Cite the card ID and every requirement ID from the card's `Maps:` line.
+ * Rules:
+ *   - One spec per SDD card. Filename = kebab-case subject (`ship-health.spec.ts`).
+ *   - Copy every section. "N/A" is valid. Empty is not.
+ *   - Interfaces here ARE the signatures the implementation must expose.
+ *   - Tests live in `poc2/src/**/{subject}.test.ts`. Specs stay in `.docs/specs/`.
+ *   - Never open a spec or a PR against `poc/` (frozen).
  *
- * Card:        SDD-{stage}{nn} {Subject}
- * Hub:         .docs/plans/planning.spec.MD §5 (card) · §6.1 (Definition of Done)
+ * #tag/arch  (+ domain tags of the card)
+ *
+ * Card:         SDD-{stage}{nn} {Subject}
+ * Hub:          .docs/plans/planning.spec.MD §5 (card) · §6.1 (DoD) · §6.3 (agents)
  * Requirements: {SHIP-nn, WPN-nn, ...}
- * Change type: port | class-ify | split | merge | new     (hub §5.0)
- * POC-1 origin: poc/src/{path} — or "none (new)"
- * Author / date: {name} / {YYYY-MM-DD}
+ * Change type:  port | class-ify | split | merge | new
+ * POC-1 origin: poc/src/{path}  OR  none (new)   — reference only, not a workstream
+ * Test file:    poc2/src/{folder}/{subject}.test.ts
  */
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AGENT: Orchestrator
+// ═════════════════════════════════════════════════════════════════════════════
 
 // ─── 1. Scope ────────────────────────────────────────────────────────────────
 /**
- * What this module owns, in two or three sentences. State the single concern.
- * Then state explicitly what it does NOT own, and which card owns that instead —
- * boundary mistakes are the expensive kind.
- *
- * Owns:      ...
- * Does not own: ... (owned by SDD-...)
+ * Owns:      {single concern, two or three sentences}
+ * Does not own: {what, owned by SDD-...}
+ * Player-facing: {what the player notices if this is wrong — or N/A}
  */
+
+// ─── 8. Requires ─────────────────────────────────────────────────────────────
+/**
+ * Must match the card. A mismatch is a documentation bug.
+ *
+ * Upstream (must exist before this starts):
+ *   SDD-A01 Balancer — {what is consumed}
+ *
+ * Downstream (who breaks if this contract changes):
+ *   SDD-... — consumes {what}
+ */
+
+// ─── 9. Agent sign-off ───────────────────────────────────────────────────────
+/**
+ * Orchestrator : {name / date}  scope, requires, DoD, todo.md
+ * Programming  : {name / date}  contract, memory, THREE / view
+ * Game Design  : {name / date}  BALANCE, feel, leveling, graphics
+ * TDD          : {name / date}  cases named; test file written red
+ *
+ * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
+ *             IDs · verify green · port fidelity
+ * Status: draft | spec-complete | tests-red | implemented | done
+ */
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AGENT: Programming / Three.js
+// ═════════════════════════════════════════════════════════════════════════════
 
 // ─── 2. Contract ─────────────────────────────────────────────────────────────
 /**
- * The public surface. Ports this module implements or consumes come first, then the
- * class shape. Constructor dependencies are explicit — no service locators, no globals
- * beyond BALANCE.
+ * Public surface. Ports first, then the class. Constructor dependencies explicit.
+ * No service locators. No globals besides BALANCE.
+ * `extends THREE.X` when the domain object *is* its visual (hub §4).
  */
 
-/** A port this module implements, so consumers depend on the interface, not the class. */
+/** Port consumers depend on — not the class. */
 export interface SubjectPort {
   update(dt: number): void
   dispose(): void
 }
 
-/** Data handed in at construction. Everything numeric here traces back to BALANCE. */
+/** Construction data. Every number traces to BALANCE. */
 export interface SubjectOptions {
   readonly example: number
 }
 
-/** The class shape. `extends THREE.X` when the domain object *is* its visual (hub §4). */
 export declare class Subject implements SubjectPort {
-  constructor(options: SubjectOptions /*, injected dependencies */)
+  constructor(options: SubjectOptions)
 
-  /** Logic only: movement, timers, damage, AI. No GPU work. */
+  /** Logic only. No GPU work. */
   update(dt: number): void
 
-  /** The only bridge to rendering: reads state, writes transforms/opacity/material. */
+  /** Reads logic, writes transforms / opacity / material only. */
   syncRender(): void
 
-  /** Frees every geometry, material, texture, DOM node and listener this class created. */
+  /** Frees every geometry, material, texture, DOM node, listener this class created. */
   dispose(): void
 }
 
 // ─── 3. Key fields and methods ───────────────────────────────────────────────
 /**
- * The state that matters and why it exists. One line each. Include units and ranges —
- * "speed: units/s, capped at BALANCE.x.maxSpeed" beats "speed: number".
- *
  *   field       | type   | meaning / unit / range
  *   ------------|--------|-----------------------
  *   ...         | ...    | ...
  *
- * And the non-obvious methods, with their pre/post conditions.
- */
-
-// ─── 4. BALANCE data ─────────────────────────────────────────────────────────
-/**
- * Every number this module reads, by its path in `src/core/balancer.ts`, with the value
- * it starts at. If a number is not here, it must not appear in the implementation (RUL-12).
- * New sections needed by this card are declared here and added to SDD-A01.
- *
- *   BALANCE.{section}.{key}  =  {value}   // what it tunes
+ * Non-obvious methods — pre/post conditions, one line each.
  */
 
 // ─── 5. Rules and invariants ─────────────────────────────────────────────────
 /**
- * The statements that must hold at all times, written so a reviewer can test each one.
- * These are the things a future change is most likely to break.
+ * Testable statements. TDD turns each Rn into a case.
  *
  *   R1. ...
- *   R2. ...
- *
- * Include the memory rules that apply: what is pooled, what is created once, what
- * `dispose()` must reach.
+ *   R2. Memory: pooled | created-once | dispose must reach {list}
+ *   R3. Per-frame allocation: none | {exception}
  */
 
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
 /**
- * What the visual is (geometry, material, blending, colour source) and exactly which
- * properties `syncRender()` writes. Nothing else may be written there.
- *
- * Visual:      ...
- * syncRender writes: position, rotation.z, material.opacity, scale — list them.
- * Never writes: ... (state that belongs to update())
- *
- * "N/A — no visual" is a valid answer for systems and managers.
+ * Visual:      THREE.{Mesh|Group|Points|LineLoop|N/A} · geometry · material · blending · colour source
+ * Inheritance: extends THREE.{X} | composition | N/A (pure logic)
+ * syncRender writes: {position, rotation.z, material.opacity, scale — list them}
+ * Never writes: {state that belongs to update()}
+ * Scene ownership: added/removed by {Ship | Manager | RunScene | pool} (D14)
  */
 
-// ─── 7. Acceptance ───────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// AGENT: Game Design
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─── 4. BALANCE, feel, leveling, graphics ────────────────────────────────────
 /**
- * The card's Acceptance line, expanded into checks a second person can run. Mark each
- * as automated or manual; automated ones name the test file.
+ * Every number this module reads, by path in `src/core/balancer.ts`, with the
+ * starting value AND why. If a number is not here it must not appear in code (RUL-12).
+ * New sections are declared here and added to SDD-A01.
  *
- *   A1. [test: {subject}.test.ts] ...
- *   A2. [manual] ...
+ *   BALANCE.{section}.{key}  =  {value}   // why / feel
  *
- * For a port/class-ify/merge card, one check must be the side-by-side comparison against
- * POC-1 with identical BALANCE numbers.
+ * Feel:      {what the player should feel; compare to POC-1 if port/class-ify/merge}
+ * Leveling:  {how this scales with weapon level / hull level / kill count — or N/A}
+ * Graphics:  {silhouette, palette, <0.3s read, opacity/decay as readable damage — or N/A}
+ * Pillars:   {which of the 6 design pillars this card serves}
  */
 
-// ─── 8. Requires ─────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// AGENT: TDD
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─── 7. Acceptance → executable cases ────────────────────────────────────────
 /**
- * Upstream cards that must exist before this one starts, and what is consumed from each.
- * This must match the card's `Requires:` line in the hub; a mismatch is a documentation bug.
+ * Protocol: write `{subject}.test.ts` FIRST. `npm run test` must FAIL for the
+ * named cases (red). Programming then implements until green. TDD re-runs
+ * `npm run verify`. Do not implement production logic in the TDD agent.
  *
- *   SDD-A01 Balancer  — the {section} config block
- *   SDD-A03 Math      — clamp, damp, scratch vectors
+ * File: poc2/src/{folder}/{subject}.test.ts
+ * Runner: vitest (`npm run test` in poc2/)
+ * Mocks: {BALANCE slice, THREE stubs, clocks — list them}
  *
- * Downstream consumers (informative — who breaks if this contract changes):
- *   SDD-... — consumes {what}
+ * describe('{Subject}')
+ *   it('{R1 — invariant in one sentence}')           // maps R1
+ *   it('{R2 — ...}')                                 // maps R2
+ *   it('{acceptance line as a predicate}')           // maps card Acceptance
+ *   it('{port fidelity vs POC-1 numbers}')           // port/class-ify/merge only
+ *   it('{dispose frees resources / pool does not grow}')
+ *
+ * Manual (named, not skipped silently):
+ *   A-manual-1. [manual] {play-check that needs a human}
+ *
+ * Coverage rule: every R{n} in §5 and every Acceptance bullet has a case or a
+ * named [manual] line.
  */

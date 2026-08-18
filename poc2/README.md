@@ -91,9 +91,12 @@ poc2/
 
 ## Adding a card
 
-1. Read the card in the hub §5 and write its spec at `.docs/specs/{subject}.spec.ts` from [`_template.spec.ts`](../.docs/specs/_template.spec.ts).
-2. Confirm every entry in the card's `requires` list is already checked in [`todo.md`](./todo.md). If not, stop — order is a gate.
-3. Implement the class and its `{name}.test.ts` beside it.
-4. Run `npm run verify`, walk the §6.1 Definition of Done, then check the entry off in [`todo.md`](./todo.md).
+1. Orchestrator: spec at `.docs/specs/{subject}.spec.ts` from [`_template.spec.ts`](../.docs/specs/_template.spec.ts) — Stage A–G specs already exist.
+2. Programming fills contract / memory / view. Game Design fills BALANCE / feel / leveling / graphics. TDD names cases.
+3. Confirm every `requires` entry is checked in [`todo.md`](./todo.md).
+4. **TDD writes `{subject}.test.ts` first** — `npm run test` must fail for the right reason.
+5. Programming implements until green. TDD re-runs `npm run verify`. Orchestrator ticks §6.1.
+
+Agent rules: hub §6.3 and [`.cursor/rules/poc2-sdd-agents.mdc`](../.cursor/rules/poc2-sdd-agents.mdc).
 
 For a `port` / `class-ify` / `merge` card (hub §5.0), "done" also means POC2 reproduces POC-1's observable behavior with the same `BALANCE` numbers. Run both side by side.
