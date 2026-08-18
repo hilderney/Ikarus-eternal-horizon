@@ -22,15 +22,15 @@ Scaffold is done. This phase is the POC-1 “feel” port: move the ship, camera
 - [x] Math helpers + scratch vectors (zero alloc) · `SDD-A03` · [math.spec.ts](../.docs/specs/math.spec.ts) · **new**
 - [x] Game loop: rAF, `dt` clamp 0.05, pause gate, ~15 Hz debugger sidecar · `SDD-A04` · [game-loop.spec.ts](../.docs/specs/game-loop.spec.ts) · **new**
 - [x] Generic `ObjectPool<T>` (exhaustion returns `null`, never allocates) · `SDD-A05` · [object-pool.spec.ts](../.docs/specs/object-pool.spec.ts) · **new**
-- [ ] Portrait 9:16 renderer, letterbox, relative paths · `SDD-G09` · [renderer.spec.ts](../.docs/specs/renderer.spec.ts) · **new**
-- [ ] Three-area layout `area-inputs · game-area · debugger-area`, collapse ≤760px · `SDD-G06` · [ui-areas.spec.ts](../.docs/specs/ui-areas.spec.ts) · **port**
+- [x] Portrait 9:16 renderer, letterbox, relative paths · `SDD-G09` · [renderer.spec.ts](../.docs/specs/renderer.spec.ts) · **new**
+- [x] Three-area layout `area-inputs · game-area · debugger-area`, collapse ≤760px · `SDD-G06` · [ui-areas.spec.ts](../.docs/specs/ui-areas.spec.ts) · **port**
 - [x] Perspective camera (`YXZ`, live `applyConfig`) · `SDD-B01` · [game-camera.spec.ts](../.docs/specs/game-camera.spec.ts) · **port**
 - [x] Ship as `THREE.Group` (hull, thruster flicker, weapon tip) · `SDD-C01` · [ship.spec.ts](../.docs/specs/ship.spec.ts) · **port**
 - [x] Force motion (`accel`/`decel`/`brake`, `maxSpeed`) + tilt/bank + dash · four schemes via InputPort · `SDD-C02` · [controller.spec.ts](../.docs/specs/controller.spec.ts) · **port** (`D19`)
 - [x] LimitBox: dead-zone follow, edge bounce, auto-recenter to Recenter Point · `SDD-B03` · [limit-box.spec.ts](../.docs/specs/limit-box.spec.ts) · **port**
 - [x] Parallax: 3 layers pinned to camera, stars slide by `parallaxGain` · `SDD-B02` · [parallax.spec.ts](../.docs/specs/parallax.spec.ts) · **port**
 - [x] Gizmos: world axes, playfield grid, camera axes (toggle, Q09) · `SDD-B04` · [gizmos.spec.ts](../.docs/specs/gizmos.spec.ts) · **port**
-- [ ] Run scene owns camera / parallax / limit-box / gizmos / ship and drives the loop · `SDD-G03` · [run-scene.spec.ts](../.docs/specs/run-scene.spec.ts) · **new**
+- [x] Run scene owns camera / parallax / limit-box / gizmos / ship and drives the loop · `SDD-G03` · [run-scene.spec.ts](../.docs/specs/run-scene.spec.ts) · **new**
 - [x] Touch overlay: nipplejs stick + on-screen Fire/Bomb/Switch/Dash/Pause · `SDD-G12` · [touch-controls.spec.ts](../.docs/specs/touch-controls.spec.ts) · **new** (`D19`)
 
 **Fase 0 done when:** ship flies with POC-1 inertia and bank; camera follows the box with bounce + recenter; three parallax speeds read at a glance.
@@ -41,12 +41,12 @@ Scaffold is done. This phase is the POC-1 “feel” port: move the ship, camera
 
 POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real risk model.
 
-- [ ] Pooled laser bolt from the ship nose; decay 100→75→50→25 on opacity **and** damage · `SDD-D01` · [weapon-shot.spec.ts](../.docs/specs/weapon-shot.spec.ts) · **port**
-- [ ] Tune cadence / speed / energy from `BALANCE` only (no literals in fire code) · `SDD-A01` / `SDD-D02`
-- [ ] Energy pool gates every shot; regen; fire blocks at 0 · `SDD-D03` · [energy-manager.spec.ts](../.docs/specs/energy-manager.spec.ts) · **port**
-- [ ] Weapon device + Laser + L1–L10 (`totalShots = level`) + registry seam · `SDD-D02` · [weapon.spec.ts](../.docs/specs/weapon.spec.ts) · **port**
-- [ ] Space or RT fires; `F` or LB switches weapon · `SDD-E07` · [firing-manager.spec.ts](../.docs/specs/firing-manager.spec.ts) · **port** (+ `D18`)
-- [ ] Shot manager owns pools by origin · `SDD-E04` · [shot-manager.spec.ts](../.docs/specs/shot-manager.spec.ts) · **new**
+- [x] Pooled laser bolt from the ship nose; decay 100→75→50→25 on opacity **and** damage · `SDD-D01` · [weapon-shot.spec.ts](../.docs/specs/weapon-shot.spec.ts) · **port**
+- [x] Tune cadence / speed / energy from `BALANCE` only (no literals in fire code) · `SDD-A01` / `SDD-D02`
+- [x] Energy pool gates every shot; regen; fire blocks at 0 · `SDD-D03` · [energy-manager.spec.ts](../.docs/specs/energy-manager.spec.ts) · **port**
+- [x] Weapon device + Laser + L1–L10 (`totalShots = level`) + registry seam · `SDD-D02` · [weapon.spec.ts](../.docs/specs/weapon.spec.ts) · **port**
+- [x] Space or RT fires; `F` or LB switches weapon · `SDD-E07` · [firing-manager.spec.ts](../.docs/specs/firing-manager.spec.ts) · **port** (+ `D18`)
+- [x] Shot manager owns pools by origin · `SDD-E04` · [shot-manager.spec.ts](../.docs/specs/shot-manager.spec.ts) · **new**
 - [ ] Collision by layers (matrix is data; no friendly fire) · `SDD-F01` · [collision-manager.spec.ts](../.docs/specs/collision-manager.spec.ts) · **port**
 - [ ] Ship hitbox on layer `Player` · `SDD-C01` / `SDD-F01`
 - [ ] Laser hitbox on layer `PlayerShot` · `SDD-D01` / `SDD-F01`
@@ -210,7 +210,7 @@ POC-1 listed a shop. GDD meta is Bounty Board + cosmetics, not a mid-run power s
 - [ ] Debugger: Cam / Ship / Limit Box / Parallax / Weapons, two-way ~15 Hz, Reset, L1–L10 · `SDD-G08` · [debugger.spec.ts](../.docs/specs/debugger.spec.ts) · **port**
 - [ ] Ship XYZ label, letterbox-safe · `SDD-G07`
 - [ ] All gameplay numbers still only in `BALANCE` · `SDD-A01` (`RUL-12`)
-- [ ] Web package: `index.html` relative paths, responsive canvas · `SDD-G09` (`RUL-08`)
+- [x] Web package: `index.html` relative paths, responsive canvas · `SDD-G09` (`RUL-08`)
 - [ ] Game over: score, restart, back to title · `SDD-G04` / `SDD-G10`
 - [ ] 3–8 min session, no bugs, no frame drop (pooling on every hot path) · `SDD-A05` / `SDD-F05` (`RUL-13`)
 - [ ] Resolve Q09 (debugger + gizmos in the shipped build?)
@@ -245,7 +245,7 @@ Never start a card whose `requires` are still open. Specs: [`.docs/specs/README.
 | A Core | A01 Balancer → A02 Input → A03 Math → A04 GameLoop → A05 ObjectPool |
 | B World | B01 Camera → B02 Parallax · B03 LimitBox · B04 Gizmos |
 | C Craft | C01 Ship → C02 Controller · C03 ShipHealth |
-| D Combat | D01 WeaponShot · D03 Energy → D02 Weapon+Laser → D04 Plasma · D05 Beam · D06 Mjolnir |
+| D Combat | D01 WeaponShot · D03 Energy → **E04 ShotManager** → D02 Weapon+Laser → D04 Plasma · D05 Beam · D06 Mjolnir (G2 catalog-only) |
 | E Pressure | E01 Enemy · E02 Meteor · E03 EnemyShot → E04 ShotManager · E07 Firing → E05 EnemyManager · E06 MeteorManager |
 | F Interact | F01 Collision → F04 DamageResolver → F05 Vfx · F02 Drops · F03 Difficulty (needs G10) |
 | G Meta | G09 Renderer · G06 Areas · G10 RunState · G07 HUD · G08 Debugger · G01 SceneController · G03 Run · G02 Title · G04 Result · G05 Rankings · G11 Pause · G12 TouchControls |

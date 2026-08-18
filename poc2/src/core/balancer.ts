@@ -1,8 +1,14 @@
 /**
  * SDD-A01 Balancer — single source of gameplay numbers (RUL-12).
  * Port of POC-1 `poc/src/core/balancer.ts` plus health / difficulty / score / drops / vfx.
- * Weapon *behaviour* is D02; the catalog data lives here until catalog.ts is extracted.
+ * Weapon *behaviour* is D02; catalog data lives in catalog.ts and is re-exported here.
  */
+
+import { WEAPONS } from '../gameobjects/weapon/catalog'
+import type { WeaponConfig, WeaponId, WeaponProfile } from '../gameobjects/weapon/catalog'
+
+export type { WeaponConfig, WeaponId, WeaponProfile }
+export type WeaponCatalogEntry = WeaponConfig
 
 export interface Vec3Params {
   readonly x: number
@@ -13,6 +19,12 @@ export interface Vec3Params {
 export interface PlayfieldLayout {
   readonly width: number
   readonly height: number
+}
+
+export interface RenderConfig {
+  readonly background: number
+  readonly pixelRatioCap: number
+  readonly antialias: boolean
 }
 
 export interface EnergyConfig {
@@ -245,24 +257,19 @@ export interface VfxConfig {
   readonly hitStopFrames: number
 }
 
-export type WeaponId = 'laser' | 'plasma' | 'beam' | 'mjolnir'
-
-export type WeaponProfile = 'projectile' | 'orb' | 'beam' | 'cone'
-
-export interface WeaponCatalogEntry {
-  readonly id: WeaponId
-  readonly displayName: string
-  readonly color: number
-  readonly rate: number
-  readonly energyPerShot: number
-  readonly damage: number
-  readonly profile: WeaponProfile
-  readonly poolSize: number
-  readonly muzzleOffset: Vec3Params
+export interface ShotDespawnConfig {
+  readonly zNear: number
+  readonly zFar: number
+  readonly halfX: number
 }
 
 export interface Balance {
-  readonly layout: { readonly playfield: PlayfieldLayout }
+  readonly layout: {
+    readonly playfield: PlayfieldLayout
+    readonly collapsePx: number
+    readonly areaWidth: string
+  }
+  readonly render: RenderConfig
   readonly weapons: {
     readonly loadout: readonly WeaponId[]
     readonly catalog: Record<WeaponId, WeaponCatalogEntry>
@@ -304,6 +311,7 @@ export interface Balance {
   readonly difficulty: DifficultyConfig
   readonly score: ScoreConfig
   readonly drops: DropsConfig
+  readonly shot: { readonly despawn: ShotDespawnConfig }
   readonly vfx: VfxConfig
   readonly haptics: HapticsConfig
   readonly loop: LoopConfig
@@ -315,55 +323,17 @@ const PARALLAX_GAIN_UNIT = 0.015
 const BALANCE_DATA: Balance = {
   layout: {
     playfield: { width: 540, height: 960 },
+    collapsePx: 760,
+    areaWidth: '17rem',
+  },
+  render: {
+    background: 0x05040a,
+    pixelRatioCap: 2,
+    antialias: true,
   },
   weapons: {
-    loadout: ['laser'],
-    catalog: {
-      laser: {
-        id: 'laser',
-        displayName: 'Laser',
-        color: 0x22d3ee,
-        rate: 8,
-        energyPerShot: 0.25,
-        damage: 1,
-        profile: 'projectile',
-        poolSize: 128,
-        muzzleOffset: { x: 0, y: 0, z: -1.4 },
-      },
-      plasma: {
-        id: 'plasma',
-        displayName: 'Plasma',
-        color: 0xfb923c,
-        rate: 1.6,
-        energyPerShot: 1.5,
-        damage: 2.5,
-        profile: 'orb',
-        poolSize: 32,
-        muzzleOffset: { x: 0, y: 0, z: -1.4 },
-      },
-      beam: {
-        id: 'beam',
-        displayName: 'Beam',
-        color: 0xa78bfa,
-        rate: 1,
-        energyPerShot: 0,
-        damage: 0,
-        profile: 'beam',
-        poolSize: 4,
-        muzzleOffset: { x: 0, y: 0, z: -1.4 },
-      },
-      mjolnir: {
-        id: 'mjolnir',
-        displayName: 'Mjolnir',
-        color: 0x34d399,
-        rate: 1,
-        energyPerShot: 0,
-        damage: 0,
-        profile: 'cone',
-        poolSize: 4,
-        muzzleOffset: { x: 0, y: 0, z: -1.4 },
-      },
-    },
+    loadout: ['laser', 'plasma'],
+    catalog: WEAPONS,
   },
   gameplay: {
     fireKey: 'Space',
@@ -588,6 +558,9 @@ const BALANCE_DATA: Balance = {
   drops: {
     magnetRadius: 2.5,
     metalScrapChance: 0.4,
+  },
+  shot: {
+    despawn: { zNear: 16, zFar: -32, halfX: 16 },
   },
   vfx: {
     shake: { maxAmplitude: 0.18, decayPerSec: 6 },

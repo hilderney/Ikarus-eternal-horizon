@@ -15,11 +15,14 @@
 
 // ─── 1. Scope ────────────────────────────────────────────────────────────────
 /**
- * Owns:      Every projectile pool by origin — weapon (D01), enemy (E03), bomb
- *            (declared empty until hub §7 WPN-06). Acquisition, lifecycle, expiry,
- *            off-field release. Feeds CollisionManager the live shot lists.
+ * Owns:      Every projectile pool by origin. **This card is the only module
+ *            that constructs, acquire/releases, updates, syncRenders, and
+ *            disposes those pools** (D02 Weapon / Laser / Plasma only call
+ *            acquire). This pass: a real WeaponShot pool; enemy and bomb
+ *            origins exist with capacity 0 until E03 / WPN-06. Lifecycle,
+ *            expiry, off-field release. Feeds F01 the live lists later.
  * Does not own: firing cadence / energy (E07/D03), who-hits-whom (F01), applying
- *            damage (F04), visuals (shots sync themselves).
+ *            damage (F04), visuals (shots sync themselves), Weapon/Laser classes.
  * Player-facing: N/A as a visible object. Wrong ownership leaks shots off-screen
  *            (RUL-02) or wipes enemy bolts when the laser pool clears (cross-cleanup).
  */
@@ -29,23 +32,27 @@
  * Must match the card. A mismatch is a documentation bug.
  *
  * Upstream (must exist before this starts):
+ *   SDD-A01 Balancer      — catalog.poolSize, BALANCE.shot.despawn
  *   SDD-A05 ObjectPool<T> — generic pool
  *   SDD-D01 WeaponShot    — player projectile class
- *   SDD-E03 EnemyShot     — hostile projectile class
+ *
+ * Not a blocker this pass:
+ *   SDD-E03 EnemyShot     — enemy origin stays capacity 0 until E03
  *
  * Downstream (who breaks if this contract changes):
- *   SDD-E07 FiringManager    — acquireWeaponShot
- *   SDD-E05 EnemyManager     — acquireEnemyShot (when §7 fires)
+ *   SDD-D02 Weapon / Laser — asAcquirePort()
+ *   SDD-D04 Plasma         — same port, spawn.color orange
+ *   SDD-E07 FiringManager  — does not acquire; behaviours do via the port
  *   SDD-F01 CollisionManager — pools() / forEachActive
- *   SDD-G03 RunScene         — construct / dispose
+ *   SDD-G03 RunScene       — construct / dispose
  */
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  three origin pools, expiry, no cross-cleanup
- * Game Design  : hub-v4.1 / 2026-08-17  N/A visual; pool sizes from D01/E03
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.3 / 2026-08-18  owns weapon pool; E03 not a D02 blocker
+ * Programming  : hub-v4.3 / 2026-08-18  ShotAcquirePort; scene.add on fill (D14)
+ * Game Design  : hub-v4.3 / 2026-08-18  capacity max(loadout poolSize)=128; despawn
+ * TDD          : hub-v4.3 / 2026-08-18  cases named; test file not yet written (red next)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
@@ -58,7 +65,9 @@
 
 // ─── 2. Contract ─────────────────────────────────────────────────────────────
 /**
- * Lib: none — pool orchestration only. THREE work stays inside D01/E03.
+ * Lib: none — pool orchestration only. THREE work stays inside D01.
+ * G03 passes scene so the factory can scene.add each filled WeaponShot (D14).
+ * Weapon / Laser / Plasma receive asAcquirePort() — they never hold the manager.
  */
 
 export type ShotOrigin = 'weapon' | 'enemy' | 'bomb'
@@ -72,7 +81,6 @@ export interface ShotLike {
   update(dt: number): void
   syncRender(): void
   deactivate(): void
-  isOffField?(): boolean
 }
 
 export interface ObjectPoolPort<T> {
@@ -84,16 +92,33 @@ export interface ObjectPoolPort<T> {
   dispose(): void
 }
 
+export interface ShotAcquirePort {
+  acquire(): ShotLike | null
+}
+
+export interface ShotDespawn {
+  readonly zNear: number
+  readonly zFar: number
+  readonly halfX: number
+}
+
 export interface ShotManagerOptions {
-  readonly weaponPool: ObjectPoolPort<ShotLike>
-  readonly enemyPool: ObjectPoolPort<ShotLike>
-  readonly bombPool: ObjectPoolPort<ShotLike>
-  readonly despawn: { readonly zNear: number; readonly zFar: number; readonly halfX: number }
+  readonly scene: { add(object: unknown): void; remove(object: unknown): void }
+  readonly weaponFactory: () => ShotLike
+  readonly weaponCapacity: number
+  readonly despawn: ShotDespawn
+  /** Defaults 0 until E03 / WPN-06. */
+  readonly enemyFactory?: () => ShotLike
+  readonly enemyCapacity?: number
+  readonly bombFactory?: () => ShotLike
+  readonly bombCapacity?: number
 }
 
 export declare class ShotManager {
   constructor(options: ShotManagerOptions)
 
+  /** Laser / Plasma bind this. Origin is frozen to 'weapon'. */
+  asAcquirePort(): ShotAcquirePort
   acquire(origin: ShotOrigin): ShotLike | null
   release(origin: ShotOrigin, shot: ShotLike): void
   /** Live pools F01 iterates — never a merged destructive list. */
@@ -112,20 +137,22 @@ export declare class ShotManager {
 /**
  *   field       | type    | meaning / unit / range
  *   ------------|---------|-----------------------
- *   weaponPool  | pool    | D01 WeaponShot · capacity from catalog poolSize (128 laser)
- *   enemyPool   | pool    | E03 EnemyShot · BALANCE.enemy.shot.poolSize (64)
- *   bombPool    | pool    | empty / capacity 0 until WPN-06; acquire('bomb') returns null
+ *   weaponPool  | pool    | D01 WeaponShot · capacity = max(loadout poolSizes) = 128
+ *   enemyPool   | pool    | capacity 0 this pass; E03 later fills it
+ *   bombPool    | pool    | capacity 0 until WPN-06; acquire('bomb') returns null
  *
+ *   Constructor fills the weapon pool, scene.add each mesh, reset = deactivate.
+ *   asAcquirePort — { acquire: () => this.acquire('weapon') } for D02/D04.
  *   acquire — returns null on exhaustion (A05 rule); never `new`s a shot in update.
- *   update  — forEachActive: shot.update(dt); if lifetime<=0 or off-field → release.
- *             Does not call CollisionManager or DamageResolver.
+ *   update  — forEachActive: shot.update(dt); if lifetime<=0 or |x|>halfX or
+ *             z>zNear or z<zFar → release. Does not call F01/F04.
  *   pools() — [weapon, enemy, bomb] in stable order for F01.
  *   clear('weapon') must leave enemy/bomb actives untouched (no cross-cleanup).
  */
 
 // ─── 5. Rules and invariants ─────────────────────────────────────────────────
 /**
- *   R1. Three origin pools exist; bomb may be size 0 but the origin key is valid.
+ *   R1. Three origin pools exist; enemy/bomb may be size 0 but the origin key is valid.
  *   R2. acquire/release never cross origins — a WeaponShot cannot enter the enemy pool.
  *   R3. clear(origin) / weapon-pool exhaustion does not deactivate other origins.
  *   R4. update releases shots with lifetime<=0 (expiry) or off-field (RUL-02).
@@ -134,7 +161,9 @@ export declare class ShotManager {
  *   R7. pools() returns the same three references every call (F01 may store them).
  *   R8. acquire returns null when that origin is exhausted — no growth (WPN-01).
  *   R9. syncRender only forwards to active shots; manager has no mesh.
- *   R10. dispose() disposes all three pools exactly once.
+ *   R10. dispose() disposes all three pools exactly once and scene.remove each mesh.
+ *   R11. Weapon / Laser / Plasma do not construct or dispose this pool.
+ *   R12. Constructor does the scene.add of filled shots; D01 does not.
  */
 
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
@@ -143,7 +172,8 @@ export declare class ShotManager {
  * Inheritance: N/A (pure logic)
  * syncRender writes: forwards to each active shot.syncRender()
  * Never writes: shot lifetime / pool membership
- * Scene ownership: RunScene owns the manager; pools own scene add/remove of shots
+ * Scene ownership: this manager scene.adds on fill and scene.removes on dispose
+ *                  (D14). RunScene owns the manager instance.
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -152,12 +182,13 @@ export declare class ShotManager {
 
 // ─── 4. BALANCE, feel, leveling, graphics ────────────────────────────────────
 /**
- * No new feel numbers. Pool sizes live on the projectile cards:
- *   BALANCE.weapons.catalog[id].poolSize  // D01 / D02 (laser 128)
- *   BALANCE.enemy.shot.poolSize           = 64
- *   BALANCE.bomb.shot.poolSize            = 0   // declared, unused until §7
- *   BALANCE.shot.despawn                  = { zNear: 16, zFar: -32, halfX: 16 }
+ * No new feel numbers. Pool sizes live on the catalog; despawn lives on A01:
+ *   BALANCE.weapons.catalog.laser.poolSize  = 128
+ *   BALANCE.weapons.catalog.plasma.poolSize = 32
+ *   weaponCapacity = max(loadout map poolSize) = 128 this pass
+ *   BALANCE.shot.despawn = { zNear: 16, zFar: -32, halfX: 16 }
  *     // slightly looser than enemy despawn so bolts can leave the field cleanly
+ *   enemy / bomb capacity = 0 until those cards
  *
  * Feel:      N/A as an object. Player notices leaks (bolts hanging off-field) or
  *            a laser volley wiping incoming enemy fire — both bugs.
@@ -174,12 +205,15 @@ export declare class ShotManager {
 /**
  * File: poc2/src/systems/shot-manager.test.ts
  * Runner: vitest
- * Mocks: fake ObjectPoolPort<ShotLike> per origin, BALANCE.shot.despawn
+ * Mocks: fake ShotLike factory (no real THREE required if factory returns a stub);
+ *        scene { add, remove } spies; BALANCE.shot.despawn
  *
  * describe('ShotManager')
  *   it('exposes weapon, enemy and bomb origin pools')                                 // R1
+ *   it('scene.add is called once per filled weapon shot (not per acquire)')           // R12, D14
+ *   it('asAcquirePort().acquire() is the weapon origin')                              // R11
  *   it('acquire(weapon) never returns a shot that lives in the enemy pool')           // R2
- *   it('clear(weapon) leaves enemy actives alive (no cross-cleanup)')                 // R3, acceptance
+ *   it('clear(weapon) leaves enemy actives alive (no cross-cleanup)')                 // R3
  *   it('update releases a shot whose lifetime elapsed')                               // R4, WPN-01
  *   it('update releases a shot past despawn bounds')                                  // R4, RUL-02
  *   it('update does not call a CollisionManager or DamageSink')                       // R5
@@ -187,11 +221,11 @@ export declare class ShotManager {
  *   it('pools() returns the same three references across calls')                      // R7
  *   it('acquire returns null when that origin is exhausted')                          // R8, WPN-01
  *   it('syncRender forwards to actives and has no own mesh')                          // R9
- *   it('dispose disposes all three pools')                                            // R10
+ *   it('dispose disposes all three pools and scene.remove each filled mesh')          // R10
  *   it('shots of all sources coexist without cross-cleanup (acceptance)')             // card
  *
  * Manual:
- *   A-manual-1. [manual] hold fire 30s + dummy enemy bolts — no GC spike, no wipe
+ *   A-manual-1. [manual] hold fire 30s — no GC spike, bolts despawn off-field
  *
- * Coverage: R1–R10 + WPN-01 + RUL-02 + card Acceptance.
+ * Coverage: R1–R12 + WPN-01 + RUL-02 + card Acceptance.
  */

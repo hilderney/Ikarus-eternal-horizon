@@ -77,6 +77,12 @@ body {
   image-rendering: pixelated;
 }
 
+.input-map {
+  white-space: pre-line;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+
 /* Empty-area hint, replaced as soon as SDD-G06 populates the columns. */
 .area:empty::before {
   content: attr(aria-label);

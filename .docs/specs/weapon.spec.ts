@@ -9,6 +9,7 @@
  *               + poc/src/core/weaponsCatalog.ts  — frozen reference
  * Test file:    poc2/src/gameobjects/weapon/weapon.test.ts
  *               poc2/src/gameobjects/weapon/laser-levels.test.ts
+ *               poc2/src/gameobjects/weapon/catalog.test.ts
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -17,19 +18,17 @@
 
 // ─── 1. Scope ────────────────────────────────────────────────────────────────
 /**
- * Owns:      The weapon device, the behaviour port, the catalog, the registry
- *            seam (D12), LaserBehaviour, and LASER_LEVELS.
- *            interface WeaponBehaviour { update(ctx); dispose() }
- *            class Weapon — owns a pooled WeaponShot set + a behaviour from
- *            the registry. catalog.ts holds WEAPONS. registry.ts is
- *            Record<WeaponId, factory> + registerWeapon. laser-levels.ts
- *            holds L1–L10 and applyLaserLevel.
- * Does not own: WeaponShot mesh (D01), EnergyManager (D03), FiringManager
- *            (E07), Plasma/Beam/Mjolnir behaviours (D04–D06 register into
- *            this seam). BALANCE.weapons.catalog *imports* this catalog.
- * Player-facing: the laser volley shape per level (L1 one bolt … L10 ten)
- *            and the cyan cadence. Adding a weapon must not require editing
- *            class Weapon.
+ * Owns:      The weapon device, the behaviour port, catalog.ts (WEAPONS),
+ *            the registry seam (D12), LaserBehaviour, and LASER_LEVELS.
+ *            class Weapon looks up id → config + factory; it does not own
+ *            the shot pool (E04 does). LaserBehaviour fills D01 ShotSpawn
+ *            and acquire()s bolts.
+ * Does not own: WeaponShot mesh (D01), EnergyManager (D03), ShotManager pool
+ *            lifecycle (E04), FiringManager input (E07), Plasma behaviour
+ *            (D04 registers into this seam). Beam/Mjolnir (D05/D06) are
+ *            catalog rows only this pass — not registered, not in loadout.
+ * Player-facing: L1 cyan needle at 8/s; L5/L10 volley shapes when applyLaserLevel
+ *            is used. Adding a weapon must not edit class Weapon.
  */
 
 // ─── 8. Requires ─────────────────────────────────────────────────────────────
@@ -37,24 +36,29 @@
  * Must match the card. A mismatch is a documentation bug.
  *
  * Upstream (must exist before this starts):
- *   SDD-A01 Balancer     — BALANCE.weapons.loadout; catalog imported here
- *   SDD-A03 Math         — DEG2RAD for diagonal volleys
- *   SDD-A05 ObjectPool   — pool of WeaponShot
- *   SDD-D01 WeaponShot   — activate(ShotSpawn)
+ *   SDD-A01 Balancer      — re-exports this catalog; energy / loadout live there
+ *   SDD-A03 Math          — DEG2RAD for diagonal volleys
+ *   SDD-A05 ObjectPool    — generic pool type (constructed by E04, not here)
+ *   SDD-D01 WeaponShot    — activate(ShotSpawn)
  *   SDD-D03 EnergyManager — EnergyPort canAfford/spend
+ *   SDD-E04 ShotManager   — ShotAcquirePort; Weapon never constructs a pool
  *
  * Downstream (who breaks if this contract changes):
- *   SDD-D04 Plasma / D05 Beam / D06 Mjolnir — 1 catalog row + 1 registry row
- *   SDD-E07 FiringManager — constructs Weapon, feeds BehaviourCtx
+ *   SDD-D04 Plasma        — 1 catalog row + 1 registerWeapon
+ *   SDD-D05 / D06         — catalog rows reserved; factories G2
+ *   SDD-E07 FiringManager — constructs Weapon(id, shots), feeds BehaviourCtx
  *   SDD-G08 Debugger      — LASER_LEVELS presets
+ *
+ * Cycle note: catalog.ts must not import BALANCE. balancer.ts imports WEAPONS
+ * so RUL-12 stays one path: BALANCE.weapons.catalog === WEAPONS.
  */
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  contract, memory, THREE / view
- * Game Design  : hub-v4.1 / 2026-08-17  BALANCE, feel, leveling, graphics
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.3 / 2026-08-18  E04 owns pool; catalog extract; D14 no Scene
+ * Programming  : hub-v4.3 / 2026-08-18  ShotAcquirePort, ShotSpawn from D01, no scene.add
+ * Game Design  : hub-v4.3 / 2026-08-18  LASER_LEVELS port; loadout laser+plasma
+ * TDD          : hub-v4.3 / 2026-08-18  cases named; test file not yet written (red next)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
@@ -68,9 +72,9 @@
 // ─── 2. Contract ─────────────────────────────────────────────────────────────
 /**
  * Public surface. Ports first, then the class. Constructor dependencies explicit.
- * No service locators. No globals besides BALANCE.
- * Bolt visuals live on WeaponShot (D01); Weapon itself is not a THREE object.
- * D12: adding a weapon = 1 catalog entry + 1 registry entry. Weapon is untouched.
+ * No service locators. No Scene. Weapon is not a THREE object (D01 is).
+ * D12: adding a weapon = 1 catalog.ts entry + 1 registerWeapon call.
+ * D14: this card never scene.add. E04 adds pooled meshes on fill.
  */
 
 export type WeaponId = 'laser' | 'plasma' | 'beam' | 'mjolnir'
@@ -83,15 +87,6 @@ export interface Vec3Like {
   z: number
 }
 
-export interface TargetHit {
-  team: 'player' | 'enemy'
-  active: boolean
-  x: number
-  z: number
-  radius: number
-  takeDamage(amount: number): void
-}
-
 /** Port owned by SDD-D03. */
 export interface EnergyPort {
   canAfford(cost: number): boolean
@@ -100,15 +95,12 @@ export interface EnergyPort {
 
 export interface WeaponServices {
   energy: EnergyPort
-  targets: readonly TargetHit[]
 }
 
 export interface WeaponModifiers {
   damageMul: number
   rateMul: number
   energyMul: number
-  critChance: number
-  pulses: number
   aoeMul: number
   beamWidthMul: number
   coneMul: number
@@ -125,6 +117,27 @@ export interface BehaviourCtx {
 export interface WeaponBehaviour {
   update(ctx: BehaviourCtx): void
   dispose(): void
+}
+
+/** E04 is the only acquire. Behaviours must not `new` a shot. */
+export interface ShotAcquirePort {
+  acquire(): { activate(spawn: ShotSpawn): void } | null
+}
+
+/** Identical to D01. Copied so this spec is self-contained. */
+export interface ShotSpawn {
+  readonly x: number
+  readonly z: number
+  readonly vx: number
+  readonly vz: number
+  readonly damage: number
+  readonly lifetime: number
+  readonly totalLifetime: number
+  readonly radius: number
+  readonly aoeRadius: number
+  readonly range: number
+  readonly decayPerUnit: number
+  readonly color?: number
 }
 
 export interface ProjectileSpec {
@@ -185,6 +198,19 @@ export interface WeaponConfig {
   laser?: LaserSpec
 }
 
+export type WeaponBehaviourFactory = (
+  config: WeaponConfig,
+  shots: ShotAcquirePort,
+) => WeaponBehaviour
+
+export declare const WEAPONS: Record<WeaponId, WeaponConfig>
+
+export declare const WEAPON_REGISTRY: Partial<Record<WeaponId, WeaponBehaviourFactory>>
+
+export declare function registerWeapon(id: WeaponId, factory: WeaponBehaviourFactory): void
+
+export declare const LASER_LEVELS: readonly LaserLevel[]
+
 export interface LaserLevel {
   readonly level: number
   readonly damage: number
@@ -199,44 +225,31 @@ export interface LaserLevel {
   readonly forwardSpread: number
 }
 
-export type WeaponBehaviourFactory = (
-  config: WeaponConfig,
-  pool: { acquire(): { activate(spawn: unknown): void } | null },
-  scene: unknown,
-) => WeaponBehaviour
-
-export declare const WEAPONS: Record<WeaponId, WeaponConfig>
-
-export declare const WEAPON_REGISTRY: Record<WeaponId, WeaponBehaviourFactory>
-
-export declare function registerWeapon(id: WeaponId, factory: WeaponBehaviourFactory): void
-
-export declare const LASER_LEVELS: readonly LaserLevel[]
-
 export declare function applyLaserLevel(cfg: WeaponConfig, level: number): void
 
 export declare function defaultModifiers(): WeaponModifiers
 
+export interface WeaponOptions {
+  readonly id: WeaponId
+  readonly shots: ShotAcquirePort
+}
+
 export declare class Weapon {
   /**
-   * Looks up WEAPONS[id] + WEAPON_REGISTRY[id]. Builds the pool (A05) of
-   * config.poolSize and the behaviour via the factory. No switch on WeaponId.
+   * Looks up WEAPONS[id] + WEAPON_REGISTRY[id]. Builds the behaviour via the
+   * factory. Does not construct, dispose, or scene.add a pool (E04).
    */
-  constructor(id: WeaponId, scene: THREE.Scene)
+  constructor(options: WeaponOptions)
 
   readonly id: WeaponId
   readonly config: WeaponConfig
-  readonly pool: { acquire(): unknown; dispose(): void }
 
   update(ctx: BehaviourCtx): void
   dispose(): void
 }
 
 export declare class LaserBehaviour implements WeaponBehaviour {
-  constructor(
-    config: WeaponConfig,
-    pool: { acquire(): { activate(spawn: unknown): void } | null },
-  )
+  constructor(config: WeaponConfig, shots: ShotAcquirePort)
 
   update(ctx: BehaviourCtx): void
   dispose(): void
@@ -244,43 +257,47 @@ export declare class LaserBehaviour implements WeaponBehaviour {
 
 // ─── 3. Key fields and methods ───────────────────────────────────────────────
 /**
- *   module            | role
- *   ------------------|------------------------------------------------
- *   catalog.ts        | WEAPONS data; imported by BALANCE.weapons.catalog
- *   registry.ts       | WEAPON_REGISTRY + registerWeapon (D12 seam)
- *   laser-levels.ts   | LASER_LEVELS[1..10] + applyLaserLevel
- *   weapon.ts         | class Weapon — device: pool + behaviour
+ *   module              | role
+ *   --------------------|------------------------------------------------
+ *   catalog.ts          | WEAPONS data; imported by balancer.ts
+ *   registry.ts         | WEAPON_REGISTRY + registerWeapon (D12 seam)
+ *   laser-levels.ts     | LASER_LEVELS[1..10] + applyLaserLevel
+ *   weapon.ts           | class Weapon — device: config + behaviour
  *   behaviours/laser.ts | class LaserBehaviour
  *
  * Weapon:
- *   constructor looks up WEAPONS[id] and WEAPON_REGISTRY[id] (or receives
- *   them injected). update forwards to behaviour.update(ctx). dispose
- *   disposes behaviour then pool.
+ *   constructor throws if WEAPON_REGISTRY[id] is missing (beam/mjolnir this
+ *   pass). update forwards to behaviour.update(ctx). dispose() disposes the
+ *   behaviour only — never the E04 pool.
  *
  * LaserBehaviour.update:
- *   cooldown -= dt; return if !holding or cooldown>0.
+ *   cooldown -= dt; return if !holding or cooldown > 0.
  *   cost = energyPerShot * energyMul; return if !canAfford; then spend.
  *   Spawn forwardShots along X with forwardSpread; for each side ±1 spawn
  *   diagonalShotsPerSide at ±diagonalAngleDeg + jitter * diagonalSpreadDeg.
  *   vx,vz = (sin(rad)*speed, -cos(rad)*speed); forward uses vx=0, vz=-speed.
- *   ShotSpawn.aoeRadius = 0; decayPerUnit = 0; totalLifetime = lifetime;
- *   range = speed * lifetime.
- *   cooldown = 1 / (rate * rateMul).
+ *   ShotSpawn: aoeRadius 0; decayPerUnit from projectile; totalLifetime =
+ *   lifetime; range = speed * lifetime; color = config.color.
+ *   y is not a spawn field (D01 play plane y = 0).
+ *   cooldown = 1 / (rate * rateMul) after a successful volley (at least one
+ *   acquire). A fully exhausted pool still spends energy and sets cooldown
+ *   once the volley was attempted after canAfford — skip individual bolts
+ *   on null, do not abort the rest of the volley.
  *
  * applyLaserLevel:
  *   copies the matching LASER_LEVELS row onto cfg damage/rate/energyPerShot
  *   and projectile.speed/radius/lifetime and laser.forward/diag/angle/spread.
  *   laser.totalShots = forwardShots + 2 * diagonalShotsPerSide (= level).
  *
- * Non-obvious: Weapon does not switch behaviours itself — E07 constructs a
- * new Weapon(id). registerWeapon is the only DLC hook.
+ * Non-obvious: Weapon does not switch behaviours — E07 constructs a new
+ * Weapon({ id, shots }). registerWeapon is the only DLC hook.
  */
 
 // ─── 5. Rules and invariants ─────────────────────────────────────────────────
 /**
  *   R1. WeaponBehaviour is { update(ctx): void; dispose(): void }.
- *   R2. Weapon is a device: pool + behaviour via registry. It has no switch
- *       statement on WeaponId.
+ *   R2. Weapon is a device: config + behaviour via registry. No switch on
+ *       WeaponId. No Scene constructor arg.
  *   R3. Adding a weapon = 1 catalog.ts entry + 1 registerWeapon call.
  *       Class Weapon is not edited (D12).
  *   R4. Energy gate: no spawn when !canAfford(energyPerShot * energyMul).
@@ -290,19 +307,23 @@ export declare class LaserBehaviour implements WeaponBehaviour {
  *       for every LASER_LEVELS row.
  *   R7. L1 = 1 forward; L4 = 4 forward; L5 = 3 forward + 1/side; L10 = 4
  *       forward + 3/side.
- *   R8. Laser bolts: speed 30, lifetime 1, aoeRadius 0. Pool size 128.
- *   R9. Per-frame allocation: none. Shots come from the pool; acquire null
- *       skips that bolt (no new).
- *   R10. dispose() disposes behaviour and the pool (every WeaponShot GPU).
+ *   R8. Laser bolts: speed 30, lifetime 1, aoeRadius 0. Catalog poolSize 128
+ *       is consumed by E04, not by this class.
+ *   R9. Per-frame allocation: none. Shots come from E04; acquire null skips
+ *       that bolt (no new).
+ *   R10. dispose() disposes the behaviour. It does not dispose the pool.
  *   R11. applyLaserLevel is a no-op for an unknown level (does not throw).
+ *   R12. catalog.ts does not import BALANCE (import cycle).
+ *   R13. This pass registers 'laser' (and D04 registers 'plasma'). 'beam'
+ *       and 'mjolnir' stay in WEAPONS but WEAPON_REGISTRY has no factory.
  */
 
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
 /**
  * Visual:      N/A on Weapon / LaserBehaviour — bolts are D01 WeaponShot
  * Inheritance: N/A (device + behaviour)
- * syncRender writes: N/A (shots sync themselves)
- * Scene ownership: pool items added by A05/E04; Weapon does not scene.add
+ * syncRender writes: N/A (E04 forwards shot.syncRender)
+ * Scene ownership: E04 / G03. This card never scene.add.
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -311,19 +332,17 @@ export declare class LaserBehaviour implements WeaponBehaviour {
 
 // ─── 4. BALANCE, feel, leveling, graphics ────────────────────────────────────
 /**
+ * Catalog source of truth is catalog.ts. A01 re-exports:
+ *   BALANCE.weapons.catalog === WEAPONS
+ *   BALANCE.weapons.loadout = ['laser', 'plasma']   // WPN-03 this pass
+ *
  * Laser catalog (L1 defaults; applyLaserLevel overwrites per level):
- *   BALANCE.weapons.catalog.laser.id             = 'laser'
- *   BALANCE.weapons.catalog.laser.displayName    = 'Laser'
- *   BALANCE.weapons.catalog.laser.color          = 0x22d3ee
- *   BALANCE.weapons.catalog.laser.rate           = 8
- *   BALANCE.weapons.catalog.laser.energyPerShot  = 0.25
- *   BALANCE.weapons.catalog.laser.damage         = 1
- *   BALANCE.weapons.catalog.laser.profile        = 'projectile'
- *   BALANCE.weapons.catalog.laser.poolSize       = 128
- *   BALANCE.weapons.catalog.laser.muzzleOffset   = { x: 0, y: 0, z: -1.4 }
- *   projectile.speed / lifetime / radius         = 30 / 1 / 0.12
- *   laser.forwardShots / diagonalShotsPerSide    = 1 / 0
- *   laser.totalShots                             = 1
+ *   id / displayName / color     = 'laser' / 'Laser' / 0x22d3ee
+ *   rate / energyPerShot / damage = 8 / 0.25 / 1
+ *   profile / poolSize           = 'projectile' / 128
+ *   muzzleOffset                 = { x: 0, y: 0, z: -1.4 }
+ *   projectile.speed / lifetime / radius / damageDecayPerUnit = 30 / 1 / 0.12 / 0
+ *   laser.forwardShots / diagonalShotsPerSide / totalShots    = 1 / 0 / 1
  *   laser.diagonalAngleDeg / forwardSpread / diagonalSpreadDeg = 22 / 0.55 / 10
  *
  * LASER_LEVELS (copied from poc/src/weapons/laserLevels.ts — port, do not retune):
@@ -340,20 +359,19 @@ export declare class LaserBehaviour implements WeaponBehaviour {
  *   9  3.6  12    0.52    30     0.16    1     3    3          22     0.55
  *  10  4.3  12.5  0.56    30     0.165   1     4    3          22     0.55
  *
- * Invariant: fwd + 2*diag/side = level for every row (1,2,3,4,5,6,7,8,9,10).
- * Speed 30 · lifetime 1 (range 30) on every row. Radius is a 0–1 float.
+ * Invariant: fwd + 2*diag/side = level for every row. Speed 30 · lifetime 1
+ * on every row. Play starts at L1; no in-run level UI this pass (G08 later).
  *
- * Loadout: BALANCE.weapons.loadout = ['laser'] initially; catalog still
- * holds plasma/beam/mjolnir so D04–D06 register without editing A01 shape.
+ * Plasma / Beam / Mjolnir rows: see D04 / D05 / D06. Nested orb/beam/cone
+ * live in catalog.ts now so A01 is not a second table.
  *
- * Feel:      L1 is a single cyan needle. L5 is the first "fan" (3 forward +
- *            one each side at 22°). L10 is a wall of ten bolts. Cadence climbs
- *            8 → 12.5 so levels read as both denser and snappier. Energy cost
- *            climbs slower than bolt count so higher levels stay affordable.
- * Leveling:  this table IS the laser leveling. applyLaserLevel is the only
- *            writer. Hull fireRateMul (C03) scales cooldown on top.
- * Graphics:  cyan 0x22d3ee; thickness from D01 (2×radius). Pillar 4.
- * Pillars:   fire-laser fragment; 4 legibility (volley shape reads the level).
+ * Feel:      L1 is a single cyan needle. Cadence 8, cost 0.25 vs regen 8
+ *            means full-auto forever on a healthy pool. Thickness from D01
+ *            (2×radius).
+ * Leveling:  this table IS the laser leveling. Hull fireRateMul (C03) scales
+ *            cooldown on top via mods.rateMul.
+ * Graphics:  cyan 0x22d3ee. Pillar 4.
+ * Pillars:   fire-laser fragment; WPN-01 pooled fire; WPN-05 cost.
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -365,25 +383,33 @@ export declare class LaserBehaviour implements WeaponBehaviour {
  * Files:
  *   poc2/src/gameobjects/weapon/weapon.test.ts
  *   poc2/src/gameobjects/weapon/laser-levels.test.ts
+ *   poc2/src/gameobjects/weapon/catalog.test.ts
  * Runner: vitest
- * Mocks: EnergyPort stub, ObjectPool stub that records activate() calls,
- *        BALANCE/WEAPONS catalog, defaultModifiers()
+ * Mocks: EnergyPort stub, ShotAcquirePort that records activate() calls.
+ *        Real WEAPONS / LASER_LEVELS. No Scene. No ObjectPool.
+ *
+ * describe('WEAPONS catalog')
+ *   it('has laser projectile 30/1/0.12 and plasma orb 14/2.4/0.22/2.2')           // RUL-12
+ *   it('is the same object as BALANCE.weapons.catalog')                            // R12
+ *   it('does not import balancer (source-text)')                                   // R12
  *
  * describe('Weapon')
  *   it('constructs from id by asking the registry, not a switch on WeaponId')     // R2, D12
+ *   it('throws when the registry has no factory for that id')                      // R13
  *   it('update forwards BehaviourCtx to the behaviour')                            // R1
- *   it('dispose disposes behaviour and pool')                                      // R10
+ *   it('dispose disposes behaviour and does not dispose the acquire port')         // R10
  *   it('registerWeapon(id, factory) is the only hook a new weapon needs')          // R3
+ *   it('constructor does not take a Scene')                                        // R2, D14
  *
  * describe('LaserBehaviour')
  *   it('spawns no shots when energy.canAfford is false')                           // R4, WPN-05
  *   it('spends energyPerShot * energyMul on a successful volley')                  // R4
  *   it('cooldown is 1 / (rate * rateMul); L1 rate 8 ⇒ 0.125s')                     // R5
- *   it('L1 spawns 1 forward bolt with vx=0, vz=-30, aoeRadius 0')                  // R7, R8
+ *   it('L1 spawns 1 forward bolt with vx=0, vz=-30, aoeRadius 0, color 0x22d3ee')  // R7, R8
  *   it('L5 spawns 5 bolts — 3 forward + 1 per side')                               // R7, Acceptance
  *   it('L10 spawns 10 bolts — 4 forward + 3 per side')                             // R7, Acceptance
- *   it('muzzle uses catalog muzzleOffset z=-1.4 via ctx.muzzle')                   // catalog
- *   it('skips a bolt when pool.acquire() returns null (no new)')                   // R9
+ *   it('muzzle uses catalog muzzleOffset via ctx.muzzle (not a literal)')          // catalog
+ *   it('skips a bolt when acquire() returns null (no new)')                        // R9
  *   it('update allocates no objects')                                              // R9
  *
  * describe('LASER_LEVELS')
@@ -398,5 +424,5 @@ export declare class LaserBehaviour implements WeaponBehaviour {
  *   A-manual-1. [manual] L5 fan is readable as 3-forward + 2-diagonal
  *   A-manual-2. [manual] holding fire at 0 energy produces silence, not a stall
  *
- * Coverage: R1–R11 + card Acceptance (L5=5, L10=10, new id needs no Weapon edit).
+ * Coverage: R1–R13 + card Acceptance (L5=5, L10=10, new id needs no Weapon edit).
  */

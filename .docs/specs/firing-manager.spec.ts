@@ -206,7 +206,7 @@ export declare class FiringManager {
  *   BALANCE.gameplay.switchKey          = 'KeyF'    // A02 maps to action 'switchWeapon'
  *   BALANCE.controls.gamepad.buttons.fire          = 7  // RT
  *   BALANCE.controls.gamepad.buttons.switchWeapon  = 4  // LB
- *   BALANCE.weapons.loadout             = ['laser']   // G0; plasma joins D04/WPN-03
+ *   BALANCE.weapons.loadout             = ['laser', 'plasma']   // WPN-03 this pass
  *   BALANCE.gameplay.energy             = { start: 100, max: 100, regenPerSec: 8 }
  *   BALANCE.ship.health.fireRateMul     = [1, 0.9, 0.75, 0.55]  // hull 0/1/2/3
  *   Laser catalog (D02): rate 8, energyPerShot 0.25, damage 1

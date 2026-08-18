@@ -31,7 +31,7 @@ npm run verify     # all three — the gate every card must pass (hub §6.1)
 
 ## State
 
-**Stages A–B, C01–C03 and G12 are done.** Next: **G09/G03** to wire a playable Run, or Stage D combat primitives. `src/main.ts` is still a walking skeleton until G01/G03. Follow the build order in the hub §5 / the graph in §10.
+**Stages A–B, C01–C03, G06, G09, G03 and G12 are done.** Fase 0 is playable (`npm run dev`): ship + camera + parallax + limit-box. Combat (Stage D) and Title flow (G01) are next. Follow the build order in the hub §5 / the graph in §10.
 
 ---
 

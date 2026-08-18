@@ -57,11 +57,8 @@
  * Orchestrator : hub-v4.2 / 2026-08-17  input.update first in step, D18
  * Programming  : hub-v4.2 / 2026-08-17  InputPort on options
  * Game Design  : hub-v4.2 / 2026-08-17  pad map in area-inputs
- * TDD          : hub-v4.2 / 2026-08-17  cases named; test file not yet written (red next)
- *
- * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
- *             IDs · verify green · port fidelity
- * Status: spec-complete
+ * TDD          : hub-v4.3 / 2026-08-18  run-scene.test.ts green
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

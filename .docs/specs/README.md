@@ -50,4 +50,4 @@ POC-1 is frozen. These specs describe **`poc2/` only**.
 | G11 | [pause-scene.spec.ts](./pause-scene.spec.ts) | `poc2/src/scenes/pause-scene.test.ts` |
 | G12 | [touch-controls.spec.ts](./touch-controls.spec.ts) | `poc2/src/ui/touch-controls/touch-controls.test.ts` |
 
-Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B and C01–C03 and G12 are **done**. Next implementation is G09/G03 (playable Run) or Stage D combat primitives.
+Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B, C01–C03, G06, G09, G03 and G12 are **done**. D01–D04 + E04 + a thin E07 are **implemented** (`npm run verify` 295 tests). D05/D06 stay catalog-only until G2. Fase 0 is playable; Space/RT fires laser, F/LB switches to plasma (no splash until F01).

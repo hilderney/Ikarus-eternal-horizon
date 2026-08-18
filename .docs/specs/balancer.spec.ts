@@ -143,7 +143,11 @@ export interface HapticsConfig {
 }
 
 export interface Balance {
-  readonly layout: { readonly playfield: PlayfieldLayout }
+  readonly layout: {
+    readonly playfield: PlayfieldLayout
+    readonly collapsePx: number
+    readonly areaWidth: string
+  }
   readonly gameplay: {
     readonly fireKey: string
     readonly switchKey: string
@@ -230,7 +234,9 @@ export declare const BALANCE: Balance
  *   ship.follow                 = { halfX: 6, halfZ: 8, bounce.timeMs: 500, recenter delay 1500 / still 800 / accel 3 / maxSpeed 12 }
  *   ship.visual                 = { size {1.5,1,2}, wireframe 0x22d3ee, accent 0x6d28d9, thruster 0x60c5ff }
  *   ship.inventory.caps         = { metalScrap: 999, prismaticCrystal: 99, denseCore: 49, darkMatter: 9 }
- *   weapons.loadout             = ['laser'] initially; catalog holds all four
+ *   weapons.loadout             = ['laser', 'plasma']  // WPN-03; catalog holds all four
+ *   weapons.catalog             = WEAPONS from catalog.ts (D02 extract; A01 re-exports)
+ *   shot.despawn                = { zNear: 16, zFar: -32, halfX: 16 }  // E04
  *
  * New sections (placeholders, Q08 owns the hull curve):
  *   ship.health.integrityMax    = 100

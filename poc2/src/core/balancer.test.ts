@@ -7,6 +7,14 @@ describe('BALANCE', () => {
     expect(BALANCE.layout.playfield.height).toBe(960)
   })
 
+  it('exposes render background, pixelRatioCap 2 and collapse 760', () => {
+    expect(BALANCE.render.background).toBe(0x05040a)
+    expect(BALANCE.render.pixelRatioCap).toBe(2)
+    expect(BALANCE.render.antialias).toBe(true)
+    expect(BALANCE.layout.collapsePx).toBe(760)
+    expect(BALANCE.layout.areaWidth).toBe('17rem')
+  })
+
   it('exposes energy start=max=100 and regenPerSec=8', () => {
     expect(BALANCE.gameplay.energy.start).toBe(100)
     expect(BALANCE.gameplay.energy.max).toBe(100)
@@ -119,6 +127,13 @@ describe('BALANCE', () => {
     expect(BALANCE.gizmos.gridSize).toBe(1000)
     expect(BALANCE.gizmos.worldAxisSize).toBe(4)
     expect(BALANCE.gizmos.cameraAxisSize).toBe(2.2)
+  })
+
+  it('exposes shot despawn bounds and laser+plasma loadout', () => {
+    expect(BALANCE.shot.despawn).toEqual({ zNear: 16, zFar: -32, halfX: 16 })
+    expect(BALANCE.weapons.loadout).toEqual(['laser', 'plasma'])
+    expect(BALANCE.weapons.catalog.laser.poolSize).toBe(128)
+    expect(BALANCE.weapons.catalog.plasma.poolSize).toBe(32)
   })
 
   it('treats BALANCE as a frozen object (Object.isFrozen or as const)', () => {

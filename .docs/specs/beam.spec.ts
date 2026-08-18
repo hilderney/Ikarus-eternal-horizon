@@ -43,14 +43,14 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  contract, memory, THREE / view
- * Game Design  : hub-v4.1 / 2026-08-17  BALANCE, feel, leveling, graphics
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.3 / 2026-08-18  G2 — catalog row only this pass; no factory
+ * Programming  : hub-v4.1 / 2026-08-17  contract kept; F01 hit-query not this pass
+ * Game Design  : hub-v4.3 / 2026-08-18  numbers live in D02 catalog.ts (POC-1 port)
+ * TDD          : hub-v4.1 / 2026-08-17  cases named; do not write tests this pass
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: spec-complete
+ * Status: spec-complete (G2 deferred — catalog only)
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

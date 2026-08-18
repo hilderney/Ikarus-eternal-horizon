@@ -32,10 +32,10 @@
  *   SDD-A01 Balancer — BALANCE.gameplay.energy { start, max, regenPerSec }
  *
  * Downstream (who breaks if this contract changes):
- *   SDD-D02 Weapon / Laser — canAfford/spend per shot
- *   SDD-D04 Plasma         — canAfford/spend per orb
- *   SDD-D05 Beam           — canAfford/spend per second
- *   SDD-D06 Mjolnir        — canAfford/spend per second
+ *   SDD-D02 Weapon / Laser — canAfford/spend per shot (this pass)
+ *   SDD-D04 Plasma         — canAfford/spend per orb (this pass)
+ *   SDD-D05 Beam           — canAfford/spend per second (G2)
+ *   SDD-D06 Mjolnir        — canAfford/spend per second (G2)
  *   SDD-E07 FiringManager  — injects EnergyPort into BehaviourCtx
  *   SDD-G07 HUD            — reads current/max
  *   SHIP-08 jet            — §7 seam on the same port
@@ -43,10 +43,10 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  contract, memory, THREE / view
- * Game Design  : hub-v4.1 / 2026-08-17  BALANCE, feel, leveling, graphics
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.3 / 2026-08-18  unchanged port; D02/D04 consume EnergyPort
+ * Programming  : hub-v4.3 / 2026-08-18  no THREE; HUD reads current/max on the class
+ * Game Design  : hub-v4.3 / 2026-08-18  100/100/8; laser 0.25 vs regen 8 is full-auto
+ * TDD          : hub-v4.3 / 2026-08-18  cases named; test file not yet written (red next)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity

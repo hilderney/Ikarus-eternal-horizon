@@ -403,23 +403,23 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 ### Stage D — Combat primitives
 
 #### `SDD-D01` Shot (WeaponShot)
-- **Folder:** `src/gameobjects/shot/weapon-shot.ts`
-- **Scope:** `class WeaponShot extends THREE.Mesh` — pooled projectile fired by player weapons. `activate(spawn)`, `update(dt)`, `syncRender()`, `dispose()`.
+- **Folder:** `src/gameobjects/shot/weapon-shot.ts` · spec [weapon-shot.spec.ts](../specs/weapon-shot.spec.ts)
+- **Scope:** `class WeaponShot extends THREE.Mesh` — pooled player projectile. `activate(spawn)`, `update(dt)` (logic only), `syncRender()`, `deactivate()`, `dispose()`. Layer **`PlayerShot`** (D13). Constructor never `scene.add` (D14).
 - **Requires:** A01, A03, A05.
-- **Lib:** **Three.js** (`Mesh`, `BoxGeometry`, `MeshBasicMaterial` + additive blending)
-- **Contract:** `ShotSpawn { x, z, vx, vz, damage, lifetime, totalLifetime, radius, aoeRadius, range, decayPerUnit }`; `effectiveDamage(): number` = `damage × decayFactor`.
-- **Decay (laser):** time-based 25% steps over lifetime: 100% → 75% → 50% → 25% opacity **and** damage; **aoeRadius 0** for laser. **Radius visual:** thickness = `2 × radius` (matches the hit area).
-- **Rules:** pooled; release on expiry/hit; `syncRender` applies position/opacity/scale only.
+- **Lib:** **Three.js** (`Mesh`, `BoxGeometry(1, 1, 0.7)`, `MeshBasicMaterial` + additive blending)
+- **Contract:** `ShotSpawn { x, z, vx, vz, damage, lifetime, totalLifetime, radius, aoeRadius, range, decayPerUnit, color? }`; `WeaponShotPort { active, layer, x, z, radius, aoeRadius, effectiveDamage() }`. Kinematics arrive on spawn (D02 writes L1: speed 30, lifetime 1, radius 0.12). D01 does **not** read a nested `catalog.projectile`.
+- **Decay:** A03 `decayFactor(elapsed)` with `elapsed = 1 − lifetime/totalLifetime`. Same factor drives opacity and `effectiveDamage`. **aoeRadius 0** for laser (D02 writes it; D04 writes >0). **Radius visual:** `scale.x/y = 2 × radius` on unit XY geometry (no hidden `SHOT_BASE_WIDTH`).
+- **Rules:** pooled; E04 releases on expiry/hit; `update` never writes GPU; `deactivate` does not dispose GPU.
 - **Maps:** `WPN-01`, `SHIP-03`, `RUL-02`. **Acceptance:** bolt width equals hit diameter; fades 100→25% per lifetime quarter.
 
 #### `SDD-D02` Weapon device + Laser
-- **Folder:** `src/gameobjects/weapon/`
-- **Scope:** `interface WeaponBehaviour { update(ctx): void; dispose(): void }`; `class Weapon` (device: pool + behaviour via the registry seam, `D11`); `catalog.ts` (typed `WeaponConfig` + `WEAPONS` data, imported by `BALANCE`); `registry.ts` (`Record<WeaponId, factory>` + `registerWeapon`). **Laser** — forward volley + two diagonal volleys (3 directions) driven by `config.laser` (`forwardShots`, `diagonalShotsPerSide`, `totalShots = fwd + 2×diag = level`, `diagonalAngleDeg`, `forwardSpread`, `diagonalSpreadDeg`); per-level presets `LASER_LEVELS` + `applyLaserLevel(cfg, level)` in `laser-levels.ts`.
-- **Requires:** A01, A03, A05, D01, D03.
-- **Lib:** **Three.js** (bolt visuals via `weapon-shot`); **Yuka** (optional, projectile homing — not in the Laser profile)
-- **Rules:** energy gate via `EnergyManager`; rate = `1/(rate × rateMul)`; diagonal jitter per side fans the volley; **adding a weapon = 1 catalog entry + 1 registry entry** and nothing else.
-- **Levels:** L1=1f, L4=4f, **L5=3f+1/side**, L10=4f+3/side; **speed 30 · lifetime 1 (range 30)**; radius 0–1 float.
-- **Maps:** `WPN-01`, `WPN-04`, `WPN-05`, `SHIP-03`. **Acceptance:** L5 fires 5 bolts (3 forward + 1 per side); L10 fires 10; registering a new id needs no edit to `Weapon`.
+- **Folder:** `src/gameobjects/weapon/` · spec [weapon.spec.ts](../specs/weapon.spec.ts)
+- **Scope:** `interface WeaponBehaviour { update(ctx): void; dispose(): void }`; `class Weapon` (device: config + behaviour via the registry seam, `D12` — **does not own the shot pool**); `catalog.ts` (`WEAPONS`; **imported by A01** so `BALANCE.weapons.catalog === WEAPONS`); `registry.ts` (`registerWeapon`); `laser-levels.ts`. **Laser** fills D01 `ShotSpawn` via E04 `ShotAcquirePort`. No `Scene` constructor arg (D14).
+- **Requires:** A01, A03, A05, D01, D03, **E04**.
+- **Lib:** **Three.js** (bolt visuals via `weapon-shot` only)
+- **Rules:** energy gate via `EnergyPort`; rate = `1/(rate × rateMul)`; **adding a weapon = 1 catalog entry + 1 registry entry**. This pass registers `laser` (D04 registers `plasma`). `beam` / `mjolnir` stay catalog-only (G2).
+- **Levels:** L1=1f … L10=4f+3/side; **speed 30 · lifetime 1 (range 30)**; play starts at L1.
+- **Maps:** `WPN-01`, `WPN-04`, `WPN-05`, `SHIP-03`. **Acceptance:** L5 fires 5 bolts; L10 fires 10; registering a new id needs no edit to `Weapon`.
 
 #### `SDD-D03` EnergyManager
 - **Folder:** `src/systems/energy-manager.ts`
@@ -429,12 +429,12 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 - **Maps:** `SHIP-09`, `WPN-05`, `SHIP-08` (seam). **Acceptance:** laser drains visibly; at 0 fire blocks with a low-energy state.
 
 #### `SDD-D04` Weapon / Plasma
-- **Folder:** `src/gameobjects/weapon/behaviours/plasma.ts`
-- **Scope:** `class PlasmaBehaviour implements WeaponBehaviour` — slow orbs from the shared pool, medium **AoE** on impact or expiry, low rate, moderate energy. AoE radius comes from the catalog and is applied through `F01`'s AoE hook.
-- **Requires:** A05, D01, D02, D03, F01.
+- **Folder:** `src/gameobjects/weapon/behaviours/plasma.ts` · spec [plasma.spec.ts](../specs/plasma.spec.ts)
+- **Scope:** `class PlasmaBehaviour implements WeaponBehaviour` — slow orbs from the **E04** WeaponShot pool, `aoeRadius` 2.2. AoE is applied by F01 later; this pass orbs fly, fade, and expire.
+- **Requires:** D01, D02, D03, E04. (F01 for splash — not a blocker for spawn/switch.)
 - **Lib:** **Three.js** (orb mesh via `weapon-shot` with `aoeRadius > 0`)
-- **Rules:** the orb is a pooled `WeaponShot`, not a new entity type; AoE damage is resolved once per detonation.
-- **Maps:** `WPN-03`, `WPN-04`, `WPN-05`. **Acceptance:** an orb detonating damages every hostile inside `aoeRadius`, once.
+- **Rules:** the orb is a pooled `WeaponShot`, not a new entity type; `registerWeapon('plasma')` only (D12). Loadout `['laser', 'plasma']`.
+- **Maps:** `WPN-03`, `WPN-04`, `WPN-05`. **Acceptance:** F/LB switches without stalling; orbs are orange and slower than laser. Splash [manual] after F01.
 
 #### `SDD-D05` Weapon / Beam
 - **Folder:** `src/gameobjects/weapon/behaviours/beam.ts` + `beam-visual.ts`
@@ -480,11 +480,11 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 - **Maps:** `ENM-01`, `SHIP-05`. **Acceptance:** an enemy shot reaching the ship is absorbed by the Force Field first.
 
 #### `SDD-E04` ShotManager
-- **Folder:** `src/systems/shot-manager.ts`
-- **Scope:** owns all projectile pools by origin (weapon/bomb/enemy); acquisitions from weapon behaviours, lifecycle, expiry; feeds `CollisionManager`.
-- **Requires:** A05, D01, E03.
-- **Lib:** — (no dependency — pool orchestration only)
-- **Maps:** `WPN-01`, `RUL-02`. **Acceptance:** shots of all sources coexist without cross-cleanup.
+- **Folder:** `src/systems/shot-manager.ts` · spec [shot-manager.spec.ts](../specs/shot-manager.spec.ts)
+- **Scope:** **owns** all projectile pools by origin. Weapon / Laser / Plasma only `acquire()`. This pass: real `WeaponShot` pool (capacity 128); enemy/bomb capacity 0 until E03 / WPN-06. Expiry + off-field release; `scene.add` on fill (D14). Feeds `CollisionManager` later.
+- **Requires:** A01, A05, D01. **Not** E03 this pass.
+- **Lib:** — (pool orchestration; D01 is the mesh)
+- **Maps:** `WPN-01`, `RUL-02`. **Acceptance:** shots recycle; exhaustion returns null; no cross-cleanup.
 
 #### `SDD-E05` EnemyManager
 - **Folder:** `src/systems/enemy-manager.ts`
@@ -503,7 +503,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 #### `SDD-E07` FiringManager
 - **Folder:** `src/systems/firing-manager.ts`
 - **Scope:** input fire → active weapon `.update({ dt, holding, muzzle, services { energy, targets }, mods })`; `holding` is `isPressed('fire')` (Space **or** RT). Weapon switch is `isPressed('switchWeapon')` edge (F **or** LB). Constructs/owns the active `Weapon`. Applies `fireRateMul` from `C03`. Does not call `rumble('fireLaser')` for Laser (Q13).
-- **Requires:** A01, A02, C01, C03, D02, D03, F01.
+- **Requires:** A01, A02, C01, C03, D02, D03. F01 targets list is empty until F01 (beam/cone G2).
 - **Lib:** — (no dependency — behavior wiring; Three.js vectors only)
 - **Maps:** `WPN-03`, `WPN-05`, `SHIP-03`, `SHIP-12`, `SHIP-13` (POC2 play). **Acceptance:** Space or RT (`isPressed('fire')`) fires; F or LB switches; energy gate respected; a damaged hull visibly slows the cadence.
 
@@ -910,10 +910,10 @@ flowchart TD
 | Gate | **G0** |
 | Hub version | 4.3.0 |
 | Reference build | POC-1 (`poc/`) — frozen, playable (not a workstream) |
-| Target build | POC2 (`poc2/`) — Stage A–B, C01–C03 and G12 done; G09/G03 or Stage D next |
+| Target build | POC2 (`poc2/`) — Fase 0 playable (A–C, G06/G09/G03/G12); Stage D or G01 next |
 | Phase docs | `phase-0-poc.md` (history) · `phase-0-poc2.md` (architecture) |
 | SDD specs | one file per Stage A–G card under `.docs/specs/` + `_template.spec.ts` |
 | Agents | Orchestrator · Programming/Three.js · Game Design · TDD (§6.3, `D17`) |
 | Backlog | [`poc2/todo.md`](../../poc2/todo.md) — one entry per card |
 
-**Next steps:** 1) G09/G03 to wire the ship, controllers, ShipHealth and TouchControls into a playable Run; 2) Stage D combat primitives.
+**Next steps:** 1) play-test Fase 0 (`npm run dev` in `poc2/`); 2) Stage D combat primitives or G01 Title→Run flow.

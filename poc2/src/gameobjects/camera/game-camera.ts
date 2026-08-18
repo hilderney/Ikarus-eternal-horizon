@@ -23,6 +23,7 @@ export interface CameraConfig {
 export interface GameCameraPort {
   readonly camera: PerspectiveCamera
   applyConfig(config: CameraConfig): void
+  setAspect(aspect: number): void
   syncRender(): void
   dispose(): void
 }
@@ -51,6 +52,12 @@ export class GameCamera implements GameCameraPort {
       config.rotation.y * DEG2RAD,
       config.rotation.z * DEG2RAD,
     )
+  }
+
+  setAspect(aspect: number): void {
+    this._config = { ...this._config, aspect }
+    this.camera.aspect = aspect
+    this.camera.updateProjectionMatrix()
   }
 
   update(dt: number): void {
