@@ -23,12 +23,16 @@ npm run preview # prévia do build de produção
 | Ação | Teclas |
 |---|---|
 | Mover a **nave** (X/Z) | `W / A / S / D` |
+| **Disparar** arma principal | `Space` |
+| **Trocar de arma** | `F` |
 | Mover a **câmera** (Z / X / Y) | `I / K` · `J / L` · `U / O` |
 | Rotacionar a **câmera** — pitch `↓ / ↑` | `Shift+K` / `Shift+I` |
 | Rotacionar a **câmera** — roll `N / M` | `Shift+O` / `Shift+U` |
 | Rotacionar a **câmera** — yaw `→ / ←` | `Shift+L` / `Shift+J` |
 
 > Este mapa é **único e simultâneo**: não existe troca de modo. WASD move a nave o tempo todo; IJKL/UO movem a câmera e Shift+IJKL/UO rotacionam, tudo ao mesmo tempo. O follow box limita a câmera: quando a nave toca a borda (`halfX`/`halfZ`) a câmera acompanha; e quando a nave fica **parada** o auto-recenter suave reposiciona a câmera (mover interrompe; retoma com a nave parada por `stillMs`) até a **Recenter Point** — um **ponto único fixo relativo ao box** (default `position {0,0,-1}`: em X no centro do box; em Z a 1 unidade *para dentro* da borda da base, `anchor.z + halfZ + z`). Ao se mover, a câmera desloca os itens do parallax com o ganho `parallaxGain` — sensação de perspectiva/movimento.
+
+> **Disparo (weapons):** `Space` atira a arma ativa (serrilhada com a cadência e Energia da arma); `F` (ou o seletor na aba **Weapons** do painel de debug) troca a arma ativa pela próxima do loadout. As 4 armas consomem Energia do mesmo pool — `energy` em `balanced`/painel.
 
 ### Movimento e "feel" da nave
 - **Movimento por força** (`controls.motion`): cada eixo acelera na direção do input com `accel` (m/s²), desacelera até parar com `decel` ao soltar as teclas, e freia contra a direção oposta com `brake` (mais forte que `accel`) — pressionando o lado contrário do movimento, a troca de direção é mais rápida. A velocidade é limitada a `maxSpeed`.
@@ -64,12 +68,25 @@ A sensação de velocidade/deslocamento no fundo não é calculada direto da nav
 
 ### Overlays (DOM sobre o canvas)
 - **Coordenadas da nave** (`shipCoords.ts`) — etiqueta `X / Y / Z` projetada "sobre a nave"; mapeia World→screen com `vector.project` + `getBoundingClientRect` do canvas (letterbox-safe), clamp nas margens, some quando atrás da câmera.
-- **Painel de debug** (`debugControls.ts` + prancheta estática em `index.html`) — coluna direita, organizado em **abas navegáveis** (Cam · Ship · Follow Box · Parallax): header fixo com readouts ao vivo de posição (nave/câmera) e rodapé com botão **Reset**. Sliders/spins/vectors editam os **objetos compartilhados** do jogo (source of truth única) e são sincronizados em duas vias: editar o HTML aplica no jogo (`applyCamera`/`applyShip`/`applyParallax`, ~15Hz via `sync()`, pulando o controle sob foco/drag do usuário).
+- **Barra de Energia** (`energyHud.ts`) — HUD flutuante sobre a nave mostrando o pool de Energia (`ENERGY atual/max` + barra de preenchimento). O mesmo padrão de projeção do `shipCoords`; atualizada a cada frame com `energy.current / energy.max`.
+- **Painel de debug** (`debugControls.ts` + prancheta estática em `index.html`) — coluna direita, organizado em **abas navegáveis** (Cam · Ship · Follow Box · Parallax · **Weapons**): header fixo com readouts ao vivo de posição (nave/câmera) e rodapé com botão **Reset**. Sliders/spins/vectors editam os **objetos compartilhados** do jogo (source of truth única) e são sincronizados em duas vias: editar o HTML aplica no jogo (`applyCamera`/`applyShip`/`applyParallax`, ~15Hz via `sync()`, pulando o controle sob foco/drag do usuário).
+- **Aba Weapons** — seletor da **arma ativa** da nave (laser/plasma/beam/mjolnir; troca pelo seletor ou tecla `F`), modificadores de arma (dano x, cadência x, Energia x, crit, pulsos, AoE, largura de feixe, cone) e o pool de **Energia** (max/regen). Os `mods` alimentam o `firing.ts` sem tocar no código das armas.
 - **Legenda de controles** — coluna esquerda, estática em `index.html`.
 
 ### Input (`src/core/input.ts`)
 - Estado central de teclas com `preventDefault` na lista controlada; `blur` limpa o estado.
 - **Combinações Shift+Key**: quando Shift (esquerdo ou direito) está pressionado, gera códigos sintéticos `Shift+KeyX` (ex.: `Shift+KeyI`). Isso permite mapear rotações da câmera em Shift+IJKL/UO sem conflitar com movimento da câmera (IJKL/UO sozinhos).
+
+### Weapons (arquitetura modular de armas)
+- **`core/weaponsCatalog.ts`** — `WeaponConfig` tipado + catálogo `WEAPONS` (Laser, Plasma, Beam, Mjolnir), dados puros importados pelo `BALANCE`. Cada arma declara perfil (`projectile`/`orb`/`beam`/`cone`), dano, cadência, custo de Energia, pool size e espec de projétil/feixe/cone.
+- **`weapons/behaviour.ts`** — interface Strategy (`WeaponBehaviour`), `WeaponServices` (Energia + alvos), `WeaponModifiers` e `defaultModifiers()`.
+- **`weapons/weapon.ts`** — GameObject dispositivo: cria o pool próprio e delega para o behaviour do registry.
+- **`weapons/registry.ts`** — `Record<WeaponId, factory>` — *seam de DLC*: adicionar arma = 1 entrada no catálogo + 1 no registry (+ `registerWeapon`).
+- **`weapons/behaviours/{laser,plasma,beam,mjolnir}.ts`** — as 4 armas. Laser/Plasma spawnam projéteis do pool; Beam/Mjolnir são visuais contínuos com hit-query por frame (dano por segundo).
+- **`gameobjects/shot.ts`** (projétil pooled, dano com decay por distância), **`gameobjects/beam.ts`** / **`gameobjects/cone.ts`** (visuais), **`gameobjects/testTarget.ts`** (alvo de teste).
+- **`systems/firing.ts`** — input → fogo, gate de Energia, troca cíclica/seletor de arma (`setActive`).
+- **`systems/collisionSystem.ts`** — colisão projétil×alvo por camadas (com AoE no plasma) e registro de targets.
+- **`systems/energy.ts`** — pool de Energia (`EnergyPort` + `EnergySystem`): `start`/`max`/`current` e `regenPerSec`; `spend()`/`canAfford()` são usados por todo disparo (e futuramente jets/dash). Barra visual em `systems/energyHud.ts`.
 
 ---
 
@@ -84,17 +101,35 @@ poc/
     core/
       balancer.ts                 # BALANCE: todos os números/settings
       input.ts                    # estado de teclado
+      weaponsCatalog.ts           # WEAPONS: catálogo tipado das armas principais (Laser/Plasma/Beam/Mjolnir)
     gameobjects/
       cameraRig.ts                # PerspectiveCamera + applyConfig
       ship.ts                     # nave wireframe + thruster
       parallax.ts                 # 3 camadas parallax
       followBox.ts                # caixa dead-zone (LineLoop)
       gizmos.ts                   # eixos mundiais, grade, eixos da câmera
+      shot.ts                     # projétil pooled (laser/plasma)
+      beam.ts                     # visual de feixe contínuo (Beam)
+      cone.ts                     # visual de cone perfurante (Mjolnir)
+      testTarget.ts               # alvo de teste (valida colisão/dano)
+    weapons/
+      weapon.ts                   # dispositivo de arma (device): pool + behaviour
+      behaviour.ts                # interface Strategy + WeaponServices/WeaponModifiers
+      registry.ts                 # Record<WeaponId, factory> — seam de DLC
+      behaviours/
+        laser.ts                  # projéteis retos pooled, decay com distância
+        plasma.ts                 # orbs lentos, AoE na colisão/expiração
+        beam.ts                   # DPS contínuo por hit-query
+        mjolnir.ts                # cone perfurante por hit-query
     systems/
       controllers.ts              # input -> movimento da nave (acel/tilt) + câmera
       followCamera.ts             # dead-zone follow (âncora = centro da caixa)
       shipCoords.ts               # label X/Y/Z sobre a nave
+      energyHud.ts                # barra de Energia flutuante sobre a nave
       debugControls.ts            # painel de debug (abas, sliders/readouts/reset, sync bidirecional)
+      firing.ts                   # disparo, gate de Energia, troca/seletor de arma
+      collisionSystem.ts          # colisão projétil×alvo + AoE + registro de targets
+      energy.ts                   # pool de Energia (EnergyPort)
 ```
 
 Regra do projeto (docs POC §7): *GameObject* na forma `init → update(dt) → syncRender → dispose`; fábricas/functions, sem ECS; `BALANCE` como única fonte de números; zero alocação por frame em hot path.
@@ -109,6 +144,8 @@ Tudo em `src/core/balancer.ts`:
 |---|---|
 | `layout.playfield` | Resolução base do canvas portrait |
 | `controls.shipKeys / motion / tilt / camera` | Mapa de teclas, força (accel/decel/brake) + `maxSpeed`, bank (graus + ms) e move/rot speed da câmera |
+| `gameplay` | Pool de **Energia** (start/max/regen) e teclas de **fire/switch** (Space/F) |
+| `weapons.catalog` / `weapons.loadout` | Catálogo tipado (dados das 4 armas em `weaponsCatalog.ts`) e ordem de troca cíclica |
 | `ship.transform / follow / followBox` | Posição inicial; follow box (halfX/halfZ), "bounce" suave na borda (`bounce.timeMs`) e auto-recenter suave ao parar (`recenter`: delay/still/accel/maxSpeed) em direção ao **Recenter Point** (`restLine.position`: X relativo ao centro, Z relativo à base `anchor.z + halfZ + z`); posição/estilo da caixa + linha de centro (`centerLine`) + marcador `restLine` (cor/opacidade, position/width/height) |
 | `ship.visual` | Dimensões e cores wireframe da nave/thruster |
 | `camera` | FOV, posição/rotação iniciais, near/far |
@@ -120,5 +157,6 @@ Tudo em `src/core/balancer.ts`:
 ## Notas / estado
 
 - Spike devida ao `phase-0-poc.md`: algumas features (label de coords, layout portrait, follow box) são **dev tools / previews** — sem requisito `*.spec.MD` locked.
-- Sem áudio, colisão, inimigos, HUD de jogo ou persistência ainda (fora de escopo desta fase).
+- **Weapons**: arquitetura modular pronta (catálogo + registry + behaviours + firing + collision + energia). Alvos de teste (`testTarget.ts`) existem só para validar colisão/dano — inimigos/meteoros reais vêm nas próximas fases do `todo.md`.
+- Sem áudio, colisão com inimigos/meteoros, HUD de jogo ou persistência ainda (fora de escopo desta fase).
 - O GDD e o planejamento ficam em `.docs/` (git-ignored) — busque com `rg --no-ignore "#tag/..."`.

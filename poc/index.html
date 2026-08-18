@@ -24,6 +24,16 @@
         <div class="legend-row"><span>Shift+U / Shift+O</span><span>roll</span></div>
         <div class="legend-row"><span>Shift+J / Shift+L</span><span>yaw</span></div>
       </div>
+      <div class="legend-group">
+        <div class="legend-title">WEAPONS</div>
+        <div class="legend-row"><span>Space</span><span>fire</span></div>
+        <div class="legend-row"><span>F</span><span>switch weapon</span></div>
+      </div>
+      <div class="legend-group">
+        <div class="legend-title">SHIP STATUS</div>
+        <div class="legend-row"><span>Energy</span><span>pool: tiro/dash consomem</span></div>
+        <div class="legend-row"><span>Regen</span><span>recupera ao longo do tempo</span></div>
+      </div>
     </aside>
     <div id="app"></div>
     <aside class="stage-sidebar right" id="panel">
@@ -32,6 +42,7 @@
         <input type="radio" name="debug-tab" id="dbg-ship" class="debug-tab-input" />
         <input type="radio" name="debug-tab" id="dbg-follow" class="debug-tab-input" />
         <input type="radio" name="debug-tab" id="dbg-para" class="debug-tab-input" />
+        <input type="radio" name="debug-tab" id="dbg-wpn" class="debug-tab-input" />
         <div class="debug-pos">
           <span class="debug-poslabel">Ship</span>
           <span class="debug-posvalue" id="pos-ship">x 0.00  y 0.00  z 0.00</span>
@@ -45,12 +56,14 @@
           <label for="dbg-ship">Ship</label>
           <label for="dbg-follow">Follow Box</label>
           <label for="dbg-para">Parallax</label>
+          <label for="dbg-wpn">Weapons</label>
         </nav>
         <div class="debug-tabpanels">
           <section class="debug-tabpanel" data-tab="cam"></section>
           <section class="debug-tabpanel" data-tab="ship"></section>
           <section class="debug-tabpanel" data-tab="follow"></section>
           <section class="debug-tabpanel" data-tab="para"></section>
+          <section class="debug-tabpanel" data-tab="wpn"></section>
         </div>
         <div class="debug-bar">
           <button id="debug-reset" type="button">Reset</button>

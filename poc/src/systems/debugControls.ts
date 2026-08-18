@@ -1,6 +1,10 @@
 import type { CameraRig, CameraConfig } from '../gameobjects/cameraRig'
 import type { Ship, ShipTransform } from '../gameobjects/ship'
 import type { ParallaxLayerConfig } from '../gameobjects/parallax'
+import type { WeaponId, WeaponConfig } from '../core/weaponsCatalog'
+import { applyLaserLevel, LASER_LEVELS } from '../weapons/laserLevels'
+import type { WeaponModifiers } from '../weapons/behaviour'
+import type { EnergySystem } from './energy'
 import type {
   ShipKeys,
   ShipMotionConfig,
@@ -32,6 +36,14 @@ export interface DebugBinds {
     motion: ShipMotionConfig
     tilt: ShipTiltConfig
     camera: CameraControlConfig
+  }
+  weapons: {
+    catalog: Record<WeaponId, WeaponConfig>
+    loadout: WeaponId[]
+    activeId(): WeaponId
+    setActive(id: WeaponId): void
+    mods: WeaponModifiers
+    energy: EnergySystem
   }
 }
 
@@ -91,6 +103,7 @@ export function createDebugControls(
   const shipPanel = requirePanel(container, 'ship')
   const followPanel = requirePanel(container, 'follow')
   const paraPanel = requirePanel(container, 'para')
+  const wpnPanel = requirePanel(container, 'wpn')
 
   const posShip = container.querySelector<HTMLElement>('#pos-ship')
   const posCamera = container.querySelector<HTMLElement>('#pos-camera')
@@ -103,11 +116,16 @@ export function createDebugControls(
     follow: JSON.parse(JSON.stringify(binds.follow)),
     recenterPoint: JSON.parse(JSON.stringify(binds.recenterPoint)),
     controls: JSON.parse(JSON.stringify(binds.controls)),
+    weaponMods: JSON.parse(JSON.stringify(binds.weapons.mods)) as WeaponModifiers,
+    energyMax: binds.weapons.energy.max,
+    energyRegen: binds.weapons.energy.regenPerSec,
   }
 
   const applyCamera = (): void => binds.rig.applyConfig(binds.camera)
   const applyShip = (): void => binds.ship.applyTransform(binds.shipTransform)
   const applyParallax = (): void => binds.parallaxApply()
+
+  const weaponSelect = { id: binds.weapons.activeId() }
 
   function group(host: HTMLElement, label: string): void {
     const el = document.createElement('div')
@@ -302,6 +320,110 @@ export function createDebugControls(
     vec(paraPanel, 'Rotation (deg)', layer.rotation, apply)
   }
 
+  group(wpnPanel, 'Active Weapon')
+  const weaponOptions = binds.weapons.loadout.map((id) => ({ value: id, text: id.toUpperCase() }))
+  selectRow(wpnPanel, 'Weapon', weaponSelect, 'id', weaponOptions, () => {
+    binds.weapons.setActive(weaponSelect.id as WeaponId)
+    rebuildWeaponStats()
+  })
+
+  const wpnStats = document.createElement('div')
+  wpnPanel.appendChild(wpnStats)
+
+  function rebuildWeaponStats(): void {
+    wpnStats.innerHTML = ''
+    const id = binds.weapons.activeId()
+    const cfg = binds.weapons.catalog[id]
+    if (!cfg) return
+
+    group(wpnStats, `${cfg.displayName} (${cfg.profile})`)
+    scalar(wpnStats, 'Damage', cfg, 'damage', 0, 100, 0.1, () => {})
+    scalar(wpnStats, 'Rate (shots/s)', cfg, 'rate', 0.1, 30, 0.1, () => {})
+    scalar(wpnStats, 'Energy / shot', cfg, 'energyPerShot', 0, 100, 0.05, () => {})
+
+    if (cfg.projectile) {
+      subgroup(wpnStats, 'Projectile')
+      scalar(wpnStats, 'Speed', cfg.projectile, 'speed', 1, 200, 0.5, () => {})
+      scalar(wpnStats, 'Radius (0-1)', cfg.projectile, 'radius', 0, 1, 0.01, () => {})
+      scalar(wpnStats, 'Lifetime (s)', cfg.projectile, 'lifetime', 0.1, 10, 0.05, () => {})
+      if (!cfg.laser) {
+        scalar(wpnStats, 'Dmg decay /u', cfg.projectile, 'damageDecayPerUnit', 0, 1, 0.001, () => {})
+      }
+    }
+    if (cfg.laser) {
+      subgroup(wpnStats, 'Laser')
+      scalar(wpnStats, 'Forward shots', cfg.laser, 'forwardShots', 1, 4, 1, () => {})
+      scalar(wpnStats, 'Diag each side', cfg.laser, 'diagonalShotsPerSide', 0, 4, 1, () => {})
+      scalar(wpnStats, 'Total (fwd + 2xdiag)', cfg.laser, 'totalShots', 1, 10, 1, () => {})
+      scalar(wpnStats, 'Diag angle (deg)', cfg.laser, 'diagonalAngleDeg', 1, 90, 1, () => {})
+      scalar(wpnStats, 'Forward spread', cfg.laser, 'forwardSpread', 0.05, 4, 0.05, () => {})
+      scalar(wpnStats, 'Diag spread (deg)', cfg.laser, 'diagonalSpreadDeg', 0, 45, 1, () => {})
+    }
+    if (cfg.orb) {
+      subgroup(wpnStats, 'Orb')
+      scalar(wpnStats, 'Speed', cfg.orb, 'speed', 1, 200, 0.5, () => {})
+      scalar(wpnStats, 'Radius', cfg.orb, 'radius', 0.01, 2, 0.01, () => {})
+      scalar(wpnStats, 'Lifetime (s)', cfg.orb, 'lifetime', 0.1, 10, 0.05, () => {})
+      scalar(wpnStats, 'AoE radius', cfg.orb, 'aoeRadius', 0, 10, 0.1, () => {})
+      scalar(wpnStats, 'Dmg decay /u', cfg.orb, 'damageDecayPerUnit', 0, 1, 0.001, () => {})
+    }
+    if (cfg.beam) {
+      subgroup(wpnStats, 'Beam')
+      scalar(wpnStats, 'Width', cfg.beam, 'width', 0.01, 5, 0.01, () => {})
+      scalar(wpnStats, 'Length', cfg.beam, 'length', 1, 100, 0.5, () => {})
+      scalar(wpnStats, 'DPS', cfg.beam, 'dps', 0, 200, 0.5, () => {})
+      scalar(wpnStats, 'Energy /s', cfg.beam, 'energyPerSec', 0, 100, 0.1, () => {})
+    }
+    if (cfg.cone) {
+      subgroup(wpnStats, 'Cone')
+      scalar(wpnStats, 'Angle (deg)', cfg.cone, 'angleDeg', 1, 180, 1, () => {})
+      scalar(wpnStats, 'Length', cfg.cone, 'length', 1, 100, 0.5, () => {})
+      scalar(wpnStats, 'DPS', cfg.cone, 'dps', 0, 200, 0.5, () => {})
+      scalar(wpnStats, 'Energy /s', cfg.cone, 'energyPerSec', 0, 100, 0.1, () => {})
+    }
+  }
+  rebuildWeaponStats()
+
+  group(wpnPanel, 'Modifiers')
+  scalar(wpnPanel, 'Damage x', binds.weapons.mods, 'damageMul', 0, 5, 0.05, () => {})
+  scalar(wpnPanel, 'Rate x', binds.weapons.mods, 'rateMul', 0.1, 5, 0.05, () => {})
+  scalar(wpnPanel, 'Energy x', binds.weapons.mods, 'energyMul', 0.1, 5, 0.05, () => {})
+  scalar(wpnPanel, 'Crit chance', binds.weapons.mods, 'critChance', 0, 1, 0.01, () => {})
+  scalar(wpnPanel, 'Pulses (Laser)', binds.weapons.mods, 'pulses', 1, 21, 1, () => {})
+  scalar(wpnPanel, 'AoE x (Plasma)', binds.weapons.mods, 'aoeMul', 0.1, 5, 0.05, () => {})
+  scalar(wpnPanel, 'Beam Width x', binds.weapons.mods, 'beamWidthMul', 0.1, 5, 0.05, () => {})
+  scalar(wpnPanel, 'Cone x (Mjolnir)', binds.weapons.mods, 'coneMul', 0.1, 5, 0.05, () => {})
+
+  const laserCfg = binds.weapons.catalog.laser
+  if (laserCfg) {
+    group(wpnPanel, 'Laser Levels')
+    const presetRow = document.createElement('div')
+    presetRow.className = 'debug-row debug-presetrow'
+    const applyPreset = (level: number): void => {
+      applyLaserLevel(laserCfg, level)
+      rebuildWeaponStats()
+      for (const r of rows) r.refresh()
+    }
+    for (const lv of LASER_LEVELS) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'debug-preset'
+      btn.textContent = `L${lv.level}`
+      btn.title = `forward ${lv.forwardShots} / diag ${lv.diagonalShotsPerSide} each`
+      btn.addEventListener('click', () => applyPreset(lv.level))
+      presetRow.appendChild(btn)
+    }
+    wpnPanel.appendChild(presetRow)
+    const presetNote = document.createElement('div')
+    presetNote.className = 'debug-note'
+    presetNote.textContent = 'Presets live in src/weapons/laserLevels.ts — edit there and hit the button again.'
+    wpnPanel.appendChild(presetNote)
+  }
+
+  group(wpnPanel, 'Energy')
+  scalar(wpnPanel, 'Max', binds.weapons.energy, 'max', 1, 500, 1, () => {})
+  scalar(wpnPanel, 'Regen /s', binds.weapons.energy, 'regenPerSec', 0, 100, 0.5, () => {})
+
   const reset = container.querySelector<HTMLButtonElement>('#debug-reset')
   reset?.addEventListener('click', () => {
     const camPos = binds.camera.position
@@ -336,8 +458,11 @@ export function createDebugControls(
     Object.assign(binds.follow, defaults.follow)
     Object.assign(binds.recenterPoint, defaults.recenterPoint)
     Object.assign(binds.recenterPoint.position, defaults.recenterPoint.position)
+    Object.assign(binds.weapons.energy, { max: defaults.energyMax, regenPerSec: defaults.energyRegen })
+    Object.assign(binds.weapons.mods, defaults.weaponMods)
     for (const r of rows) r.refresh()
     for (const v of vecRows) v.input.value = String(v.target[v.key])
+    for (const s of selects) s.select.value = String(readAny(s.target, s.key))
     applyCamera()
     applyShip()
     applyParallax()

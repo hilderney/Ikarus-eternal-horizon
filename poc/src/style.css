@@ -130,7 +130,8 @@ canvas {
 #dbg-cam:checked ~ .debug-tabs label[for='dbg-cam'],
 #dbg-ship:checked ~ .debug-tabs label[for='dbg-ship'],
 #dbg-follow:checked ~ .debug-tabs label[for='dbg-follow'],
-#dbg-para:checked ~ .debug-tabs label[for='dbg-para'] {
+#dbg-para:checked ~ .debug-tabs label[for='dbg-para'],
+#dbg-wpn:checked ~ .debug-tabs label[for='dbg-wpn'] {
   background: rgba(34, 211, 238, 0.25);
   border-color: #22d3ee;
   color: #eafcff;
@@ -143,7 +144,8 @@ canvas {
 #dbg-cam:checked ~ .debug-tabpanels [data-tab='cam'],
 #dbg-ship:checked ~ .debug-tabpanels [data-tab='ship'],
 #dbg-follow:checked ~ .debug-tabpanels [data-tab='follow'],
-#dbg-para:checked ~ .debug-tabpanels [data-tab='para'] {
+#dbg-para:checked ~ .debug-tabpanels [data-tab='para'],
+#dbg-wpn:checked ~ .debug-tabpanels [data-tab='wpn'] {
   display: block;
 }
 
@@ -193,6 +195,35 @@ canvas {
 .debug-value {
   text-align: right;
   color: #7ce4ff;
+}
+
+.debug-presetrow.debug-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.debug-preset {
+  flex: 1 1 32px;
+  background: rgba(10, 10, 30, 0.6);
+  border: 1px solid rgba(124, 228, 255, 0.5);
+  border-radius: 4px;
+  color: #b7e6ff;
+  font: inherit;
+  cursor: pointer;
+  padding: 3px 4px;
+}
+
+.debug-preset:hover {
+  background: rgba(34, 211, 238, 0.2);
+  border-color: #22d3ee;
+}
+
+.debug-note {
+  margin: 4px 0 8px;
+  font-size: 10px;
+  color: #6ea8d8;
+  line-height: 1.4;
 }
 
 .debug-vec {
@@ -289,4 +320,42 @@ canvas {
   pointer-events: none;
   box-shadow: 0 0 12px rgba(45, 205, 255, 0.25);
   will-change: transform;
+}
+
+.hud-energy {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  width: 96px;
+  max-width: 40vw;
+  padding: 3px 5px;
+  border: 1px solid rgba(34, 211, 238, 0.5);
+  border-radius: 6px;
+  background: rgba(8, 8, 24, 0.75);
+  box-shadow: 0 0 12px rgba(45, 205, 255, 0.25);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.hud-energy-label {
+  color: #7ce4ff;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.hud-energy-fill {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #22d3ee, #2dd4ff);
+  box-shadow: 0 0 8px rgba(45, 205, 255, 0.6);
+  transition: width 0.08s linear;
 }

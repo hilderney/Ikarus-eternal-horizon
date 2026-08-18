@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import './style.css'
 import { BALANCE } from './core/balancer'
+import type { WeaponConfig, WeaponId } from './core/weaponsCatalog'
 import { createCameraRig } from './gameobjects/cameraRig'
 import { createParallaxLayer, type ParallaxLayer, type ParallaxLayerConfig } from './gameobjects/parallax'
 import { createShip, type Ship, type ShipTransform } from './gameobjects/ship'
@@ -11,6 +12,11 @@ import { createInput } from './core/input'
 import { createControllers } from './systems/controllers'
 import { createFollowCamera } from './systems/followCamera'
 import { createShipPositionLabel } from './systems/shipCoords'
+import { createEnergyHud } from './systems/energyHud'
+import { createEnergyPort } from './systems/energy'
+import { createCollisionSystem } from './systems/collisionSystem'
+import { createFiringSystem } from './systems/firing'
+import { createTestTarget, type TestTarget } from './gameobjects/testTarget'
 
 const MAX_FRAME_DT = 0.05
 const SYNC_INTERVAL = 0.066
@@ -66,6 +72,28 @@ const followBox: FollowBox = createFollowBox(
 )
 const input = createInput()
 const shipCoords = createShipPositionLabel(camera, renderer.domElement)
+const energyHud = createEnergyHud(camera, renderer.domElement)
+
+const energy = createEnergyPort(
+  BALANCE.gameplay.energy.start,
+  BALANCE.gameplay.energy.max,
+  BALANCE.gameplay.energy.regenPerSec,
+)
+const colliders = createCollisionSystem()
+const firing = createFiringSystem(
+  { fireKey: BALANCE.gameplay.fireKey, switchKey: BALANCE.gameplay.switchKey },
+  BALANCE.weapons.loadout,
+  scene,
+  input,
+  shipTransform,
+  energy,
+  colliders,
+)
+
+const targets: TestTarget[] = [-4, 0, 4].map(
+  (x) => createTestTarget(x, shipTransform.position.z - 12, 0, 0.7, 25, scene),
+)
+for (const t of targets) colliders.registerTarget(t.hit)
 
 const controllers = createControllers(
   {
@@ -98,6 +126,14 @@ const controlsHandle = createDebugControls({
   follow: BALANCE.ship.follow,
   recenterPoint: BALANCE.ship.followBox.restLine,
   controls: BALANCE.controls,
+  weapons: {
+    catalog: BALANCE.weapons.catalog as Record<WeaponId, WeaponConfig>,
+    loadout: BALANCE.weapons.loadout,
+    activeId: () => firing.activeId(),
+    setActive: (id) => firing.setActive(id),
+    mods: firing.mods,
+    energy,
+  },
 }, panel)
 
 function frame(now: number): void {
@@ -126,6 +162,14 @@ function frame(now: number): void {
   for (const layer of layers) layer.update(dt, camera)
   ship.update(dt)
   gizmos.update()
+
+  energy.update(dt)
+  firing.update(dt)
+  const weaponCfg = firing.weapon().config
+  const tipRadius = weaponCfg.projectile?.radius ?? weaponCfg.orb?.radius ?? 0.25
+  ship.setEquippedWeapon(weaponCfg.color, tipRadius)
+  for (const t of targets) t.update(dt)
+  energyHud.update(shipTransform.position, energy)
 
   renderer.render(scene, camera)
   requestAnimationFrame(frame)

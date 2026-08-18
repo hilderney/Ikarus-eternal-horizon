@@ -3,7 +3,7 @@ export interface InputState {
 }
 
 const CONTROLLED = new Set([
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'KeyF',
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'KeyF', 'Space', 'KeyC',
   'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyU',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
   'ShiftLeft', 'ShiftRight',

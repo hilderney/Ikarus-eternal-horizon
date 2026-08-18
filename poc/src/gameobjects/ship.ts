@@ -15,6 +15,8 @@ export interface ShipTransform {
 
 export interface Ship {
   group: THREE.Group
+  weaponTip: THREE.Mesh
+  setEquippedWeapon(color: number, radius: number): void
   applyTransform(transform: ShipTransform): void
   update(dt: number): void
   dispose(): void
@@ -59,11 +61,27 @@ export function createShip(visual: ShipVisual, scene: THREE.Scene): Ship {
   thruster.scale.setScalar(0.001)
   group.add(thruster)
 
+  const tipGeo = new THREE.SphereGeometry(1, 16, 12)
+  const tipMat = new THREE.MeshBasicMaterial({
+    color: 0x22d3ee,
+    transparent: true,
+    opacity: 0.95,
+  })
+  const weaponTip = new THREE.Mesh(tipGeo, tipMat)
+  weaponTip.position.set(0, 0, -(visual.size.d / 2 + 0.25))
+  weaponTip.scale.setScalar(0.12)
+  group.add(weaponTip)
+
   scene.add(group)
 
   let time = 0
   return {
     group,
+    weaponTip,
+    setEquippedWeapon(color: number, radius: number): void {
+      tipMat.color.setHex(color)
+      weaponTip.scale.setScalar(Math.max(0.03, radius))
+    },
     applyTransform(transform: ShipTransform): void {
       group.position.set(transform.position.x, transform.position.y, transform.position.z)
       group.rotation.set(
@@ -86,6 +104,8 @@ export function createShip(visual: ShipVisual, scene: THREE.Scene): Ship {
       accentMat.dispose()
       thrusterGeo.dispose()
       thrusterMat.dispose()
+      tipGeo.dispose()
+      tipMat.dispose()
     },
   }
 }

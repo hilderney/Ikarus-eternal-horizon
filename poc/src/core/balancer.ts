@@ -4,11 +4,27 @@ export interface Vec3Params {
   z: number
 }
 
+import type { WeaponConfig, WeaponId } from './weaponsCatalog'
+import { WEAPONS } from './weaponsCatalog'
+
 const parallaxGain = 0.015
 
 export const BALANCE = {
   layout: {
     playfield: { width: 540, height: 960 },
+  },
+  weapons: {
+    catalog: WEAPONS as Record<string, WeaponConfig>,
+    loadout: ['laser'] as WeaponId[],
+  },
+  gameplay: {
+    fireKey: 'Space',
+    switchKey: 'KeyF',
+    energy: {
+      start: 100,
+      max: 100,
+      regenPerSec: 8,
+    },
   },
   controls: {
     shipKeys: {
@@ -71,10 +87,10 @@ export const BALANCE = {
     followBox: {
       position: { x: 0, y: 0, z: -3 },
       color: 0xf0ab4a,
-      opacity: 0.35,
+      opacity: 0.1,
       centerLine: {
         color: 0x50e3c2,
-        opacity: 0.8,
+        opacity: 0.1,
       },
       restLine: {
         // Recenter Point: alvo fixo relativo ao box. position.z é medido a partir
