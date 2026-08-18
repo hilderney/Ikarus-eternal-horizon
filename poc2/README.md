@@ -31,7 +31,7 @@ npm run verify     # all three — the gate every card must pass (hub §6.1)
 
 ## State
 
-**Stages A–B, C01, C02 and G12 are done.** Next slice: **`SDD-C03` ShipHealth** (or G09/G03 to wire a playable Run). `src/main.ts` is still a walking skeleton until G01/G03. Follow the build order in the hub §5 / the graph in §10.
+**Stages A–B, C01–C03 and G12 are done.** Next: **G09/G03** to wire a playable Run, or Stage D combat primitives. `src/main.ts` is still a walking skeleton until G01/G03. Follow the build order in the hub §5 / the graph in §10.
 
 ---
 

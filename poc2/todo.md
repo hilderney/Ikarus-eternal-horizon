@@ -50,8 +50,8 @@ POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real r
 - [ ] Collision by layers (matrix is data; no friendly fire) · `SDD-F01` · [collision-manager.spec.ts](../.docs/specs/collision-manager.spec.ts) · **port**
 - [ ] Ship hitbox on layer `Player` · `SDD-C01` / `SDD-F01`
 - [ ] Laser hitbox on layer `PlayerShot` · `SDD-D01` / `SDD-F01`
-- [ ] Force Field absorbs first; Integrity only after shield is 0 · `SDD-C03` · [ship-health.spec.ts](../.docs/specs/ship-health.spec.ts) · **new**
-- [ ] Slow shield regen after `regenDelayMs` with no hits · `SDD-C03`
+- [x] Force Field absorbs first; Integrity only after shield is 0 · `SDD-C03` · [ship-health.spec.ts](../.docs/specs/ship-health.spec.ts) · **new**
+- [x] Slow shield regen after `regenDelayMs` with no hits · `SDD-C03`
 - [ ] DamageResolver is the only `applyDamage` caller · `SDD-F04` · [damage-resolver.spec.ts](../.docs/specs/damage-resolver.spec.ts) · **new**
 - [ ] Hit feedback: flash, shake cap, shield-hit vs hull-hit, dual-rumble presets (sfx later) · `SDD-F05` · [vfx-manager.spec.ts](../.docs/specs/vfx-manager.spec.ts) · **new** (+ `D18`)
 
@@ -105,7 +105,7 @@ POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real r
 
 ## Fase 5 — Degradação por Integridade
 
-- [ ] Hull levels 0–3 from integrity thresholds (100–75 / 75–50 / 50–25 / under 25) · `SDD-C03` · Q08
+- [x] Hull levels 0–3 from integrity thresholds (100–75 / 75–50 / 50–25 / under 25) · `SDD-C03` · Q08
 - [ ] Integrity state slows displacement (`speedMul` / `accelMul` on the controller) · `SDD-C02`
 - [ ] Integrity state slows fire rate (`fireRateMul` on FiringManager) · `SDD-E07`
 - [ ] HUD makes each penalty readable · `SDD-G07`

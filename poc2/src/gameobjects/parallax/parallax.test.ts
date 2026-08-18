@@ -120,11 +120,11 @@ describe('ParallaxLayer', () => {
     const layer = new ParallaxLayer(smallLayer({ parallaxGain: 1, speed: 0, speedJitter: 0 }))
     const camera = new PerspectiveCamera()
     layer.update(0, camera)
-    const before = positionsOf(layer)[0] ?? 0
+    const positions = positionsOf(layer)
+    positions[0] = 0
     camera.position.x += 10
     layer.update(0, camera)
-    const after = positionsOf(layer)[0] ?? 0
-    expect(after).toBeLessThan(before)
+    expect(positions[0]).toBeLessThan(0)
     layer.dispose()
   })
 

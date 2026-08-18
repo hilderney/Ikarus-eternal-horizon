@@ -50,4 +50,4 @@ POC-1 is frozen. These specs describe **`poc2/` only**.
 | G11 | [pause-scene.spec.ts](./pause-scene.spec.ts) | `poc2/src/scenes/pause-scene.test.ts` |
 | G12 | [touch-controls.spec.ts](./touch-controls.spec.ts) | `poc2/src/ui/touch-controls/touch-controls.test.ts` |
 
-Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B, C01, C02 and G12 are **done**. Next implementation is C03 ShipHealth (or G09/G03 wiring).
+Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B and C01–C03 and G12 are **done**. Next implementation is G09/G03 (playable Run) or Stage D combat primitives.
