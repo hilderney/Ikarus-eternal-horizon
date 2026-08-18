@@ -17,7 +17,7 @@
 /**
  * Owns:      The playable run. Owns the canvas + `game-area`. Constructs and
  *            disposes camera, parallax, limit-box, gizmos (D14: scene-owned)
- *            plus the ship and every manager. Drives the body of
+ *            plus the ship, controllers, TouchControls (G12) and every manager. Drives the body of
  *            `GameLoop.step` while mounted: **input.update(dt)** → update →
  *            managers → collision → syncRender → renderer.render. Wires
  *            `area-inputs` (active input map) and `debugger-area`.

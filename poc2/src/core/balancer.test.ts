@@ -60,10 +60,28 @@ describe('BALANCE', () => {
     expect(BALANCE.controls.gamepad.buttons).toEqual({
       fire: 7,
       switchWeapon: 4,
+      switchBomb: 5,
       pause: 9,
+      dash: 6,
+      bomb: 0,
       boost: 6,
       special: 0,
     })
+  })
+
+  it('exposes D19 action keys, dash, mouse buttons and touch overlay', () => {
+    expect(BALANCE.gameplay.bombKey).toBe('KeyE')
+    expect(BALANCE.gameplay.switchBombKey).toBe('KeyQ')
+    expect(BALANCE.gameplay.dashKey).toBe('ControlLeft')
+    expect(BALANCE.controls.dash).toEqual({ speedMul: 2.2, durationMs: 140, cooldownMs: 750 })
+    expect(BALANCE.controls.mouse).toEqual({
+      fireButton: 0,
+      bombButton: 2,
+      switchBombButton: 1,
+    })
+    expect(BALANCE.controls.touch.enabled).toBe('auto')
+    expect(BALANCE.controls.touch.stickSize).toBe(120)
+    expect(BALANCE.controls.touch.deadzone).toBe(0.18)
   })
 
   it('exposes haptics presets shieldHit / hullHit / shieldBreak / destroyed', () => {

@@ -72,10 +72,32 @@ export interface GamepadConfig {
   readonly buttons: {
     readonly fire: number
     readonly switchWeapon: number
+    readonly switchBomb: number
     readonly pause: number
+    readonly dash: number
+    readonly bomb: number
     readonly boost: number
     readonly special: number
   }
+}
+
+export interface MouseControlConfig {
+  readonly fireButton: number
+  readonly bombButton: number
+  readonly switchBombButton: number
+}
+
+export interface TouchControlConfig {
+  readonly enabled: 'auto' | true | false
+  readonly stickSize: number
+  readonly stickColor: string
+  readonly deadzone: number
+}
+
+export interface DashConfig {
+  readonly speedMul: number
+  readonly durationMs: number
+  readonly cooldownMs: number
 }
 
 export interface HapticPreset {
@@ -249,14 +271,20 @@ export interface Balance {
     readonly fireKey: string
     readonly switchKey: string
     readonly pauseKey: string
+    readonly bombKey: string
+    readonly switchBombKey: string
+    readonly dashKey: string
     readonly energy: EnergyConfig
   }
   readonly controls: {
     readonly shipKeys: ShipKeysConfig
     readonly motion: MotionConfig
+    readonly dash: DashConfig
     readonly tilt: TiltConfig
     readonly camera: CameraControlConfig
     readonly gamepad: GamepadConfig
+    readonly mouse: MouseControlConfig
+    readonly touch: TouchControlConfig
   }
   readonly ship: {
     readonly transform: {
@@ -341,6 +369,9 @@ const BALANCE_DATA: Balance = {
     fireKey: 'Space',
     switchKey: 'KeyF',
     pauseKey: 'Escape',
+    bombKey: 'KeyE',
+    switchBombKey: 'KeyQ',
+    dashKey: 'ControlLeft',
     energy: {
       start: 100,
       max: 100,
@@ -359,6 +390,11 @@ const BALANCE_DATA: Balance = {
       accel: 60,
       decel: 60,
       brake: 120,
+    },
+    dash: {
+      speedMul: 2.2,
+      durationMs: 140,
+      cooldownMs: 750,
     },
     tilt: {
       axis: 'z',
@@ -393,10 +429,24 @@ const BALANCE_DATA: Balance = {
       buttons: {
         fire: 7,
         switchWeapon: 4,
+        switchBomb: 5,
         pause: 9,
+        dash: 6,
+        bomb: 0,
         boost: 6,
         special: 0,
       },
+    },
+    mouse: {
+      fireButton: 0,
+      bombButton: 2,
+      switchBombButton: 1,
+    },
+    touch: {
+      enabled: 'auto',
+      stickSize: 120,
+      stickColor: '#22d3ee',
+      deadzone: 0.18,
     },
   },
   ship: {

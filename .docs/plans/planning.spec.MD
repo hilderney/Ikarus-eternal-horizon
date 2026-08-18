@@ -12,10 +12,15 @@
 #tag/difficulty #tag/ranking #tag/survivor #tag/craft
 #tag/g0 #tag/g1 #tag/g2 #tag/g3
 
-**Version:** 4.2.0 · **Status:** active (POC2 SDD hub — multi-agent, TDD-backed)
+**Version:** 4.3.0 · **Status:** active (POC2 SDD hub — multi-agent, TDD-backed)
 **Purpose:** the single planning document for **POC2** (`poc2/`). It transposes the design from [`README.md`](../../README.md) (public GDD) and the architecture contract from [`phase-0-poc2.md`](../phases/phase-0-poc2.md). Organized **by subject** and in **logical build order**, ready to generate per-subject SDD+TDD specs (`.docs/specs/{subject}.spec.ts`) and the backlog in [`poc2/todo.md`](../../poc2/todo.md). **POC-1 (`poc/`) is frozen and is not planned here** — it is cited only as a behavior/tuning reference.
 **Sources:** README.md · [`phase-0-poc2.md`](../phases/phase-0-poc2.md) · poc/README.md (frozen feel reference only)
-**Supersedes:** hub v4.1.0.
+**Supersedes:** hub v4.2.0.
+
+**What changed in 4.3.0:**
+- **Four control schemes** ship as `D19` (closes Q07 as: mouse **buttons/wheel** in; **pointer-steer** still deferred). Keyboard (POC-1) · Gamepad API (`D18`) · WASD + mouse · touch overlay with **nipplejs** (`G12`). No mode toggle. `C02` stays device-blind; `A02` merges sources.
+- Combat vocabulary: move, fire, bomb, switch weapon, switch bomb, dash, pause. Dash input is G0; Energy drain stays `SHIP-08`.
+- `BALANCE.controls.mouse` / `.touch` / `.dash` and extra gameplay keys added to A01.
 
 **What changed in 4.2.0:**
 - **Gamepad API + dual-rumble haptics** ship in POC2 (`D18`). `SDD-A02` polls `navigator.getGamepads()`, maps the W3C standard layout, and owns `rumble()`. Persistent remap stays G3 (`SHIP-13`).
@@ -135,11 +140,11 @@ IDs are **stable and never renumbered**. Origin of the definitions is `.docs/pla
 | `SHIP-01` | G0 | must | Ship game object with X/Y motion and light inertia | Moves inside playfield bounds, never leaves the frame | `C01` `C02` |
 | `SHIP-02` | G0 | must | Simple Integrity + destruction | Enough damage ends the run | `C03` `G10` |
 | `SHIP-03` | G0 | must | Laser fire wired to the projectile pool | Shots leave the ship and remove enemies | `D01` `D02` `E07` |
-| `SHIP-04` | G0 | should | Alternative pointer control | Mouse moves the ship without breaking the keyboard | `A02` `C02` (Q07 deferred) |
+| `SHIP-04` | G0 | should | Alternative pointer control | Mouse **buttons** fire/bomb/switch without breaking the keyboard. Mouse **position** does not steer (pointer-steer deferred). | `A02` `C02` `G12` (`D19`) |
 | `SHIP-05` | G1 | must | Force Field absorbs before Integrity | Shield bar drains first; hull only after it hits zero | `C03` |
 | `SHIP-06` | G1 | must | Minimal inventory with Metal Scrap | Collected resource shows in the UI | `C01` `F02` `G11` |
 | `SHIP-07` | G1 | must | Repair in the CraftSlot consuming Metal Scrap | Integrity rises when the craft completes | §7 craft |
-| `SHIP-08` | G1 | should | Jet with its own Energy reserve | Boost drains and recharges when idle | §7 (`C02` `D03` seam) |
+| `SHIP-08` | G1 | should | Jet with its own Energy reserve | Boost drains and recharges when idle | §7 (`C02` `D03` seam). **Dash input** is `D19` / C02 now |
 | `SHIP-09` | G2 | must | Full Energy economy (weapons, jets, craft) | Actions drain Energy per config | `D03` |
 | `SHIP-10` | G2 | must | Equipment slots applying effects | Equipping changes the matching attribute | §7 `EQP-` |
 | `SHIP-11` | G2 | must | Tech tree with the 3 branches | Spent points change run stats | §7 |
@@ -229,10 +234,11 @@ Engine = Three.js (Graphics/Layers) + Yuka (Logic/AI) + Howler (Audio) + HTML/CS
 | **Three.js** | Graphics & layers — meshes, materials, scene graph, camera | B01–B04, C01, D01–D02, D04–D06, E01–E03, F05, G03, G07, G09 |
 | **Yuka** | Logic/AI — steering behaviors, perception, pathfinding | E01 (enemy motion), E05 (EnemyManager behaviors); extends to bosses and ranged patterns (§7). Gameplay rules (decay, energy, damage, collision layers) stay first-party TS |
 | **Howler** | Audio — SFX, music, stingers, radio | HUD event triggers (G07 layer), `§7 Audio` subject |
-| **HTML/CSS** | Menus & DOM areas | G02 / G04 / G05 / G11 (title, result, rankings, pause), G06 (areas), G07 (HUD overlays), G08 (debugger-area), G03 (Run layout shell) |
+| **HTML/CSS** | Menus & DOM areas | G02 / G04 / G05 / G11 (title, result, rankings, pause), G06 (areas), G07 (HUD overlays), G08 (debugger-area), G03 (Run layout shell), **G12 (touch overlay)** |
+| **nipplejs** | Virtual analog stick (touch) | **G12** only. A02 reads a `TouchSource`; C02 never imports it |
 | **— (TS stdlib)** | Pure logic — no third-party dependency | A01–A05, C02–C03, D03, E04, E06, E07, F01–F04, G01, G10 |
 
-**Dependency staging:** `poc2` installs `three` at Stage A. **Yuka** is added when `E01` starts; **Howler** post-G1 with the §7 Audio subject. Never install a library before the card that needs it.
+**Dependency staging:** `poc2` installs `three` at Stage A. **nipplejs** is added when `G12` starts. **Yuka** is added when `E01` starts; **Howler** post-G1 with the §7 Audio subject. Never install a library before the card that needs it.
 
 Every card below names its responsible library on a **Lib:** line.
 
@@ -285,7 +291,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-A01` Core / Balancer
 - **Folder:** `src/core/balancer.ts` (module: data only, no behavior)
-- **Scope:** the single source of numbers: `layout.playfield` (540×960 portrait), `weapons.catalog + loadout`, `gameplay` (fire/switch/**pause** keys, energy start/max/regen), `controls` (shipKeys/motion/tilt/camera/**gamepad**), `ship` (transform/follow/followBox/visual/**health**), `camera` (fov/pos/rot/near/far), `parallax.layers[]`, `thruster`, **`difficulty`**, **`score`**, **`drops`**, **`vfx`**, **`haptics`**, **`loop`**.
+- **Scope:** the single source of numbers: `layout.playfield` (540×960 portrait), `weapons.catalog + loadout`, `gameplay` (fire/switch/pause/**bomb/switchBomb/dash** keys, energy start/max/regen), `controls` (shipKeys/motion/**dash**/tilt/camera/**gamepad**/**mouse**/**touch**), `ship` (transform/follow/followBox/visual/**inventory**/**health**), `camera` (fov/pos/rot/near/far), `parallax.layers[]`, `thruster`, **`difficulty`**, **`score`**, **`drops`**, **`vfx`**, **`haptics`**, **`loop`**.
 - **Requires:** —
 - **Lib:** — (no dependency — data-only config)
 - **Design:** typed config namespace `BALANCE` (one interface per section); read-only at runtime except debugger-driven tuning slices.
@@ -294,12 +300,12 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-A02` Core / Input
 - **Folder:** `src/core/input.ts`
-- **Scope:** central input state for **keyboard + Gamepad API**. Keyboard: controlled `preventDefault` list; `blur` clears; Shift combos synthesize `Shift+KeyX` (camera rotation on Shift+IJKL/UO) without key-map conflict. Gamepad: poll `navigator.getGamepads()` once per `update(dt)` (W3C **standard** mapping); analog sticks after deadzone; analog triggers as buttons above threshold. **Haptics:** `rumble(preset)` → `GamepadHapticActuator.playEffect('dual-rumble', …)` on the active pad (`vibrationActuator`). Pointer stays out (Q07). Persistent remap stays G3 (`SHIP-13`).
-- **Class:** `InputState implements InputPort` — `{ update(dt); isDown(code); axis(id); isPressed(action); rumble(preset); connectedPadCount; dispose() }`. Gamepad source and haptic actuator injected for tests.
-- **Requires:** A01 (gamepad + haptics numbers).
-- **Lib:** — (browser **Gamepad API** + `GamepadHapticActuator`; no third-party pad library)
-- **Rules:** keyboard and gamepad coexist (no mode toggle); combos never shadow the base key; rumble no-ops when no actuator (keyboard-only); `playEffect` may preempt an in-flight effect; no per-frame allocation.
-- **Maps:** `SHIP-01`, `SHIP-13` (POC2 play slice), `SHIP-04` (Q07). **Acceptance:** WASD + IJKL + Shift+IJKL co-exist; left stick moves the ship; RT fires; a shield-hit preset rumbles when an actuator is present.
+- **Scope:** central input state for **four coexisting schemes (`D19`)**: keyboard, Gamepad API, WASD + mouse buttons/wheel, and an injected `TouchSource` (G12 / nipplejs — this class never imports nipplejs). Keyboard: controlled `preventDefault` list; `blur` clears; Shift combos synthesize `Shift+KeyX`. Gamepad: poll `navigator.getGamepads()` once per `update(dt)` (W3C **standard** mapping). Mouse: buttons + wheel only — **no mousemove axis** (pointer-steer deferred). **Haptics:** `rumble(preset)` → `playEffect('dual-rumble')`. Persistent remap stays G3 (`SHIP-13`).
+- **Class:** `InputState implements InputPort` — `{ update(dt); isDown(code); axis(id); isPressed(action); consumePress(action); rumble(preset); connectedPadCount; dispose() }`. Gamepad, haptic actuator and TouchSource injected for tests.
+- **Requires:** A01 (gamepad + mouse + touch + haptics numbers). G12 produces TouchSource; A02 D19 follow-up can land with a zeroed stub first.
+- **Lib:** — (browser **Gamepad API** + Pointer Events; no third-party pad library; no nipplejs)
+- **Rules:** all four schemes coexist (no mode toggle); combos never shadow the base key; rumble no-ops when no actuator; no per-frame allocation. Axis priority: pad stick → touch stick → keyboard digital.
+- **Maps:** `SHIP-01`, `SHIP-13` (POC2 play slice), `SHIP-04` (`D19`). **Acceptance:** WASD + IJKL + Shift+IJKL co-exist; left stick moves the ship; RT **or** left-click fires; a shield-hit preset rumbles when an actuator is present.
 
 #### `SDD-A03` Core / Math
 - **Folder:** `src/core/math.ts`
@@ -377,11 +383,11 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-C02` Controller
 - **Folder:** `src/gameobjects/controller/`
-- **Scope:** `class PlayerController` maps inputs to ship commands — axis-based force motion (`accel`/`decel`/`brake`, `maxSpeed`), tilt/bank (`rotation.z`, `maxDeg`, `riseMs`/`fallMs`). Analog **left stick** (`InputPort.axis('moveX'|'moveZ')`) and keyboard WASD **coexist**: stick wins when `|axis| > 0` after deadzone. `class CameraController` stays keyboard (IJKL/UO + Shift) — debug rig, not a pad camera.
+- **Scope:** `class PlayerController` maps **device-blind** inputs to ship commands — axis-based force motion (`accel`/`decel`/`brake`, `maxSpeed`), tilt/bank (`rotation.z`, `maxDeg`, `riseMs`/`fallMs`), kinematic **dash** (`consumePress('dash')`). Analog dirs come from `InputPort.axis('moveX'|'moveZ')` which already merged WASD / left stick / nipple (`D19`). `class CameraController` stays keyboard (IJKL/UO + Shift) — debug rig, not a pad/touch/mouse camera. Never imports nipplejs, never listens to pointer events. Fire / bomb / switch / pause are **not** consumed here (E07 / G11).
 - **Requires:** A01, A02, A03, B01, C01.
 - **Lib:** — (no dependency — input→force mapping; Three.js vectors for integration)
-- **Rules:** ship control is continuous force; tilt ramps in `riseMs`, settles in `fallMs`; **effective `maxSpeed`/`accel` read the degradation multiplier from `C03`** — the controller never knows why it is slower.
-- **Maps:** `SHIP-01`, `SHIP-13` (POC2 play), `SHIP-04` (Q07). **Acceptance:** the tuned feel of POC-1 (inertia + bank) is preserved on keyboard; left stick produces the same force curve after deadzone.
+- **Rules:** ship control is continuous force; tilt ramps in `riseMs`, settles in `fallMs`; **effective `maxSpeed`/`accel` read the degradation multiplier from `C03`** — the controller never knows why it is slower. Dash is a bounded impulse + cooldown; Energy drain is `SHIP-08` later.
+- **Maps:** `SHIP-01`, `SHIP-13` (POC2 play), `SHIP-04` (`D19`), `SHIP-08` (input only). **Acceptance:** the tuned feel of POC-1 (inertia + bank) is preserved on keyboard; left stick, WASD+mouse, and the nipple produce the same force curve after deadzone.
 
 #### `SDD-C03` ShipHealth (Force Field · Integrity · degradation)
 - **Folder:** `src/gameobjects/ship/ship-health.ts`
@@ -576,7 +582,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 #### `SDD-G02` TitleScene · `SDD-G03` RunScene · `SDD-G04` ResultScene · `SDD-G05` RankingsScene
 - **Folders:** `src/scenes/{title,run,result,rankings}-scene.ts`
 - **Title/Result/Rankings:** full-page HTML/CSS screens that **organize the three areas** (menu-driven layout); no canvas logic. Result reads the run summary from `G10`.
-- **Run:** owns the canvas + `game-area`; **constructs and disposes** camera/parallax/limit-box/gizmos (`D13`) plus ship and all managers; wires `area-inputs` (active input map) and `debugger-area`; runs the `GameLoop.step`. **`step` starts with `input.update(dt)`** so pad axes/buttons are fresh before C02/E07.
+- **Run:** owns the canvas + `game-area`; **constructs and disposes** camera/parallax/limit-box/gizmos (`D14`) plus ship, controllers, **TouchControls (`G12`)** and all managers; wires `area-inputs` (active input map) and `debugger-area`; runs the `GameLoop.step`. **`step` starts with `input.update(dt)`** so pad/touch axes are fresh before C02/E07.
 - **Requires:** B–F stages + G06–G07 (Run); G08 (debug in Run only); G10 (Result).
 - **Lib:** Title/Result/Rankings — **HTML/CSS**; Run — **Three.js** (canvas game) + **HTML/CSS** (layout areas)
 - **Maps:** `RUL-01`, `RUL-03`. **Acceptance:** a full cycle Title→Run→Result→Rankings→Title is navigable with no leaked object between scenes.
@@ -627,6 +633,14 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 - **Lib:** **HTML/CSS** (overlay) — no canvas work
 - **Rules:** pause never disposes the Run scene; unpausing resumes the exact same frame state (no dt catch-up burst); the overlay owns keyboard focus while open.
 - **Maps:** `RUL-04`, `SHIP-06`, `SHIP-13` (POC2 play). **Acceptance:** Esc or Start freezes the field and lists the collected resources; unpausing continues the same run without a movement jump.
+
+#### `SDD-G12` TouchControls
+- **Folder:** `src/ui/touch-controls/`
+- **Scope:** `class TouchControls` — on-screen combat overlay for phones/tablets. Static **nipplejs** joystick (move X/Z) + HTML buttons (fire, bomb, switchWeapon, switchBomb, dash, pause). Writes a `TouchSource` that `A02` merges. Visibility from `BALANCE.controls.touch.enabled` (`'auto'` | true | false).
+- **Requires:** A01, A02 (TouchSource port), G06.
+- **Lib:** **nipplejs** (virtual stick) + **HTML/CSS** (buttons). Install nipplejs on this card.
+- **Rules:** overlay `pointer-events: none` except stick zone and buttons; hidden overlay emits zeros; `dispose()` calls `nipple.destroy()`. C02 never imports this class. G07 HUD stays `pointer-events: none` and must not cover the buttons.
+- **Maps:** `SHIP-01`, `SHIP-04` (`D19` scheme 4). **Acceptance:** on a phone the nipple flies the ship like the left stick; Fire holds a stream; desktop fine-pointer hides the overlay and does not steal clicks.
 
 ---
 
@@ -748,12 +762,13 @@ Declared for naming/traceability; detailed cards arrive in later phases:
 | **D15** | Folder name is **`limit-box/`**; the POC-1 `followBox`/`followCamera` names are retired and merged into one `LimitBox` class. *(closes Q05)* | `B03`, tree |
 | **D16** | **Survivor v1 = craft 100% off**, no repair path: base hull and shield, Laser only, no inherited inventory, no contracts. *(closes Q06)* | §7 survivor |
 | **D17** | **SDD + TDD, multi-agent.** Spec before code; TDD writes failing tests before Programming implements. Four agents (Orchestrator, Programming/Three.js, Game Design, TDD) own disjoint spec sections (§6.3). POC-1 is never a workstream. | specs, tests, all cards |
-| **D18** | **Gamepad API + dual-rumble haptics in POC2.** `InputState` polls `navigator.getGamepads()` (W3C standard mapping) and plays `GamepadHapticActuator.playEffect('dual-rumble')`. Keyboard and pad coexist; no mode toggle. Pointer stays Q07. Persistent remap / Steam Input stay G3 (`SHIP-13`). | `A02`, `C02`, `E07`, `F05`, `G11`, A01 BALANCE |
+| **D18** | **Gamepad API + dual-rumble haptics in POC2.** `InputState` polls `navigator.getGamepads()` (W3C standard mapping) and plays `GamepadHapticActuator.playEffect('dual-rumble')`. Keyboard and pad coexist; no mode toggle. Persistent remap / Steam Input stay G3 (`SHIP-13`). | `A02`, `C02`, `E07`, `F05`, `G11`, A01 BALANCE |
+| **D19** | **Four control schemes coexist (no mode toggle).** (1) Keyboard POC-1+ · (2) Gamepad API (`D18`) · (3) WASD + mouse buttons/wheel — cursor does **not** steer · (4) touch overlay + nipplejs (`G12`). `A02` merges into `axis` + named actions; `C02`/`E07`/`G11` never branch on device. Pointer-steer "mouse moves the ship" stays deferred (`SHIP-04` remainder). Closes Q07. | `A01`, `A02`, `C02`, `E07`, `G11`, `G12` |
 
 ### Open questions
 | # | Question | Owner | Blocks |
 |---|---|---|---|
-| Q07 | Does pointer control (`SHIP-04`, *should*) ship in POC2 or defer to G1? POC-1 is keyboard-only. Gamepad is **in** (`D18`). | `A02`/`C02` | no |
+| Q07 | **Closed by D19.** Pointer-steer (mouse moves the ship) stays deferred. Mouse **buttons/wheel** ship in POC2 as scheme 3. | `A02`/`C02`/`G12` | no |
 | Q08 | Exact hull degradation thresholds and multipliers (`C03`) — placeholder 100–75 / 75–50 / 50–25 / <25 with `speedMul` 1/0.85/0.7/0.5. | `C03` | no — tune at first playtest |
 | Q09 | Does the debugger panel (`G08`) + gizmos (`B04`) ship in the Itch build, or behind a `import.meta.env.DEV` flag? | `G08`/`G09` | before `RUL-08` |
 | Q10 | Local persistence for the best score (`RUL-07`): `localStorage` inside `G10`, or a dedicated §7 persistence subject? | `G10` | before G1 |
@@ -818,6 +833,7 @@ flowchart TD
     G09[G09 Renderer]
     G10[G10 RunState + Score]
     G11[G11 Pause + Inventory]
+    G12[G12 TouchControls]
   end
 
   A01 --> A02
@@ -876,6 +892,9 @@ flowchart TD
   A02 --> G11
   A04 --> G11
   G06 --> G01
+  A02 --> G12
+  G06 --> G12
+  G12 --> G03
   G07 --> G03
   G09 --> G03
   G01 --> G03
@@ -889,12 +908,12 @@ flowchart TD
 | Field | Value |
 |---|---|
 | Gate | **G0** |
-| Hub version | 4.2.0 |
+| Hub version | 4.3.0 |
 | Reference build | POC-1 (`poc/`) — frozen, playable (not a workstream) |
-| Target build | POC2 (`poc2/`) — Stage A–B and C01 done; C02 Controller next |
+| Target build | POC2 (`poc2/`) — Stage A–B and C01 done; C02 Controller next (D19 schemes specced) |
 | Phase docs | `phase-0-poc.md` (history) · `phase-0-poc2.md` (architecture) |
 | SDD specs | one file per Stage A–G card under `.docs/specs/` + `_template.spec.ts` |
 | Agents | Orchestrator · Programming/Three.js · Game Design · TDD (§6.3, `D17`) |
 | Backlog | [`poc2/todo.md`](../../poc2/todo.md) — one entry per card |
 
-**Next steps:** 1) TDD writes failing tests for `SDD-C02` Controller; 2) Programming implements until green; 3) then C03 ShipHealth (or keep Fase 0 motion wired once G03 exists).
+**Next steps:** 1) A02 D19 follow-up (mouse + TouchSource + consumePress) then TDD for `SDD-C02`; 2) C02 PlayerController green (device-blind force + dash); 3) G12 TouchControls when Fase 0 needs a phone; 4) C03 ShipHealth.

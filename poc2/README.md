@@ -7,7 +7,7 @@ The active build. POC2 grows the tuned prototype into a codebase that expands **
 **Behavior reference:** [`poc/README.md`](../poc/README.md) — POC-1, frozen. Camera, parallax, limit-box, ship feel and the four weapons are **ported without behavior change**; that document is the tuning contract.
 **Backlog:** [`todo.md`](./todo.md) — one entry per SDD card.
 
-**Stack:** TypeScript · Vite · Three.js. Yuka joins at `SDD-E01` (enemy steering), Howler post-G1 (audio). No library is installed before the card that needs it.
+**Stack:** TypeScript · Vite · Three.js. nipplejs joins at `SDD-G12` (touch stick). Yuka joins at `SDD-E01` (enemy steering), Howler post-G1 (audio). No library is installed before the card that needs it.
 
 ---
 

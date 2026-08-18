@@ -77,6 +77,7 @@ import type { InventoryRead } from './hud.spec'
 export interface PauseInputPort {
   isDown(code: string): boolean
   isPressed(action: 'pause' | 'fire' | 'switchWeapon'): boolean
+  consumePress(action: 'pause'): boolean
   consume(code: string): void
 }
 

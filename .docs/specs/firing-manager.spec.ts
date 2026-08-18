@@ -18,9 +18,10 @@
  * Owns:      Input → fire. Constructs and owns the active `Weapon` via the D02
  *            registry seam (D12): FiringManager consumes the registry, never owns
  *            it. Cyclic + selector switch. Energy gate via D03. Applies `fireRateMul`
- *            from C03 into weapon mods. `isPressed('fire')` (Space or RT) fires;
- *            `isPressed('switchWeapon')` (F or LB) switches. Does not rumble Laser
- *            pulses (Q13).
+ *            from C03 into weapon mods. `isPressed('fire')` (Space, RT, left-click, or
+ *            touch Fire) fires; `consumePress('switchWeapon')` (F, LB, wheel, or touch)
+ *            switches. Bomb / switchBomb use the same port; the bomb device is §7.
+ *            Does not rumble Laser pulses (Q13).
  * Does not own: weapon catalog/registry (D02), energy pool arithmetic (D03), shot
  *            pools (E04), collision (F01), hull math (C03 — only reads fireRateMul),
  *            haptics (F05).
@@ -34,7 +35,7 @@
  *
  * Upstream (must exist before this starts):
  *   SDD-A01 Balancer     — fireKey Space, switchKey KeyF, loadout, gamepad buttons
- *   SDD-A02 Input        — isPressed('fire' | 'switchWeapon')
+ *   SDD-A02 Input        — isPressed('fire'); consumePress('switchWeapon' | 'bomb' | 'switchBomb')
  *   SDD-C01 Ship         — muzzle / position
  *   SDD-C03 ShipHealth   — modifiers.fireRateMul
  *   SDD-D02 Weapon+Laser — registry, Weapon.update(ctx)
@@ -73,7 +74,8 @@ export type WeaponId = 'laser' | 'plasma' | 'beam' | 'mjolnir'
 
 export interface InputPort {
   isDown(code: string): boolean
-  isPressed(action: 'fire' | 'switchWeapon'): boolean
+  isPressed(action: 'fire' | 'switchWeapon' | 'bomb' | 'switchBomb'): boolean
+  consumePress(action: 'fire' | 'switchWeapon' | 'bomb' | 'switchBomb'): boolean
 }
 
 export interface EnergyPort {

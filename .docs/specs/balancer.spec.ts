@@ -116,7 +116,10 @@ export interface GamepadConfig {
   readonly buttons: {
     readonly fire: number
     readonly switchWeapon: number
+    readonly switchBomb: number
     readonly pause: number
+    readonly dash: number
+    readonly bomb: number
     readonly boost: number
     readonly special: number
   }
@@ -212,11 +215,17 @@ export declare const BALANCE: Balance
  *   gameplay.fireKey            = 'Space'
  *   gameplay.switchKey          = 'KeyF'
  *   gameplay.pauseKey           = 'Escape'
+ *   gameplay.bombKey            = 'KeyE'
+ *   gameplay.switchBombKey      = 'KeyQ'
+ *   gameplay.dashKey            = 'ControlLeft'
  *   controls.motion             = { maxSpeed: 12, accel: 60, decel: 60, brake: 120 }
+ *   controls.dash               = { speedMul: 2.2, durationMs: 140, cooldownMs: 750 }
  *   controls.tilt               = { axis: 'z', sign: -1, maxDeg: 22, riseMs: 150, fallMs: 200 }
  *   controls.gamepad            = { deadzone: 0.18, triggerThreshold: 0.35, invertMoveZ: false,
  *                                   axes { moveX: 0, moveZ: 1 },
- *                                   buttons { fire: 7, switchWeapon: 4, pause: 9, boost: 6, special: 0 } }
+ *                                   buttons { fire: 7, switchWeapon: 4, switchBomb: 5, pause: 9, dash: 6, bomb: 0 } }
+ *   controls.mouse              = { fireButton: 0, bombButton: 2, switchBombButton: 1 }
+ *   controls.touch              = { enabled: 'auto', stickSize: 120, stickColor: '#22d3ee', deadzone: 0.18 }
  *   camera                      = { fov: 85, position {3,14,6}, rotation {-55,24,-14}, near: 5, far: 10000 }
  *   ship.follow                 = { halfX: 6, halfZ: 8, bounce.timeMs: 500, recenter delay 1500 / still 800 / accel 3 / maxSpeed 12 }
  *   ship.visual                 = { size {1.5,1,2}, wireframe 0x22d3ee, accent 0x6d28d9, thruster 0x60c5ff }
@@ -273,6 +282,7 @@ export declare const BALANCE: Balance
  *   it('exposes difficulty milestones 50 / 100 / 500')                     // F03
  *   it('exposes score and drops and vfx.shake.maxAmplitude')               // G10 F02 F05
  *   it('exposes gamepad W3C map: deadzone 0.18, RT 7, LB 4, Start 9')      // D18, A02
+ *   it('exposes D19 action keys, dash, mouse buttons and touch overlay')   // D19, C02 G12
  *   it('exposes haptics presets shieldHit / hullHit / shieldBreak / destroyed') // D18, F05
  *   it('exposes loop maxFrameDt 0.05 and sidecarHz 15')                    // A04, RUL-01
  *   it('exposes ship inventory caps 999 / 99 / 49 / 9')                    // C01, RES-05

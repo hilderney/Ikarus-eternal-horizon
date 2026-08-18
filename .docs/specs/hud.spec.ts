@@ -191,6 +191,7 @@ export declare class Hud implements HudPort {
  *       concat via template that allocates beyond the necessary textContent
  *       write; reuse format buffers where practical).
  *   R10. Widgets are `pointer-events: none` and must not steal game input.
+ *        The touch overlay (G12) is a separate layer and *does* take pointers.
  */
 
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
