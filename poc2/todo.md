@@ -25,7 +25,7 @@ Scaffold is done. This phase is the POC-1 “feel” port: move the ship, camera
 - [x] Portrait 9:16 renderer, letterbox, relative paths · `SDD-G09` · [renderer.spec.ts](../.docs/specs/renderer.spec.ts) · **new**
 - [x] Three-area layout `area-inputs · game-area · debugger-area`, collapse ≤760px · `SDD-G06` · [ui-areas.spec.ts](../.docs/specs/ui-areas.spec.ts) · **port**
 - [x] Perspective camera (`YXZ`, live `applyConfig`) · `SDD-B01` · [game-camera.spec.ts](../.docs/specs/game-camera.spec.ts) · **port**
-- [x] Ship as `THREE.Group` (hull, thruster flicker, weapon tip) · `SDD-C01` · [ship.spec.ts](../.docs/specs/ship.spec.ts) · **port**
+- [x] Ship as `THREE.Group` (hull, thruster flicker, weapon tip) + **byte sheet** (`debugSnapshot` for G08: 0–255 pools, statuses, loadout) · `SDD-C01` · [ship.spec.ts](../.docs/specs/ship.spec.ts) · **port**
 - [x] Force motion (`accel`/`decel`/`brake`, `maxSpeed`) + tilt/bank + dash · four schemes via InputPort · `SDD-C02` · [controller.spec.ts](../.docs/specs/controller.spec.ts) · **port** (`D19`)
 - [x] LimitBox: dead-zone follow, edge bounce, auto-recenter to Recenter Point · `SDD-B03` · [limit-box.spec.ts](../.docs/specs/limit-box.spec.ts) · **port**
 - [x] Parallax: 3 layers pinned to camera, stars slide by `parallaxGain` · `SDD-B02` · [parallax.spec.ts](../.docs/specs/parallax.spec.ts) · **port**
@@ -52,6 +52,7 @@ POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real r
 - [ ] Laser hitbox on layer `PlayerShot` · `SDD-D01` / `SDD-F01`
 - [x] Force Field absorbs first; Integrity only after shield is 0 · `SDD-C03` · [ship-health.spec.ts](../.docs/specs/ship-health.spec.ts) · **new**
 - [x] Slow shield regen after `regenDelayMs` with no hits · `SDD-C03`
+- [ ] Wire C03/D03 combat onto C01 0–255 pools (G08 sheet is the source of truth) · `SDD-C01` / `SDD-C03` / `SDD-D03`
 - [ ] DamageResolver is the only `applyDamage` caller · `SDD-F04` · [damage-resolver.spec.ts](../.docs/specs/damage-resolver.spec.ts) · **new**
 - [ ] Hit feedback: flash, shake cap, shield-hit vs hull-hit, dual-rumble presets (sfx later) · `SDD-F05` · [vfx-manager.spec.ts](../.docs/specs/vfx-manager.spec.ts) · **new** (+ `D18`)
 
@@ -207,7 +208,7 @@ POC-1 listed a shop. GDD meta is Bounty Board + cosmetics, not a mid-run power s
 
 ## Fase 14 — Fechamento / Itch.io
 
-- [ ] Debugger: Cam / Ship / Limit Box / Parallax / Weapons, two-way ~15 Hz, Reset, L1–L10 · `SDD-G08` · [debugger.spec.ts](../.docs/specs/debugger.spec.ts) · **port**
+- [ ] Debugger: one tab per subject; **Ship first** (pose, 0–255 pools, statuses, loadout) then Cam / LimitBox / Parallax / Weapons / Energy / Shots / Collision · `SDD-G08` · [debugger.spec.ts](../.docs/specs/debugger.spec.ts) · **port**
 - [ ] Ship XYZ label, letterbox-safe · `SDD-G07`
 - [ ] All gameplay numbers still only in `BALANCE` · `SDD-A01` (`RUL-12`)
 - [x] Web package: `index.html` relative paths, responsive canvas · `SDD-G09` (`RUL-08`)

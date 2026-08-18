@@ -50,4 +50,14 @@ POC-1 is frozen. These specs describe **`poc2/` only**.
 | G11 | [pause-scene.spec.ts](./pause-scene.spec.ts) | `poc2/src/scenes/pause-scene.test.ts` |
 | G12 | [touch-controls.spec.ts](./touch-controls.spec.ts) | `poc2/src/ui/touch-controls/touch-controls.test.ts` |
 
-Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B, C01–C03, G06, G09, G03 and G12 are **done**. D01–D04 + E04 + a thin E07 are **implemented** (`npm run verify` 295 tests). D05/D06 stay catalog-only until G2. Fase 0 is playable; Space/RT fires laser, F/LB switches to plasma (no splash until F01).
+Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B, C01–C03, G06, G09, G03 and G12 are **done**. D01–D04 + E04 + a thin E07 are **implemented**. D05/D06 stay catalog-only until G2. Fase 0 is playable; Space/RT fires laser, F/LB switches to plasma (no splash until F01). Laser range is from the fire point (not a world plane).
+
+## Next steps (playable order)
+
+1. **G08 Debugger — one tab per subject, Ship first.** Bind [ship.spec.ts](./ship.spec.ts) `ShipDebugPort` (pose, byte stats, statuses, loadout). Later tabs: Camera · LimitBox · Parallax · Weapons · Energy · Shots · Collision. Do not stuff every subject into one panel.
+2. **Wire combat onto the byte pools.** C03 integrity/shield and D03 energy become the same 0–255 pools the Ship tab shows (`current` starts at `max` 100, hard cap 255). Deflection / precision / agility start as sheet values; combat consumers come after F01.
+3. **Statuses.** `flickering` after spawn or a hit; `dashing` from C02; `recovering` = not shooting and not flickering (energy may regen).
+4. **F01 Collision** — Player / PlayerShot hitboxes, plasma splash. Then F04 / F05 / G07 HUD bars on the same pools.
+5. **G08 remaining tabs** after Ship is live. D05/D06 Beam/Mjolnir stay G2.
+
+C01 ship sheet is in `poc2/src/gameobjects/ship/ship.ts` (`debugSnapshot`). G08 Ship tab UI is the next implement.

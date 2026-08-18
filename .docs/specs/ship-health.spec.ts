@@ -20,10 +20,12 @@
  *            0|1|2|3 from integrity thresholds, and the modifier triple
  *            { speedMul, accelMul, fireRateMul }. Emits DamageOutcome; never
  *            ends the run.
- * Does not own: the Ship Group (C01), motion integration (C02 — it only reads
- *            multipliers), firing cadence (E07 — reads fireRateMul), damage
- *            detection (F01), applying hits from collisions (F04 calls us),
- *            run-end (G10 listens to destroyed), HUD bars (G07).
+ * Does not own: the Ship Group (C01), the C01 byte sheet G08 displays
+ *            (integrity/shield *current* migrate onto Ship.stats later),
+ *            motion integration (C02 — it only reads multipliers), firing
+ *            cadence (E07 — reads fireRateMul), damage detection (F01),
+ *            applying hits from collisions (F04 calls us), run-end (G10
+ *            listens to destroyed), HUD bars (G07).
  * Player-facing: shield drains before hull; after the shield breaks the craft
  *            gets sluggish and the gun slows. Integrity 0 is death — reported
  *            here, acted on by G10.
@@ -170,6 +172,8 @@ export declare class ShipHealth implements DamageSink {
  *   R9. Memory: no GPU. Per-frame allocation: none (reuse one outcome object
  *       or return a plain object that tests may copy — hot path: reuse).
  *   R10. All numbers come from BALANCE.ship.health (RUL-12). Q08 owns the curve.
+ *        C01 BALANCE.ship.stats is the G08 sheet; this class does not read it
+ *        until the combat-wire pass. Do not retune these numbers now.
  */
 
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
@@ -186,7 +190,10 @@ export declare class ShipHealth implements DamageSink {
 
 // ─── 4. BALANCE, feel, leveling, graphics ────────────────────────────────────
 /**
- * Q08 placeholders — tune at first playtest, do not invent a second table:
+ * Q08 placeholders — tune at first playtest, do not invent a second table.
+ * Combat still uses this section. C01 `BALANCE.ship.stats.integrity/shield`
+ * (0–255, spawn 100/100) is what G08 shows; wiring C03 onto those pools is
+ * a listed next step, not this pass.
  *   BALANCE.ship.health.integrityMax       = 100
  *   BALANCE.ship.health.shieldMax          = 50
  *   BALANCE.ship.health.shieldRegenPerSec  = 2      // slow; losing the shield matters

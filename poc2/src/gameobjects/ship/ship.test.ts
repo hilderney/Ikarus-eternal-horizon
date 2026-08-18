@@ -275,4 +275,113 @@ describe('Ship', () => {
     expect(mat.depthWrite).toBe(false)
     ship.dispose()
   })
+
+  it('byte pools start at current=max=100 with byteCap 255', () => {
+    const ship = makeShip()
+    const cap = BALANCE.ship.stats.byteCap
+    expect(cap).toBe(255)
+    for (const pool of [
+      ship.stats.agility,
+      ship.stats.deflection,
+      ship.stats.integrity,
+      ship.stats.shield,
+      ship.stats.precision,
+      ship.stats.energy,
+    ]) {
+      expect(pool.current).toBe(100)
+      expect(pool.max).toBe(100)
+      expect(pool.current).toBeLessThanOrEqual(cap)
+      expect(pool.max).toBeLessThanOrEqual(cap)
+    }
+    ship.dispose()
+  })
+
+  it('debugSnapshot exposes position, rotation, stats, status, loadout', () => {
+    const ship = makeShip()
+    ship.applyTransform({
+      position: { x: 2, y: 0, z: -4 },
+      rotation: { x: 0, y: 12, z: -8 },
+      scale: 1,
+    })
+    const port = ship.debugSnapshot()
+    expect(port.position).toEqual({ x: 2, y: 0, z: -4 })
+    expect(port.rotation).toEqual({ x: 0, y: 12, z: -8 })
+    expect(port.stats).toBe(ship.stats)
+    expect(port.status).toBe(ship.status)
+    expect(port.loadout).toBe(ship.loadout)
+    ship.dispose()
+  })
+
+  it('debugSnapshot returns the same stats/status object identity across calls', () => {
+    const ship = makeShip()
+    const first = ship.debugSnapshot()
+    const second = ship.debugSnapshot()
+    expect(first).toBe(second)
+    expect(first.stats).toBe(second.stats)
+    expect(first.status).toBe(second.status)
+    expect(first.loadout).toBe(second.loadout)
+    expect(first.position).toBe(ship.transform.position)
+    ship.dispose()
+  })
+
+  it('recovering is true when not shooting and not flickering', () => {
+    const ship = makeShip()
+    expect(ship.status.flickering).toBe(true)
+    expect(ship.status.recovering).toBe(false)
+    ship.setFlickering(false)
+    expect(ship.status.flickering).toBe(false)
+    expect(ship.status.recovering).toBe(true)
+    ship.setShooting(true)
+    expect(ship.status.recovering).toBe(false)
+    ship.setShooting(false)
+    expect(ship.status.recovering).toBe(true)
+    ship.dispose()
+  })
+
+  it('setDashing / setShooting / setFlickering update status for the debugger', () => {
+    const ship = makeShip()
+    ship.setFlickering(false)
+    expect(ship.status.dashing).toBe(false)
+    ship.setDashing(true)
+    expect(ship.status.dashing).toBe(true)
+    expect(ship.debugSnapshot().status.dashing).toBe(true)
+    ship.setShooting(true)
+    expect(ship.status.recovering).toBe(false)
+    ship.setShooting(false)
+    ship.setFlickering(true)
+    expect(ship.status.flickering).toBe(true)
+    expect(ship.status.recovering).toBe(false)
+    ship.update(BALANCE.ship.stats.flickerMs / 1000)
+    expect(ship.status.flickering).toBe(false)
+    expect(ship.status.recovering).toBe(true)
+    ship.dispose()
+  })
+
+  it('loadout.weapons starts as BALANCE.weapons.loadout; equippedWeapon tracks slot 0', () => {
+    const ship = makeShip()
+    expect(ship.loadout.weapons).toEqual(BALANCE.weapons.loadout)
+    expect(ship.loadout.equippedWeapon).toBeNull()
+    ship.equipWeapon(0, 'plasma')
+    expect(ship.debugSnapshot().loadout.equippedWeapon).toBe('plasma')
+    expect(ship.loadout.equippedWeapon).toBe(ship.hardpoints[0]?.equipped)
+    ship.dispose()
+  })
+
+  it('wings/shields/armors/collectors/converters start empty', () => {
+    const ship = makeShip()
+    const { loadout } = ship
+    expect(loadout.equippedBomb).toBeNull()
+    expect(loadout.bombs).toEqual([])
+    expect(loadout.equippedWings).toBeNull()
+    expect(loadout.wings).toEqual([])
+    expect(loadout.equippedShield).toBeNull()
+    expect(loadout.shields).toEqual([])
+    expect(loadout.equippedArmor).toBeNull()
+    expect(loadout.armors).toEqual([])
+    expect(loadout.equippedEnergyCollector).toBeNull()
+    expect(loadout.energyCollectors).toEqual([])
+    expect(loadout.equippedEnergyConverter).toBeNull()
+    expect(loadout.energyConverters).toEqual([])
+    ship.dispose()
+  })
 })

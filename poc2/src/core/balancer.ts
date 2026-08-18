@@ -188,6 +188,26 @@ export interface ShipInventoryConfig {
   }
 }
 
+export interface BytePoolConfig {
+  readonly current: number
+  readonly max: number
+}
+
+export interface ShipStatsConfig {
+  readonly byteCap: number
+  readonly flickerMs: number
+  readonly agility: BytePoolConfig
+  readonly deflection: BytePoolConfig
+  readonly integrity: BytePoolConfig
+  readonly shield: BytePoolConfig
+  readonly precision: BytePoolConfig
+  readonly energy: BytePoolConfig
+}
+
+export interface DebugConfig {
+  readonly syncHz: number
+}
+
 export interface ShipHealthConfig {
   readonly integrityMax: number
   readonly shieldMax: number
@@ -303,6 +323,7 @@ export interface Balance {
     readonly followBox: FollowBoxConfig
     readonly visual: ShipVisualConfig
     readonly inventory: ShipInventoryConfig
+    readonly stats: ShipStatsConfig
     readonly health: ShipHealthConfig
   }
   readonly camera: CameraConfig
@@ -316,6 +337,7 @@ export interface Balance {
   readonly haptics: HapticsConfig
   readonly loop: LoopConfig
   readonly gizmos: GizmosConfig
+  readonly debug: DebugConfig
 }
 
 const PARALLAX_GAIN_UNIT = 0.015
@@ -463,6 +485,16 @@ const BALANCE_DATA: Balance = {
         darkMatter: 9,
       },
     },
+    stats: {
+      byteCap: 255,
+      flickerMs: 400,
+      agility: { current: 100, max: 100 },
+      deflection: { current: 100, max: 100 },
+      integrity: { current: 100, max: 100 },
+      shield: { current: 100, max: 100 },
+      precision: { current: 100, max: 100 },
+      energy: { current: 100, max: 100 },
+    },
     health: {
       integrityMax: 100,
       shieldMax: 50,
@@ -590,6 +622,9 @@ const BALANCE_DATA: Balance = {
     cameraAxisSize: 2.2,
     axis: { x: 0xff4455, y: 0x55ff77, z: 0x55aaff },
     lineOpacity: 0.1,
+  },
+  debug: {
+    syncHz: 15,
   },
 }
 

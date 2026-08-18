@@ -76,6 +76,26 @@ export interface TiltConfig {
   readonly fallMs: number
 }
 
+export interface BytePoolConfig {
+  readonly current: number
+  readonly max: number
+}
+
+export interface ShipStatsConfig {
+  readonly byteCap: number
+  readonly flickerMs: number
+  readonly agility: BytePoolConfig
+  readonly deflection: BytePoolConfig
+  readonly integrity: BytePoolConfig
+  readonly shield: BytePoolConfig
+  readonly precision: BytePoolConfig
+  readonly energy: BytePoolConfig
+}
+
+export interface DebugConfig {
+  readonly syncHz: number
+}
+
 export interface ShipHealthConfig {
   readonly integrityMax: number
   readonly shieldMax: number
@@ -160,8 +180,10 @@ export interface Balance {
     readonly gamepad: GamepadConfig
   }
   readonly ship: {
+    readonly stats: ShipStatsConfig
     readonly health: ShipHealthConfig
   }
+  readonly debug: DebugConfig
   readonly camera: {
     readonly fov: number
     readonly position: Vec3Params
@@ -234,11 +256,16 @@ export declare const BALANCE: Balance
  *   ship.follow                 = { halfX: 6, halfZ: 8, bounce.timeMs: 500, recenter delay 1500 / still 800 / accel 3 / maxSpeed 12 }
  *   ship.visual                 = { size {1.5,1,2}, wireframe 0x22d3ee, accent 0x6d28d9, thruster 0x60c5ff }
  *   ship.inventory.caps         = { metalScrap: 999, prismaticCrystal: 99, denseCore: 49, darkMatter: 9 }
+ *   ship.stats.byteCap          = 255
+ *   ship.stats.flickerMs        = 400
+ *   ship.stats.{agility,deflection,integrity,shield,precision,energy} = { current: 100, max: 100 }
+ *   debug.syncHz                = 15  // G08 sidecar; same as loop.sidecarHz
  *   weapons.loadout             = ['laser', 'plasma']  // WPN-03; catalog holds all four
  *   weapons.catalog             = WEAPONS from catalog.ts (D02 extract; A01 re-exports)
  *   shot.despawn                = { zNear: 16, zFar: -32, halfX: 16 }  // E04
  *
- * New sections (placeholders, Q08 owns the hull curve):
+ * New sections (placeholders, Q08 owns the hull curve). Combat still reads
+ * ship.health until C03/D03 consume the C01 byte sheet; G08 shows ship.stats.
  *   ship.health.integrityMax    = 100
  *   ship.health.shieldMax       = 50
  *   ship.health.shieldRegenPerSec = 2
@@ -292,6 +319,7 @@ export declare const BALANCE: Balance
  *   it('exposes haptics presets shieldHit / hullHit / shieldBreak / destroyed') // D18, F05
  *   it('exposes loop maxFrameDt 0.05 and sidecarHz 15')                    // A04, RUL-01
  *   it('exposes ship inventory caps 999 / 99 / 49 / 9')                    // C01, RES-05
+ *   it('exposes ship.stats byteCap 255 and spawn pools 100/100')           // C01 sheet, G08
  *   it('treats BALANCE as a frozen object (Object.isFrozen or as const)')  // R2
  *
  * Manual:

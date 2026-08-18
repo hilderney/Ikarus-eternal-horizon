@@ -9,6 +9,9 @@ function fakeShot(): ShotLike {
     lifetime: 1,
     x: 0,
     z: 0,
+    spawnX: 0,
+    spawnZ: 0,
+    range: 0,
     activate() {
       this.active = true
     },
@@ -140,7 +143,7 @@ describe('ShotManager', () => {
     manager.dispose()
   })
 
-  it('update releases a shot past despawn bounds', () => {
+  it('does not kill a weapon shot at the world zFar plane (range is from spawn)', () => {
     const { manager } = makeManager({ weaponCapacity: 1, enemyCapacity: 0 })
     const shot = manager.acquire('weapon')
     expect(shot).toBeTruthy()
@@ -148,9 +151,66 @@ describe('ShotManager', () => {
       return
     }
     shot.lifetime = 10
-    shot.z = BALANCE.shot.despawn.zFar - 1
+    shot.range = 30
+    shot.spawnX = 0
+    shot.spawnZ = -20
+    shot.x = 0
+    shot.z = BALANCE.shot.despawn.zFar
+    manager.update(0)
+    expect(manager.pool('weapon').activeCount).toBe(1)
+    manager.dispose()
+  })
+
+  it('releases a weapon shot that has travelled its range from the fire point', () => {
+    const { manager } = makeManager({ weaponCapacity: 1, enemyCapacity: 0 })
+    const shot = manager.acquire('weapon')
+    expect(shot).toBeTruthy()
+    if (!shot) {
+      return
+    }
+    shot.lifetime = 10
+    shot.range = 10
+    shot.spawnX = 0
+    shot.spawnZ = 2
+    shot.x = 0
+    shot.z = 2 - 10
     manager.update(0)
     expect(manager.pool('weapon').activeCount).toBe(0)
+    manager.dispose()
+  })
+
+  it('lets a weapon shot fired further forward travel the same range (spawn 9 → 19)', () => {
+    const { manager } = makeManager({ weaponCapacity: 1, enemyCapacity: 0 })
+    const shot = manager.acquire('weapon')
+    expect(shot).toBeTruthy()
+    if (!shot) {
+      return
+    }
+    shot.lifetime = 10
+    shot.range = 10
+    shot.spawnX = 0
+    shot.spawnZ = 9
+    shot.x = 0
+    shot.z = 9 - 9
+    manager.update(0)
+    expect(manager.pool('weapon').activeCount).toBe(1)
+    shot.z = 9 - 10
+    manager.update(0)
+    expect(manager.pool('weapon').activeCount).toBe(0)
+    manager.dispose()
+  })
+
+  it('update releases an enemy shot past world despawn bounds', () => {
+    const { manager } = makeManager({ weaponCapacity: 0, enemyCapacity: 1 })
+    const shot = manager.acquire('enemy')
+    expect(shot).toBeTruthy()
+    if (!shot) {
+      return
+    }
+    shot.lifetime = 10
+    shot.z = BALANCE.shot.despawn.zFar - 1
+    manager.update(0)
+    expect(manager.pool('enemy').activeCount).toBe(0)
     manager.dispose()
   })
 

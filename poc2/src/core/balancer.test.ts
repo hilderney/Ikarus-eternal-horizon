@@ -123,6 +123,15 @@ describe('BALANCE', () => {
     })
   })
 
+  it('exposes ship.stats byteCap 255 and spawn pools 100/100', () => {
+    expect(BALANCE.ship.stats.byteCap).toBe(255)
+    expect(BALANCE.ship.stats.flickerMs).toBe(400)
+    for (const key of ['agility', 'deflection', 'integrity', 'shield', 'precision', 'energy'] as const) {
+      expect(BALANCE.ship.stats[key]).toEqual({ current: 100, max: 100 })
+    }
+    expect(BALANCE.debug.syncHz).toBe(15)
+  })
+
   it('exposes gizmos gridSize 1000 and worldAxisSize 4', () => {
     expect(BALANCE.gizmos.gridSize).toBe(1000)
     expect(BALANCE.gizmos.worldAxisSize).toBe(4)

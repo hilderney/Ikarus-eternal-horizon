@@ -3,6 +3,7 @@
  * Weapon / Laser / Plasma only acquire(). D14: scene.add on fill.
  */
 
+import { distXZ } from '../core/math'
 import { ObjectPool } from '../pools/object-pool'
 
 export type ShotOrigin = 'weapon' | 'enemy' | 'bomb'
@@ -12,6 +13,11 @@ export interface ShotLike {
   lifetime: number
   x: number
   z: number
+  /** Fire point. Weapon origin expires by distance from here, not a world AABB. */
+  spawnX: number
+  spawnZ: number
+  /** 0 = ignore range (lifetime only). Laser L1 = 30. */
+  range: number
   activate(spawn: unknown): void
   update(dt: number): void
   syncRender(): void
@@ -48,6 +54,11 @@ function neverFactory(): ShotLike {
   throw new Error('empty origin factory must not run')
 }
 
+function isPastRange(shot: ShotLike): boolean {
+  return shot.range > 0 && distXZ(shot.x, shot.z, shot.spawnX, shot.spawnZ) >= shot.range
+}
+
+/** Absolute world box — enemy/bomb only. Player bolts use range-from-spawn. */
 function isOffField(shot: ShotLike, despawn: ShotDespawn): boolean {
   return (
     Math.abs(shot.x) > despawn.halfX || shot.z > despawn.zNear || shot.z < despawn.zFar
@@ -161,7 +172,11 @@ export class ShotManager {
   private updateOrigin(origin: ShotOrigin, pool: ObjectPool<ShotLike>, dt: number): void {
     pool.forEachActive((shot) => {
       shot.update(dt)
-      if (shot.lifetime <= 0 || isOffField(shot, this._despawn)) {
+      const expired =
+        origin === 'weapon'
+          ? shot.lifetime <= 0 || isPastRange(shot)
+          : shot.lifetime <= 0 || isOffField(shot, this._despawn)
+      if (expired) {
         this.release(origin, shot)
       }
     })

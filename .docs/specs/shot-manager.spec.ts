@@ -77,6 +77,9 @@ export interface ShotLike {
   lifetime: number
   x: number
   z: number
+  spawnX: number
+  spawnZ: number
+  range: number
   activate(spawn: unknown): void
   update(dt: number): void
   syncRender(): void
@@ -144,8 +147,11 @@ export declare class ShotManager {
  *   Constructor fills the weapon pool, scene.add each mesh, reset = deactivate.
  *   asAcquirePort — { acquire: () => this.acquire('weapon') } for D02/D04.
  *   acquire — returns null on exhaustion (A05 rule); never `new`s a shot in update.
- *   update  — forEachActive: shot.update(dt); if lifetime<=0 or |x|>halfX or
- *             z>zNear or z<zFar → release. Does not call F01/F04.
+ *   update  — forEachActive: shot.update(dt); then expire:
+ *             weapon origin → lifetime<=0 OR distXZ(spawn) >= range
+ *             enemy/bomb    → lifetime<=0 OR world AABB (zNear/zFar/halfX).
+ *             Player bolts must NOT die on a fixed world plane (the playfield
+ *             follows the ship). Does not call F01/F04.
  *   pools() — [weapon, enemy, bomb] in stable order for F01.
  *   clear('weapon') must leave enemy/bomb actives untouched (no cross-cleanup).
  */
@@ -155,7 +161,9 @@ export declare class ShotManager {
  *   R1. Three origin pools exist; enemy/bomb may be size 0 but the origin key is valid.
  *   R2. acquire/release never cross origins — a WeaponShot cannot enter the enemy pool.
  *   R3. clear(origin) / weapon-pool exhaustion does not deactivate other origins.
- *   R4. update releases shots with lifetime<=0 (expiry) or off-field (RUL-02).
+ *   R4. update releases weapon shots with lifetime<=0 or dist-from-spawn >= range.
+ *       World AABB (BALANCE.shot.despawn) is enemy/bomb only — never a laser wall
+ *       in world space (RUL-02 still holds via lifetime/range).
  *   R5. update does not hit-test, apply damage, or spawn VFX.
  *   R6. Memory: pools only. Per-frame allocation: none (no arrays built in update).
  *   R7. pools() returns the same three references every call (F01 may store them).
@@ -215,7 +223,10 @@ export declare class ShotManager {
  *   it('acquire(weapon) never returns a shot that lives in the enemy pool')           // R2
  *   it('clear(weapon) leaves enemy actives alive (no cross-cleanup)')                 // R3
  *   it('update releases a shot whose lifetime elapsed')                               // R4, WPN-01
- *   it('update releases a shot past despawn bounds')                                  // R4, RUL-02
+ *   it('does not kill a weapon shot at the world zFar plane (range is from spawn)')   // R4
+ *   it('releases a weapon shot that has travelled its range from the fire point')     // R4
+ *   it('lets a weapon shot fired further forward travel the same range')              // R4
+ *   it('update releases an enemy shot past world despawn bounds')                     // R4, RUL-02
  *   it('update does not call a CollisionManager or DamageSink')                       // R5
  *   it('update allocates no arrays or shots')                                         // R6
  *   it('pools() returns the same three references across calls')                      // R7

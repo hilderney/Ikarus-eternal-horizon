@@ -55,6 +55,59 @@ export interface Equipment {
   readonly id: string
 }
 
+/** Integer 0..BALANCE.ship.stats.byteCap (255). */
+export interface BytePool {
+  current: number
+  max: number
+}
+
+export interface ShipStats {
+  agility: BytePool
+  deflection: BytePool
+  integrity: BytePool
+  shield: BytePool
+  precision: BytePool
+  energy: BytePool
+}
+
+export interface ShipStatus {
+  flickering: boolean
+  dashing: boolean
+  recovering: boolean
+}
+
+export type WingId = 'standard' | 'agility' | 'armored'
+export type ShieldFitId = 'light' | 'standard' | 'heavy'
+export type ArmorId = 'light' | 'standard' | 'heavy'
+export type EnergyCollectorId = 'passive' | 'wide'
+export type EnergyConverterId = 'scrap' | 'crystal'
+
+export interface ShipLoadout {
+  equippedWeapon: WeaponId | null
+  weapons: readonly WeaponId[]
+  equippedBomb: BombId | null
+  bombs: readonly BombId[]
+  equippedWings: WingId | null
+  wings: readonly WingId[]
+  equippedShield: ShieldFitId | null
+  shields: readonly ShieldFitId[]
+  equippedArmor: ArmorId | null
+  armors: readonly ArmorId[]
+  equippedEnergyCollector: EnergyCollectorId | null
+  energyCollectors: readonly EnergyCollectorId[]
+  equippedEnergyConverter: EnergyConverterId | null
+  energyConverters: readonly EnergyConverterId[]
+}
+
+/** G08 Ship tab binds this. Pose is live transform; stats are the byte sheet. */
+export interface ShipDebugPort {
+  readonly position: { x: number; y: number; z: number }
+  readonly rotation: { x: number; y: number; z: number }
+  readonly stats: ShipStats
+  readonly status: ShipStatus
+  readonly loadout: ShipLoadout
+}
+
 export interface Inventory {
   count(id: ResourceId): number
   cap(id: ResourceId): number
@@ -66,6 +119,20 @@ export interface ShipOptions {
   readonly visual: ShipVisual
   readonly thruster: ThrusterVisual
   readonly inventoryCaps: Readonly<Record<ResourceId, number>>
+}
+
+function clonePool(src: { readonly current: number; readonly max: number }): BytePool {
+  return { current: src.current, max: src.max }
+}
+
+class ShipStatusState implements ShipStatus {
+  flickering = false
+  dashing = false
+  shooting = false
+
+  get recovering(): boolean {
+    return !this.shooting && !this.flickering
+  }
 }
 
 const RESOURCE_IDS: readonly ResourceId[] = [
@@ -165,6 +232,10 @@ export class Ship extends Group {
   readonly transform: ShipTransform
   readonly inventory: Inventory
   readonly weaponTip: Mesh
+  readonly stats: ShipStats
+  private readonly _status: ShipStatusState
+  private readonly _loadout: ShipLoadout
+  private readonly _debugPort: ShipDebugPort
   private readonly _hardpoints: readonly WeaponMount[]
   private readonly _ordnance: readonly BombMount[]
   private _equipment: readonly Equipment[]
@@ -172,6 +243,7 @@ export class Ship extends Group {
   private readonly _hull: Mesh
   private readonly _accent: Mesh
   private _flickerTime = 0
+  private _statusFlickerRemainMs = 0
   private _disposed = false
 
   constructor(options: ShipOptions) {
@@ -185,10 +257,45 @@ export class Ship extends Group {
       scale: src.scale,
     }
 
+    const pools = BALANCE.ship.stats
+    this.stats = {
+      agility: clonePool(pools.agility),
+      deflection: clonePool(pools.deflection),
+      integrity: clonePool(pools.integrity),
+      shield: clonePool(pools.shield),
+      precision: clonePool(pools.precision),
+      energy: clonePool(pools.energy),
+    }
+    this._status = new ShipStatusState()
+    this._loadout = {
+      equippedWeapon: null,
+      weapons: Object.freeze([...BALANCE.weapons.loadout]),
+      equippedBomb: null,
+      bombs: Object.freeze([]),
+      equippedWings: null,
+      wings: Object.freeze([]),
+      equippedShield: null,
+      shields: Object.freeze([]),
+      equippedArmor: null,
+      armors: Object.freeze([]),
+      equippedEnergyCollector: null,
+      energyCollectors: Object.freeze([]),
+      equippedEnergyConverter: null,
+      energyConverters: Object.freeze([]),
+    }
+    this._debugPort = {
+      position: this.transform.position,
+      rotation: this.transform.rotation,
+      stats: this.stats,
+      status: this._status,
+      loadout: this._loadout,
+    }
+
     this._hardpoints = Object.freeze([new WeaponMount(0)])
     this._ordnance = Object.freeze([new BombMount(0)])
     this._equipment = Object.freeze([])
     this.inventory = new ShipInventory(options.inventoryCaps)
+    this.setFlickering(true)
 
     const hullGeo = new BoxGeometry(visual.size.w, visual.size.h, visual.size.d)
     const hullMat = new MeshBasicMaterial({
@@ -248,6 +355,15 @@ export class Ship extends Group {
     return this._equipment
   }
 
+  get status(): ShipStatus {
+    return this._status
+  }
+
+  get loadout(): ShipLoadout {
+    this._refreshLoadout()
+    return this._loadout
+  }
+
   applyTransform(transform: ShipTransform): void {
     this.transform.position.x = transform.position.x
     this.transform.position.y = transform.position.y
@@ -290,8 +406,33 @@ export class Ship extends Group {
     this._equipment = Object.freeze(this._equipment.filter((item) => item.id !== id))
   }
 
+  setDashing(value: boolean): void {
+    this._status.dashing = value
+  }
+
+  setShooting(value: boolean): void {
+    this._status.shooting = value
+  }
+
+  setFlickering(value: boolean): void {
+    this._status.flickering = value
+    this._statusFlickerRemainMs = value ? BALANCE.ship.stats.flickerMs : 0
+  }
+
+  debugSnapshot(): ShipDebugPort {
+    this._refreshLoadout()
+    return this._debugPort
+  }
+
   update(dt: number): void {
     this._flickerTime += dt
+    if (this._statusFlickerRemainMs > 0) {
+      this._statusFlickerRemainMs -= dt * 1000
+      if (this._statusFlickerRemainMs <= 0) {
+        this._statusFlickerRemainMs = 0
+        this._status.flickering = false
+      }
+    }
   }
 
   syncRender(): void {
@@ -323,5 +464,10 @@ export class Ship extends Group {
   private _disposeMesh(mesh: Mesh): void {
     mesh.geometry.dispose()
     disposeMaterial(mesh.material)
+  }
+
+  private _refreshLoadout(): void {
+    this._loadout.equippedWeapon = this._hardpoints[0]?.equipped ?? null
+    this._loadout.equippedBomb = this._ordnance[0]?.equipped ?? null
   }
 }

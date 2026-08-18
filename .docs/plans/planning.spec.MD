@@ -373,13 +373,13 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 ### Stage C — Player craft
 
 #### `SDD-C01` Ship
-- **Folder:** `src/gameobjects/ship/`
-- **Scope:** `class Ship extends THREE.Group`. Modular mounts: hull visual, thruster, weapon tip; **hardpoints** (`WeaponSlot[]`), **ordnance** (`BombSlot[]`), **equipment** (`Equipment[]` — declared, populated in §7), **inventory** (resources; model unchanged), **health** (`ShipHealth`, `C03`). `.applyTransform(transform)`, `.setEquippedWeapon(color, radius)`, `.update(dt)` (thruster flicker), `.dispose()` (children geometries/materials).
+- **Folder:** `src/gameobjects/ship/` · spec [ship.spec.ts](../specs/ship.spec.ts)
+- **Scope:** `class Ship extends THREE.Group`. Modular mounts + **ship sheet** for G08: pose, **byte stats 0–255** (agility, deflection, integrity, shield, precision, energy — spawn `current=max=100`, cap 255), statuses (`flickering`, `dashing`, `recovering`), loadout (equipped + owned lists: weapons, bombs, wings, shield fits, armor, energy collector, energy converter). `debugSnapshot(): ShipDebugPort`. Combat still uses C03/D03 until those cards consume the sheet.
 - **Requires:** A01, A03.
 - **Lib:** **Three.js** (`Group`, `Mesh`, `BoxGeometry`, `ConeGeometry`, `SphereGeometry`, `MeshBasicMaterial`)
 - **View:** neon wireframe hull + accent box + thruster cone (additive) + equipment tip sphere.
-- **Rules:** nothing outside the ship mutates its slots or its inventory; destruction always disposes all children.
-- **Maps:** `SHIP-01`, `SHIP-03`, `SHIP-06`, `RES-05`. **Acceptance:** ship moves within bounds; weapon change updates the tip; no GPU leaks on dispose.
+- **Rules:** nothing outside the ship mutates its slots or its inventory; destruction always disposes all children; G08 must bind the sheet, not a second table.
+- **Maps:** `SHIP-01`, `SHIP-03`, `SHIP-06`, `RES-05`. **Acceptance:** ship moves within bounds; weapon change updates the tip; no GPU leaks on dispose; debugger can read the full ship sheet.
 
 #### `SDD-C02` Controller
 - **Folder:** `src/gameobjects/controller/`
@@ -395,7 +395,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 - **Requires:** A01, A03, C01.
 - **Lib:** — (no dependency — pure arithmetic on BALANCE numbers)
 - **Contract:** `DamageOutcome { absorbedByShield, dealtToHull, shieldBroke, hullLevelChanged, destroyed }` — the event payload `F05`/`G07`/`G10` react to.
-- **Rules:** damage enters **only** through `applyDamage` (never by writing fields); all thresholds and multipliers come from `BALANCE.ship.health`; `destroyed` is reported, never acted on here (`G10` ends the run).
+- **Rules:** damage enters **only** through `applyDamage` (never by writing fields); all thresholds and multipliers come from `BALANCE.ship.health` until C03 consumes C01 `ship.stats` byte pools; `destroyed` is reported, never acted on here (`G10` ends the run). Do not retune health numbers this pass.
 - **Maps:** `SHIP-02`, `SHIP-05`, `SHIP-12`, `RUL-10`. **Acceptance:** the shield bar drains before the hull; at shield 0 the hull takes damage; crossing a hull threshold visibly degrades motion and fire rate; integrity 0 emits `destroyed` exactly once.
 
 ---
@@ -603,12 +603,12 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 - **Maps:** `RUL-03`, `SHIP-05`, `SHIP-06`, `SHIP-09`, `RES-02`. **Acceptance:** each bar tracks its pool live; labels follow the ship and never leave the frame; the bar that took damage flickers.
 
 #### `SDD-G08` Debugger panel (debugger-area)
-- **Folder:** `src/ui/debugger/` (one module per tab)
-- **Scope:** tabbed panels (Cam / Ship / Limit Box / Parallax / Weapons) of sliders + spins + vectors bound to **shared objects** (BALANCE + scene objects); two-way sync throttled (~15Hz) skipping the focused control; Reset; **Laser Levels** presets (L1–L10) + per-field editing.
-- **Requires:** A01, G06.
+- **Folder:** `src/ui/debugger/` (one module per tab) · spec [debugger.spec.ts](../specs/debugger.spec.ts)
+- **Scope:** **one tab per subject.** This pass: **Ship** bound to C01 `ShipDebugPort` (pose, 0–255 pools, statuses, loadout lists). Later: Cam / LimitBox / Parallax / Weapons / Energy / Shots / Collision. Two-way sync ~15 Hz, skip focused control, Reset. Q09 DEV flag.
+- **Requires:** A01, C01, G06.
 - **Lib:** **HTML/CSS** (panel + controls markup)
-- **Rules:** the POC-1 501-line monolith is split one module per tab; a new tab must not touch existing ones.
-- **Maps:** dev tool (no locked requirement; Q09 decides shipping). **Acceptance:** editing a slider moves the game live; Reset restores defaults.
+- **Rules:** a new tab must not touch existing ones; Ship tab must not invent numbers the sim does not own.
+- **Maps:** dev tool (no locked requirement; Q09 decides shipping). **Acceptance:** the Ship tab shows the flying craft’s sheet live; Reset restores spawn defaults.
 
 #### `SDD-G09` Renderer
 - **Folder:** `src/render/renderer.ts`

@@ -16,18 +16,16 @@
 
 // ─── 1. Scope ────────────────────────────────────────────────────────────────
 /**
- * Owns:      The debugger-area tuning surface. Tabbed panels Cam / Ship /
- *            LimitBox / Parallax / Weapons: sliders + spins + vectors bound
- *            to shared objects (BALANCE slices + scene objects). Two-way
- *            sync throttled at ~15 Hz, skipping the focused control. Reset
- *            restores captured defaults. Laser L1–L10 presets. Split one
- *            module per tab (POC-1 was a monolith). Q09: ship behind
- *            `import.meta.env.DEV` so the Itch path can omit it.
- * Does not own: the values' meaning (A01 / B01–B04 / C01 / D02), gizmos
- *            drawing (B04), the area shell (G06), the 15 Hz sidecar clock
- *            (A04 exposes a hook; this class is the consumer).
- * Player-facing: N/A in production. In DEV, a slider that does not move the
- *            game, or a Reset that does not Reset, wastes a tuning session.
+ * Owns:      The debugger-area tuning surface. **One tab per subject.** This
+ *            pass specifies and implements **Ship** first (binds C01
+ *            ShipDebugPort). Later tabs: Cam, LimitBox, Parallax, Weapons,
+ *            Energy, Shots, Collision — each a module, composed only in
+ *            debugger.ts. Two-way sync ~15 Hz, skip focused control, Reset.
+ *            Q09: `import.meta.env.DEV`.
+ * Does not own: the values' meaning (A01 / C01 / C02 / C03 / D02 / D03),
+ *            gizmos (B04), the area shell (G06), the 15 Hz sidecar (A04).
+ * Player-facing: N/A in production. In DEV, the Ship tab must show the same
+ *            sheet the sim uses — a second invented table is a bug.
  */
 
 // ─── 8. Requires ─────────────────────────────────────────────────────────────
@@ -36,24 +34,26 @@
  *
  * Upstream (must exist before this starts):
  *   SDD-A01 Balancer — typed slices the tabs bind to
+ *   SDD-C01 Ship     — ShipDebugPort (this pass: Ship tab)
  *   SDD-G06 UI areas — `#debugger-area` host
  *
  * Downstream (who breaks if this contract changes):
  *   SDD-G03 RunScene — constructs only when DEV / factory non-null (Q09)
  *   SDD-A04 GameLoop — ~15 Hz sync sidecar calls `debugger.sync()`
- *   Tab modules — CamTab / ShipTab / LimitBoxTab / ParallaxTab / WeaponsTab
+ *
+ * Later tabs (not this pass): Cam, LimitBox, Parallax, Weapons, Energy, Shots, Collision.
  */
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  contract, memory, THREE / view
- * Game Design  : hub-v4.1 / 2026-08-17  BALANCE, feel, leveling, graphics
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.3 / 2026-08-18  one tab per subject; Ship first
+ * Programming  : hub-v4.3 / 2026-08-18  ShipTab binds ShipDebugPort
+ * Game Design  : hub-v4.3 / 2026-08-18  byte stats 0–255, statuses, loadout lists
+ * TDD          : hub-v4.3 / 2026-08-18  Ship tab cases named; tests not yet written
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: spec-complete
+ * Status: spec-complete (Ship tab next to implement)
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -62,7 +62,15 @@
 
 // ─── 2. Contract ─────────────────────────────────────────────────────────────
 
-export type DebuggerTabId = 'cam' | 'ship' | 'limit-box' | 'parallax' | 'weapons'
+export type DebuggerTabId =
+  | 'ship'
+  | 'cam'
+  | 'limit-box'
+  | 'parallax'
+  | 'weapons'
+  | 'energy'
+  | 'shots'
+  | 'collision'
 
 export interface DebuggerTab {
   readonly id: DebuggerTabId
@@ -76,9 +84,43 @@ export interface DebuggerTab {
 
 /** Shared objects the tabs write through. Production passes live BALANCE slices. */
 export interface DebuggerBinds {
+  readonly ship: {
+    snapshot(): {
+      readonly position: { x: number; y: number; z: number }
+      readonly rotation: { x: number; y: number; z: number }
+      readonly stats: {
+        agility: { current: number; max: number }
+        deflection: { current: number; max: number }
+        integrity: { current: number; max: number }
+        shield: { current: number; max: number }
+        precision: { current: number; max: number }
+        energy: { current: number; max: number }
+      }
+      readonly status: {
+        flickering: boolean
+        dashing: boolean
+        recovering: boolean
+      }
+      readonly loadout: {
+        equippedWeapon: string | null
+        weapons: readonly string[]
+        equippedBomb: string | null
+        bombs: readonly string[]
+        equippedWings: string | null
+        wings: readonly string[]
+        equippedShield: string | null
+        shields: readonly string[]
+        equippedArmor: string | null
+        armors: readonly string[]
+        equippedEnergyCollector: string | null
+        energyCollectors: readonly string[]
+        equippedEnergyConverter: string | null
+        energyConverters: readonly string[]
+      }
+    }
+    applyTransform(): void
+  }
   readonly camera: object
-  readonly shipTransform: object
-  readonly shipApply: () => void
   readonly cameraApply: () => void
   readonly parallax: object
   readonly parallaxApply: () => void
@@ -167,38 +209,34 @@ export declare class WeaponsTab implements DebuggerTab {
 
 // ─── 3. Key fields and methods ───────────────────────────────────────────────
 /**
- * Files (one public class per file):
- *   ui/debugger/debugger.ts
- *   ui/debugger/cam-tab.ts
- *   ui/debugger/ship-tab.ts
- *   ui/debugger/limit-box-tab.ts
- *   ui/debugger/parallax-tab.ts
- *   ui/debugger/weapons-tab.ts
+ * Files (one public class per file). This pass: debugger.ts + ship-tab.ts.
+ * Later: cam-tab, limit-box-tab, parallax-tab, weapons-tab, energy/shots/collision.
  *
- *   defaults    | structuredClone of binds at mount | Reset source
- *   focused     | document.activeElement skip         | two-way sync
+ *   defaults    | structuredClone of ship snapshot at mount | Reset source
+ *   focused     | document.activeElement skip                 | two-way sync
  *
  *   sync        — for each control, skip if it is document.activeElement,
- *                 else refresh from the bound object
- *   reset       — Object.assign binds from defaults, then refresh every control
- *   WeaponsTab  — buttons L1..L10 call binds.weapons.applyLaserLevel(n)
+ *                 else refresh from binds.ship.snapshot()
+ *   reset       — restore mount-time ship sheet, then applyTransform
+ *   ShipTab     — every ShipDebugPort field; id is 'ship'
  */
 
 // ─── 5. Rules and invariants ─────────────────────────────────────────────────
 /**
- *   R1. Five tabs, five modules. Adding a tab does not edit an existing tab
- *       file (only debugger.ts composition).
+ *   R1. One module per tab. Adding a tab does not edit an existing tab file
+ *       (only debugger.ts composition). This pass mounts **Ship** first;
+ *       other tab ids may exist as empty placeholders.
  *   R2. Two-way: editing a slider/spin writes the bound object immediately
  *       and calls the matching apply hook. Sync pulls model → view at
  *       BALANCE.debug.syncHz (~15 Hz, POC-1 SYNC_INTERVAL 0.066).
  *   R3. `sync()` skips any control that is `document.activeElement`.
  *   R4. Reset restores the snapshot taken at mount, then apply hooks run.
- *   R5. WeaponsTab exposes Laser presets L1–L10 that call applyLaserLevel.
+ *   R5. ShipTab shows every field of ShipDebugPort (pose, six byte pools,
+ *       three statuses, equipped + lists). It does not invent numbers.
  *   R6. Q09: when `enabled === false`, mount writes nothing into the host
- *       and sync/reset are no-ops. Production Itch build passes false
- *       (or omits constructing Debugger).
+ *       and sync/reset are no-ops.
  *   R7. Memory: DOM created on mount, removed on dispose. Per-frame
- *       allocation: none on sync (reuse row handles). No GPU.
+ *       allocation: none on sync. No GPU.
  *   R8. Debugger never participates in collision or scoring.
  */
 
@@ -221,21 +259,24 @@ export declare class WeaponsTab implements DebuggerTab {
  * New section (add to SDD-A01):
  *   BALANCE.debug.syncHz  = 15  // POC-1 0.066 s ≈ 15.15 Hz; name the intent
  *
- * Tab contents (port POC-1; do not retune ranges until a playtest says so):
- *   Cam       — fov, near, far, position xyz, rotation xyz (YXZ)
- *   Ship      — transform pos/rot/scale, motion maxSpeed/accel/decel/brake,
- *               tilt maxDeg/riseMs/fallMs
- *   LimitBox  — halfX/halfZ, bounce.timeMs, recenter delay/still/accel/maxSpeed,
- *               restLine position
- *   Parallax  — per-layer speed, parallaxGain, jitter, wrap
- *   Weapons   — active id, energy max/regen, laser forward/diag/spreads,
- *               L1–L10 presets (D02 LASER_LEVELS)
+ * Tab contents:
+ *   Ship (this pass) — from C01 ShipDebugPort, not a parallel table:
+ *     position xyz, rotation xyz (degrees)
+ *     agility / deflection / integrity / shield / precision / energy
+ *       each current + max, slider 0–255, spawn 100/100
+ *     status_flickering, dashing, status_recovering (checkboxes / flags)
+ *     equippedWeapon + weapons[]
+ *     equippedBomb + bombs[]
+ *     equippedWings + wings[]
+ *     equippedShield + shields[]   // fit module, not Force Field pool
+ *     equippedArmor + armors[]
+ *     equippedEnergyCollector + energyCollectors[]
+ *     equippedEnergyConverter + energyConverters[]
+ *   Later: Cam, LimitBox, Parallax, Weapons (L1–L10), Energy, Shots, Collision.
  *
- * Feel:      A tuner, not a toy. Moving a slider must move the game on the
- *            next frame. Reset is sacred — a designer who cannot get back to
- *            POC-1 numbers will invent new ones. Sync that overwrites the
- *            focused field is a bug (R3).
- * Leveling:  L1–L10 presets are the only leveling UI in POC2.
+ * Feel:      A tuner, not a toy. Moving a Ship slider must move the sheet
+ *            the sim reads. Reset is sacred.
+ * Leveling:  byte max grows with equipment later; spawn max is 100 / 255.
  * Graphics:  Neon panel matching POC-1 `.debug-panel`:
  *              background rgba(8,8,24,0.85) · border #2af0ff · text #b7e6ff
  *              tabs hairline cyan, active fill rgba(34,211,238,0.25)
@@ -253,30 +294,29 @@ export declare class WeaponsTab implements DebuggerTab {
 /**
  * File: poc2/src/ui/debugger/debugger.test.ts
  * Runner: vitest
- * Mocks: host HTMLElement, DebuggerBinds with mutable plain objects,
- *        five lightweight DebuggerTab fakes plus one real tab (WeaponsTab
- *        for L1–L10). jsdom activeElement for the skip test.
+ * Mocks: host HTMLElement, DebuggerBinds with a live ShipDebugPort,
+ *        ShipTab as the first real tab. jsdom activeElement for the skip test.
  *
  * describe('Debugger')
- *   it('mounts five tab panels cam/ship/limit-box/parallax/weapons')        // R1
- *   it('writes a slider change into the bound object immediately')          // R2, Acceptance
- *   it('sync skips the focused slider and refreshes the others')            // R3
- *   it('reset restores mount-time defaults and calls apply hooks')          // R4, Acceptance
+ *   it('mounts the Ship tab first (id ship)')                               // R1
  *   it('enabled:false mounts nothing and no-ops sync/reset')                // R6, Q09
  *   it('dispose removes the panel from the host')                           // R7
  *
- * describe('WeaponsTab')
- *   it('L1..L10 buttons call applyLaserLevel with 1..10')                   // R5
- *   it('does not import CamTab or edit LimitBox binds')                     // R1
- *
- * describe('tab isolation')
- *   it('each tab id is unique and matches DebuggerTabId')                   // R1
+ * describe('ShipTab')
+ *   it('shows position and rotation from ShipDebugPort')                    // R5
+ *   it('shows agility/deflection/integrity/shield/precision/energy 0–255')  // R5
+ *   it('shows flickering, dashing, recovering flags')                       // R5
+ *   it('shows equippedWeapon and the weapons list')                         // R5
+ *   it('shows bomb/wings/shield-fit/armor/collector/converter equipped+list') // R5
+ *   it('writes a slider change into the bound stats pool immediately')      // R2
+ *   it('sync skips the focused slider')                                     // R3
+ *   it('reset restores mount-time ship sheet defaults')                     // R4
+ *   it('does not import CamTab or invent a second number table')            // R1, R5
  *
  * Manual:
- *   A-manual-1. [manual] Cam fov slider visibly changes the view
- *   A-manual-2. [manual] Reset after dragging ship speed returns POC-1 12
+ *   A-manual-1. [manual] Ship tab current/max match the flying craft
+ *   A-manual-2. [manual] dragging integrity current updates the sheet live
  *   A-manual-3. [manual] production build (Q09) shows an empty debugger-area
  *
- * Coverage: R1–R8 + Acceptance (live sliders, Reset, 15 Hz skip-focused,
- * L1–L10, one module per tab, Q09 flag).
+ * Coverage: R1–R8 + Ship tab Acceptance. Other tabs: later passes.
  */
