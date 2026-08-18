@@ -5,8 +5,9 @@
 >
 > Space shooter roguelite. Two-axis gameplay, 3D rendering, endless arcade pressure — now wired straight into the mercenary, monster-haunted universe it always deserved.
 
-**Status:** pre-production (Gate G0) · **Stack:** TypeScript · Vite · Three.js
-**Operational source of truth:** `.docs/planning.spec.MD` (canonical names, decisions, gates, traceable requirements)
+**Status:** pre-production (Gate G0) · **Stack:** TypeScript · Vite · Three.js · Yuka · Howler
+**Operational source of truth:** [`.docs/plans/planning.spec.MD`](.docs/plans/planning.spec.MD) (canonical names, decisions, gates, traceable requirements, SDD build order)
+**Builds:** [`poc/`](poc/README.md) — POC-1, frozen playable reference · [`poc2/`](poc2/README.md) — active build
 **This document supersedes GDD v2.0.** All mechanical systems from v2.0 are preserved; this revision folds in the full lore bible and the narrative-delivery systems (HUD storytelling, Bounty Board, item flavor text, sector staging, boss narrative beats) that were previously parked as "open worldbuilding questions."
 
 ---
@@ -18,7 +19,7 @@
 | **Title** | Ikarus: Eternal Horizon |
 | **Genre** | Shooter roguelite / arcade shmup, 2.5D |
 | **Perspective** | 3D rendering with **two-axis (X/Y) gameplay** — depth is visual only |
-| **Tech** | TypeScript, Vite, HTML canvas, **Three.js** |
+| **Tech** | TypeScript, Vite, HTML canvas, **Three.js** (graphics/layers), **Yuka** (logic/AI), **Howler** (audio), HTML/CSS (menus) |
 | **Visual style** | G0–G1: neon wireframe → G2+: low-poly flat-shaded neon |
 | **Setting** | The **Vangarde Sector**, the last live stretch of the lawless **Outer Grids**, on the doorstep of the **Eternal Horizon** |
 | **Modes** | **Normal** (full systems) · **Survivor** (one-shot from scratch) |
@@ -567,24 +568,42 @@ Four product gates, each shipping a playable vertical slice.
 
 ## 18. Documentation Map
 
-Detailed, versioned planning lives in `.docs/`, with `#tag/*` markers for fast search. That folder is currently git-ignored, so searches need `rg --no-ignore "#tag/weapons" .docs`.
+Detailed, versioned planning lives in `.docs/`, with `#tag/*` markers for fast search. If your checkout still git-ignores that folder, searches need `rg --no-ignore "#tag/weapons" .docs`.
+
+**Active planning — `.docs/plans/` and `.docs/phases/`**
 
 | Document | Scope |
 |---|---|
-| `planning.spec.MD` | Hub: canonical names, decisions, systems map, gates, requirement index |
-| `spaceship-plan.spec.MD` | Ship attributes, Energy, CraftSlot, skills, controls |
-| `weapons-plan.spec.MD` | Primary weapons and Special Ordnance |
-| `resources-plan.spec.MD` | Drop table and collection economy |
-| `equipments-plan.spec.MD` | Equipment and craft recipes |
-| `enemys-plan.spec.MD` | Bestiary, bosses, asteroids |
-| `game-rules-plan.spec.MD` | Run loop, damage rules, HUD, performance, packaging |
-| `ranking-plan.spec.MD` | Leaderboards and Survivor mode |
-| `achievements-plan.spec.MD` | Steam achievements and stats |
-| `lore-plan.spec.MD` | Full lore bible — now largely superseded by Section 2 of this document; retained for deep-cut worldbuilding not yet promoted to canon |
-| `bounty-plan.spec.MD` *(new, to be created)* | Full contract list, faction reputation curve, transmission copy |
-| `voice-plan.spec.MD` *(new, to be created)* | Full AI Narrator / Ikarus / enemy bark script |
+| [`plans/planning.spec.MD`](.docs/plans/planning.spec.MD) | **The hub.** Canonical names, decisions, engine composition, the enumerated requirement index (§3.5), the SDD subject cards in build order (§5), the POC-1 → POC2 port map (§5.0), Definition of Done (§6.1) |
+| [`phases/phase-0-poc.md`](.docs/phases/phase-0-poc.md) | POC-1 phase document — history, gate question, acceptance checklist |
+| [`phases/phase-0-poc2.md`](.docs/phases/phase-0-poc2.md) | Architecture blueprint: pattern constructor, Model/View by inheritance, layers, managers, target folder tree |
+| `specs/{subject}.spec.ts` | One SDD spec per subject, generated from the hub cards; shape defined by `specs/_template.spec.ts` |
 
-Requirements are traceable per domain (`SHIP-01`, `WPN-04`, `RUL-09`, `LORE-01`, `BNTY-01`, …) and feed task generation.
+**Domain plans — `.docs/plans-later/`** (Portuguese legacy; they own the requirement ID definitions)
+
+| Document | Scope |
+|---|---|
+| `spaceship-plan.spec.MD` | Ship attributes, Energy, CraftSlot, skills, controls — defines `SHIP-01..13` |
+| `weapons-plan.spec.MD` | Primary weapons and Special Ordnance — defines `WPN-01..08` |
+| `resources-plan.spec.MD` | Drop table and collection economy — defines `RES-01..06` |
+| `equipments-plan.spec.MD` | Equipment and craft recipes — defines `EQP-01..07` |
+| `enemys-plan.spec.MD` | Bestiary, bosses, asteroids — defines `ENM-01..09` |
+| `game-rules-plan.spec.MD` | Run loop, damage rules, HUD, performance, packaging — defines `RUL-01..14` |
+| `ranking-plan.spec.MD` | Leaderboards and Survivor mode — defines `RNK-01..09` |
+| `achievements-plan.spec.MD` | Steam achievements and stats — defines `ACH-01..09` |
+| `lore-plan.spec.MD` | Full lore bible — largely superseded by Section 2 of this document; retained for deep-cut worldbuilding not yet promoted to canon — defines `LORE-01..09` |
+| `bounty-plan.spec.MD` *(to be created)* | Full contract list, faction reputation curve, transmission copy — will define `BNTY-` |
+| `voice-plan.spec.MD` *(to be created)* | Full AI Narrator / Ikarus / enemy bark script |
+
+**Code**
+
+| Path | Scope |
+|---|---|
+| [`poc/README.md`](poc/README.md) | POC-1 — **frozen** playable reference; documents the tuned camera/parallax/limit-box/ship/weapons behavior the port must reproduce |
+| [`poc2/README.md`](poc2/README.md) | POC2 — the active build, written against the architecture contract |
+| [`poc2/todo.md`](poc2/todo.md) | The live backlog: one entry per SDD card, in build order |
+
+Requirements are traceable per domain (`SHIP-01`, `WPN-04`, `RUL-09`, `LORE-01`, `BNTY-01`, …). The canonical English index, with each ID mapped to the SDD card that satisfies it, is §3.5 of the hub — that index is what feeds task generation.
 
 ---
 

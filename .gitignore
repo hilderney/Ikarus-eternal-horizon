@@ -1,10 +1,20 @@
-#POC
-
+# Builds
 poc/.vite
 poc/dist/
 poc/node_modules/
-
-.docs/
+poc2/.vite
+poc2/dist/
+poc2/node_modules/
 node_modules/
+
+# Planning docs: the SDD hub and the generated specs are versioned, because tasks
+# cite them. The phase history and the domain plans stay local for now.
+.docs/*
+!.docs/plans/
+.docs/plans/*
+!.docs/plans/planning.spec.MD
+!.docs/specs/
+
+# Logs
 dev.err
 dev.out

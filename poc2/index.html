@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ikarus: Eternal Horizon — POC2</title>
+  </head>
+  <body>
+    <!--
+      The three areas are structural, not decoration (phase-0-poc2.md §4.2):
+        area-inputs    declares the active input map
+        game-area      owns the renderer canvas
+        debugger-area  exposes the tuning surface bound to BALANCE
+      SDD-G06 assembles them; SDD-G03 mounts the Run scene into game-area.
+    -->
+    <div id="stage">
+      <aside class="area area-inputs" id="area-inputs" aria-label="Active input map"></aside>
+      <main class="area game-area" id="game-area"></main>
+      <aside class="area debugger-area" id="debugger-area" aria-label="Debugger"></aside>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

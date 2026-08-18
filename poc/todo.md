@@ -1,177 +1,73 @@
-# POC TODO LIST
+# POC-1 — delivered scope (frozen snapshot)
 
-> Roteiro de desenvolvimento em ordem. Objetivo: fechar um jogo jogável publicável no Itch.io.
-> Metal→gameplay: movimentação e parallax já prontos. A ordem abaixo constrói o loop de combate e as telas em sequência de dependência.
-
----
-
-## Fase 0 — Base pronta (concluído)
-
-- [x] limitBox faz a câmera seguir a nave
-- [x] tilt da nave na movimentação
-- [x] movimentação da nave suave como força aplicada
-- [x] grids de parallax com posição fixa à posição da câmera
-- [x] movimentação da câmera faz deslocamento nos jitters das gridbox (ajuda na sensação de movimento e profundidade)
-- [x] ajustar movimento suave da câmera de seguir o limitBox; quando sem movimento da nave aproximar lentamente a câmera colocando a nave na linha central (eixo z do limit box calcula a distância)
+> **This is not a roadmap.** POC-1 is frozen. This file records what the spike actually delivered and what it deliberately did not, so the port to POC2 knows exactly which behavior already exists as a reference.
+>
+> **Live backlog:** [`poc2/todo.md`](../poc2/todo.md) — one entry per SDD card.
+> **Build order and cards:** [`.docs/plans/planning.spec.MD`](../.docs/plans/planning.spec.MD) §5.
+> **Port map (which POC-1 file becomes which card):** the same document, §5.0.
 
 ---
 
+## Delivered
 
+### Camera, motion and world dressing
+- [x] `limitBox` makes the camera follow the ship (dead zone with `halfX`/`halfZ`) → ports to `SDD-B03`
+- [x] Ship tilt/bank while moving (`rotation.z`, `riseMs`/`fallMs`) → `SDD-C02`
+- [x] Smooth force-based ship movement (`accel`/`decel`/`brake`, `maxSpeed`) → `SDD-C02`
+- [x] Parallax grids pinned to the camera position, 3 layers with independent rotation → `SDD-B02`
+- [x] Camera movement displaces the parallax stars by `parallaxGain` (depth and speed cue) → `SDD-B02`
+- [x] Smooth edge follow with `bounce.timeMs`, plus auto-recenter to the Recenter Point when the ship goes idle → `SDD-B03`
+- [x] Perspective camera rig with live `applyConfig` (FOV/near/far/position/rotation) → `SDD-B01`
+- [x] Gizmos: world axes, playfield grid, camera axes with sprite labels → `SDD-B04`
+- [x] Fixed portrait 9:16 canvas (540×960) with letterbox centering and the 3-area layout → `SDD-G06` / `SDD-G09`
 
-## Fase 1 — Disparos e sistema de dano (HP + Shield)
+### Weapons and combat primitives
+- [x] Pooled laser projectile game object, fired from the ship's nose → `SDD-D01`
+- [x] Shots lose damage with distance and expire (25% steps on opacity **and** damage) → `SDD-D01`
+- [x] Typed weapon catalog + registry DLC seam (`Record<WeaponId, factory>`) → `SDD-D02`
+- [x] All four weapons implemented: **Laser** (`SDD-D02`), **Plasma** AoE orbs (`SDD-D04`), **Beam** continuous DPS (`SDD-D05`), **Mjolnir** piercing cone (`SDD-D06`)
+- [x] Laser levels **L1–L10** presets with `totalShots = forward + 2 × perSide = level` → `SDD-D02`
+- [x] Active weapon switch (cyclic on `F` + panel selector) → `SDD-E07`
+- [x] Energy pool (`start`/`max`/`current`/`regenPerSec`) gating every shot → `SDD-D03`
+- [x] Layered projectile × target collision with plasma AoE and a target registry → `SDD-F01`
+- [x] Floating Energy bar HUD projected over the ship → `SDD-G07`
 
-- [x] Criar GameObject de disparos laser, saindo da ponta da frente da nave
-- [x] Disparos devem perder força com distância e sumir também
-- [ ] Ajustar frequência e velocidades de disparos
-- [ ] Criar Hitbox da nave (camada `player`)
-- [ ] Criar Hitbox do laser (camada `shots`)
-- [ ] Motor de colisão 2D por camadas (`player` / `shots` / `meteors` / `enemy` / `drops`) — AABB/círculo, pool, zero alocação por frame
-- [ ] Sistema de dano: **Campo de Força (shield)** absorve primeiro; quando zera, dano vai para **Integridade (HP)**
-- [ ] Regeneração lenta do Shield após não levar dano por um tempo
-- [ ] Feedback de dano: flash na nave, shake, som diferenciado de shield vs hull
-
----
-
-
-
-## Fase 2 — Meteoros
-
-- [ ] Criar áreas de spawn de meteoros (bordas do playfield)
-- [ ] Criar GameObjects dos meteoros (tamanhos pequeno/médio/grande)
-- [ ] Criar Hitbox do meteoro (camada `meteors`)
-- [ ] Acerto de laser retira HP do meteoro de acordo com a força/disparo
-- [ ] Destruição de instância de gameobject meteoro
-- [ ] Animação simples de destruição de meteoro (explosão wireframe/partículas pooled)
-- [ ] Acerto de meteoro no player retira HP/shield do player
-- [ ] Meteoros grandes quebram em fragmentos menores ao serem atingidos
-
-
-
-## Fase 3 — Drop de recursos
-
-- [ ] Criar sistema de drop ao destruir meteoros (Metal Scrap, Prismatic Crystal, Dense Core)
-- [ ] GameObject dos drops (camada `drops`) com magnet radius de coleta
-- [ ] Coleta adiciona recurso ao inventário (contagem)
-- [ ] Som de coleta por tipo de recurso
+### Tooling
+- [x] Central input state with `preventDefault` list, `blur` reset and synthetic `Shift+KeyX` combos → `SDD-A02`
+- [x] `BALANCE` as the single source of every gameplay number → `SDD-A01`
+- [x] Debug panel with 5 tabs, live readouts, two-way ~15 Hz sync and Reset → `SDD-G08`
+- [x] Ship coordinate label projected world→screen, letterbox-safe → `SDD-G07`
+- [x] Test targets to validate collision and damage → retired once `SDD-E01`/`SDD-E02` land
 
 ---
 
+## Deliberately not in POC-1
 
+Each line is owned by a POC2 card; none of this behavior exists as a reference, so it gets designed from the card rather than ported.
 
-## Fase 4 — Inimigos (guerreiro/pré-Bestiário)
-
-- [ ] Criar áreas de spawn de naves inimigas (duas laterais à frente do playfield)
-- [ ] Criar GameObject do Warrior (nave inimiga básica)
-- [ ] Definir movimentação estratégica do Warrior (entrada, aproximação, ataque, recuo)
-- [ ] Criar Hitbox do Warrior (camada `enemy`)
-- [ ] Acerto de laser retira HP do Warrior de acordo com a força/disparo
-- [ ] Destruição de instância de gameobject Warrior
-- [ ] Animação simples de destruição do Warrior
-- [ ] Acerto do Warrior (tocar nela ou tiro dela) no player retira HP/shield do player
-- [ ] Tiro inimigo básico (projétil da nave inimiga, camada `enemy_shots`)
-- [ ] Drop de recursos ao destruir Warrior
-
-
-
-## Fase 5 — Degradação por Integridade
-
-- [ ] Estado da Integridade da nave impactar o **deslocamento** (agilidade/velocidade) conforme o dano
-- [ ] Estado da Integridade impactar a **cadência de disparos** conforme o dano
-- [ ] Definir patamares de integridade (ex.: 100%–75% normal, 75%–50% leve, 50%–25% pesado, <25% crítico) com penalidades legíveis no HUD
+- **Damage model** — Force Field absorbing before Integrity, slow shield regen, hull degradation tiers → `SDD-C03`, `SDD-F04` (`SHIP-02`, `SHIP-05`, `SHIP-12`, `RUL-10`)
+- **Enemies** — spawn areas, Warrior behavior, enemy hitbox, enemy projectiles, destruction → `SDD-E01`, `SDD-E03`, `SDD-E05` (`ENM-01`, `ENM-02`)
+- **Meteors** — spawn, sizes, fragmentation on hit, contact damage → `SDD-E02`, `SDD-E06` (`ENM-04`)
+- **Drops and collection** — drop tables, magnet radius, inventory counts → `SDD-F02` (`RES-01`, `RES-02`, `RES-03`)
+- **Feedback and juice** — pooled explosions, hit flash, screen shake, hit-stop, damage vignette → `SDD-F05` (`RUL-13`)
+- **Score and run lifecycle** — kills, score, multipliers, game over, restart, local best → `SDD-G10` (`RUL-03`, `RUL-07`, `RUL-11`)
+- **Screens** — title, run, result, rankings and the pause/inventory overlay → `SDD-G01`–`SDD-G05`, `SDD-G11` (`RUL-04`)
+- **Difficulty** — kill-driven ramp and the 50/100/500 milestones → `SDD-F03` (`RUL-06`, `RUL-09`)
+- **Generic infrastructure** — `ObjectPool<T>`, `GameLoop`, `core/math.ts` (POC-1 has a shot-specific pool and an inlined rAF) → `SDD-A03`, `SDD-A04`, `SDD-A05`
+- **Special Ordnance, equipment, craft, skills** → §7 of the hub (`WPN-06`, `EQP-`, `SHIP-07`, `SHIP-11`, `RUL-05`)
+- **Audio** — no SFX, music or stingers → §7 Audio (Howler, post-G1)
+- **Pointer control** — keyboard only → `SHIP-04`, open question Q07
+- **Persistence and packaging validation** → `SDD-G09`, `SDD-G10` (`RUL-07`, `RUL-08`)
 
 ---
 
+## Dev-tool ideas raised during the spike
 
+Carried forward as candidates, not commitments. None blocks a gate.
 
-## Fase 6 — Armas variadas
+- Darkness zone: objects on the player layer only become visible past a Z distance.
+- On-screen debug tags grouped by subject (ship, limit box and motion, camera, parallax grids).
+- Larger input controls in the debugger panel.
+- Bind more live values into the debugger in real time.
 
-- [ ] **Plasma** — orbs lentos com dano em área (AoE)
-- [ ] **Beam (laser contínuo)** — DPS contínuo e escalonado enquanto segura o disparo
-- [ ] **Thunder/Mjolnir** — cone elétrico perfurante
-- [ ] Troca de arma ativa e diferença de cadência/custo de Energia por arma
-
-
-
-## Fase 7 — Bomba (Special Ordnance)
-
-- [ ] Bomba que causa efeito na tela: onda expansiva que destrói/some projéteis inimigos e causa dano em área
-- [ ] Cargas limitadas de bomba (Nova Bomb) exibidas no HUD
-- [ ] Efeito de tela: flash/shockwave, shake, hit-stop
-- [ ] Ganho de cargas via drop ou coleta de recurso
-
----
-
-
-
-## Fase 8 — Equipamentos
-
-- [ ] **Quantum Deflectors** — aumenta capacidade do Shield
-- [ ] **Gravity Assist Engine** — aumenta velocidade/agilidade de deslocamento
-- [ ] Sistema de equipar/instalar equipamento (slot no inventário)
-- [ ] Efeitos aplicados de forma cumulativa aos atributos da nave
-
-
-
-## Fase 9 — HUD do jogo
-
-- [ ] Barras de Shield, Integridade e Energia (flutuantes junto à nave ou fixas)
-- [ ] Score e contagem de kills
-- [ ] Cargas de bomba e arma ativa
-- [ ] Contador de recursos coletados
-
----
-
-
-
-## Fase 10 — Pausa com inventário
-
-- [ ] Tela de Pausa (Esc) pausando o jogo
-- [ ] Inventário: lista de recursos coletados
-- [ ] Equipamentos instalados + troca/instalação
-- [ ] Reload/restart e voltar ao jogo
-
-
-
-## Fase 11 — Tela inicial
-
-- [ ] Tela inicial com título e botões (Jogar / Loja / Ranking)
-- [ ] Estado de máquina de telas (menu → jogo → pause → fim de run → menu)
-
-
-
-## Fase 12 — Loja
-
-- [ ] Loja acessível pela tela inicial
-- [ ] Troca de recursos coletados por equipamentos, armas e bombas
-- [ ] Persistência local (localStorage) de créditos/recursos/meta entre runs
-
-
-
-## Fase 13 — Pontuação e ranking
-
-- [ ] Pontuação cumulativa por kills/meteoros/eventos
-- [ ] Recording de pontuação pessoal (best score local)
-- [ ] Tela de ranking de pontos estilo arcade (tabela com as maiores pontuações locais)
-
----
-
-
-
-## Fase 14 — Fechamento / [Itch.io](http://Itch.io)
-
-- [ ] Refatorar código otimizando eficiência e legibilidade, com separação de responsabilidades e modularidade (criar motores lógicos que analisam cada evento do jogo)
-- [ ] Tudo parametrizável em `src/core/balancer.ts` (números fora do código de gameplay)
-- [ ] Packaging web: `index.html` na raiz, paths relativos, canvas responsivo
-- [ ] Fim de run: tela de Game Over com score, restart e retorno ao menu
-- [ ] Teste de sessão de 3–8 min sem bugs e sem queda de frames (pooling em todo hot path)
-
----
-
-
-
-## Extras / dev tools (opcional, não bloqueiam)
-
-- [ ] Criar área de escuridão (objetos na mesma layer que o player aparecem a partir de distância Z)
-- [ ] Criar tags para debug na tela por assunto (nave, limitBox e movimentos, câmera, grids parallax)
-- [ ] Ajustar tamanho dos inputs no debugger
-- [ ] Vincular valores reais dentro do debugger em tempo real
+The first three feed `SDD-G08`; the darkness zone would be a `SDD-B02`/`SDD-G09` render experiment.

@@ -1,162 +1,185 @@
-# Ikarus: Eternal Horizon — POC
+# Ikarus: Eternal Horizon — POC-1 (frozen reference)
 
-Prova de conceito (spike, pré-G0) do vertical slice planejado em [`.docs/phases/phase-0-poc.md`](../.docs/phases/phase-0-poc.md).
-Este projeto é **experimental** — valida visão e mecânica de câmera/nave, e não é o projeto oficial.
+Proof of concept (spike, pre-G0) of the vertical slice planned in [`.docs/phases/phase-0-poc.md`](../.docs/phases/phase-0-poc.md).
 
-**Stack:** TypeScript · Vite · Three.js. Fonte canônica de balanceamento: `src/core/balancer.ts` (números fora do código de gameplay).
+> **Status: FROZEN.** POC-1 is no longer the place where the game grows. It is the **playable behavior reference** for [`poc2/`](../poc2/README.md), the project built against the architecture contract in [`.docs/plans/planning.spec.MD`](../.docs/plans/planning.spec.MD) (see its §0 reality check and §5.0 port map). Everything documented here is a **tuning contract**: the port must reproduce this feel with the same numbers, not reinvent it.
+>
+> Changes to POC-1 are limited to bug fixes that keep the reference honest. New features go to `poc2/`.
+
+**Stack:** TypeScript · Vite · Three.js. Canonical balance source: `src/core/balancer.ts` (no gameplay numbers outside it).
 
 ---
 
-## Como rodar
+## How to run
 
 ```bash
 npm install
-npm run dev     # dev server Vite
+npm run dev     # Vite dev server
 npm run build   # tsc + vite build -> dist/
-npm run preview # prévia do build de produção
+npm run preview # preview the production build
 ```
 
 ---
 
-## Controles
+## Controls
 
-| Ação | Teclas |
+| Action | Keys |
 |---|---|
-| Mover a **nave** (X/Z) | `W / A / S / D` |
-| **Disparar** arma principal | `Space` |
-| **Trocar de arma** | `F` |
-| Mover a **câmera** (Z / X / Y) | `I / K` · `J / L` · `U / O` |
-| Rotacionar a **câmera** — pitch `↓ / ↑` | `Shift+K` / `Shift+I` |
-| Rotacionar a **câmera** — roll `N / M` | `Shift+O` / `Shift+U` |
-| Rotacionar a **câmera** — yaw `→ / ←` | `Shift+L` / `Shift+J` |
+| Move the **ship** (X/Z) | `W / A / S / D` |
+| **Fire** the primary weapon | `Space` |
+| **Switch weapon** | `F` |
+| Move the **camera** (Z / X / Y) | `I / K` · `J / L` · `U / O` |
+| Rotate the **camera** — pitch `down / up` | `Shift+K` / `Shift+I` |
+| Rotate the **camera** — roll | `Shift+O` / `Shift+U` |
+| Rotate the **camera** — yaw `right / left` | `Shift+L` / `Shift+J` |
 
-> Este mapa é **único e simultâneo**: não existe troca de modo. WASD move a nave o tempo todo; IJKL/UO movem a câmera e Shift+IJKL/UO rotacionam, tudo ao mesmo tempo. O follow box limita a câmera: quando a nave toca a borda (`halfX`/`halfZ`) a câmera acompanha; e quando a nave fica **parada** o auto-recenter suave reposiciona a câmera (mover interrompe; retoma com a nave parada por `stillMs`) até a **Recenter Point** — um **ponto único fixo relativo ao box** (default `position {0,0,-1}`: em X no centro do box; em Z a 1 unidade *para dentro* da borda da base, `anchor.z + halfZ + z`). Ao se mover, a câmera desloca os itens do parallax com o ganho `parallaxGain` — sensação de perspectiva/movimento.
+> This map is **single and simultaneous**: there is no mode toggle. WASD always moves the ship; IJKL/UO move the camera and Shift+IJKL/UO rotate it, all at the same time. The follow box bounds the camera: when the ship touches an edge (`halfX`/`halfZ`) the camera follows, and when the ship is **idle** a smooth auto-recenter repositions the camera (moving interrupts it; it resumes after the ship stays still for `stillMs`) toward the **Recenter Point** — a **single fixed point relative to the box** (default `position {0,0,-1}`: on X at the box center, on Z one unit *inside* the base edge, `anchor.z + halfZ + z`). While the camera moves it displaces the parallax items by the layer's `parallaxGain` — the sense of perspective and motion.
 
-> **Disparo (weapons):** `Space` atira a arma ativa (serrilhada com a cadência e Energia da arma); `F` (ou o seletor na aba **Weapons** do painel de debug) troca a arma ativa pela próxima do loadout. As 4 armas consomem Energia do mesmo pool — `energy` em `balanced`/painel.
+> **Firing (weapons):** `Space` fires the active weapon (with that weapon's cadence and Energy cost); `F` (or the selector in the debug panel's **Weapons** tab) switches to the next weapon in the loadout. All 4 weapons drain the same Energy pool — `energy` in the balancer / panel.
 
-### Movimento e "feel" da nave
-- **Movimento por força** (`controls.motion`): cada eixo acelera na direção do input com `accel` (m/s²), desacelera até parar com `decel` ao soltar as teclas, e freia contra a direção oposta com `brake` (mais forte que `accel`) — pressionando o lado contrário do movimento, a troca de direção é mais rápida. A velocidade é limitada a `maxSpeed`.
-- **Tilt/bank** (`controls.tilt`): ao virar (A/D) a nave inclina em **`rotation.z`** até `maxDeg` (22°, com `axis`/`sign` configuráveis) com rampa de `riseMs` (150ms); soltando, volta a zero em `fallMs` (200ms).
+### Ship movement and feel
 
-### Como o parallax se resolve a partir do movimento
+- **Force-based movement** (`controls.motion`): each axis accelerates toward the input with `accel` (m/s²), decelerates to a stop with `decel` when keys are released, and brakes against the current direction with `brake` (stronger than `accel`) — pressing the opposite side makes the direction change snappier. Velocity is capped at `maxSpeed`.
+- **Tilt / bank** (`controls.tilt`): turning (A/D) banks the ship on **`rotation.z`** up to `maxDeg` (22°, with configurable `axis`/`sign`) over a `riseMs` ramp (150 ms); on release it returns to zero in `fallMs` (200 ms).
 
-A sensação de velocidade/deslocamento no fundo não é calculada direto da nave — ela **herda do movimento real da câmera**. A cadeia é:
+### How parallax derives from movement
 
-1. **Nave por força** (`controllers.ts` — `axisVelocity`): o input vira aceleração (`accel`/`brake`), integrada a cada frame em `vx/vz` e limitada por `maxSpeed`; `shipTransform.position` desloca-se.
-2. **Dead-zone** (`follow.ts` / `followBox`): a nave se move **livremente dentro** do follow box (`halfX`/`halfZ`) em torno da âncora. Enquanto não encosta na borda, a câmera não se move — a nave "navega no box".
+The sense of speed in the background is not computed from the ship — it **inherits from the camera's real movement**. The chain is:
+
+1. **Ship by force** (`controllers.ts` — `axisVelocity`): input becomes acceleration (`accel`/`brake`), integrated each frame into `vx/vz` and capped by `maxSpeed`; `shipTransform.position` moves.
+2. **Dead zone** (`followCamera.ts` / `followBox`): the ship moves **freely inside** the follow box (`halfX`/`halfZ`) around the anchor. While it does not touch an edge the camera stays put — the ship "navigates the box".
 3. **Follow + recenter** (`followCamera.ts`):
-   - **Follow de borda com "bounce" (dead-zone, X e Z):** quando a nave toca/ultrapassa a borda do box (`halfX`/`halfZ`), a câmera acompanha **suavizada** — começa a seguir devagar e assenta no ponto em `bounce.timeMs` (ms), em vez de seguir seco (imediato). Enquanto o recenter está ativo, o edge-follow é suspenso no mesmo eixo para os dois sistemas não brigarem.
-   - **Auto-recenter ao parar (Recenter Point único):** sempre que a nave fica **parada** (`moving` < `MOVE_EPS`) e fora do ponto de repouso por mais de `CENTER_EPS`, **dentro ou fora do box**, após `recenter.delayMs` a câmera desliza por força (`recenter.accel`, limitado a `recenter.maxSpeed`) — aproximando a nave do **Recenter Point**, um ponto fixo relativo ao box (`restLine.position`). Ambos os eixos derivam o repouso do *mesmo* ponto (caminho direto nave→ponto): **X** com `restOffset = position.x`; **Z** com `restOffset = position.z + halfZ` (medido da borda da base, `anchor.z + halfZ + z`). Se a nave começa a se mover a força para (`interrupt`) e só retoma depois que ela fica parada por `recenter.stillMs`; estado independente por eixo (mover em Z não interrompe o recenter de X e vice-versa).
-   A linha de centro (visual, `followBox.centerLine`) cruza o box na vertical ao longo do eixo Z, marcando o centro lateral X. O marcador azul **Recenter Point** (`restLine`) finca-se exatamente onde a câmera posiciona a nave ao recentrar — X no meio do box e Z a `position.z` para dentro da base — e é editável ao vivo no painel (aba Follow Box → **Recenter Point**), movendo junto marcador **e** alvo.
-4. **Parallax** (`parallax.ts`): a cada frame, cada camada mede o **Δ da posição da câmera** em qualquer eixo (`camDX/DY/DZ` entre frames) e desloca suas estrelas em **sentido contrário** multiplicado por `parallaxGain` da camada — efeito de **ganho de perspectiva/movimento**: quanto maior o `parallaxGain`, mais os itens do grid "escorregam" quando a câmera se move:
-   `estrela −= Δcâmera × parallaxGain × (1 ± jitter)`.
-   As grades (presas à posição da câmera, orientação/rotação independentes) ficam paradas; só as estrelas "escorregam" nelas — isso produz a profundidade. Além disso, as estrelas têm voo próprio em Z (`speed`) com wrap (`zNearWrap`, `zFar`).
+   - **Edge follow with "bounce" (dead zone, X and Z):** when the ship touches or crosses the box edge (`halfX`/`halfZ`), the camera follows **smoothed** — it starts slow and settles at the target over `bounce.timeMs` (ms), instead of snapping. While recenter is active, edge follow is suspended on the same axis so the two systems never fight.
+   - **Auto-recenter when idle (single Recenter Point):** whenever the ship is **still** (`moving` < `MOVE_EPS`) and off the rest point by more than `CENTER_EPS`, **inside or outside the box**, then after `recenter.delayMs` the camera slides by force (`recenter.accel`, capped at `recenter.maxSpeed`) — bringing the ship toward the **Recenter Point**, a fixed point relative to the box (`restLine.position`). Both axes derive rest from the *same* point (a direct ship→point path): **X** with `restOffset = position.x`; **Z** with `restOffset = position.z + halfZ` (measured from the base edge, `anchor.z + halfZ + z`). If the ship starts moving the force stops (`interrupt`) and only resumes after the ship has been still for `recenter.stillMs`; state is independent per axis (moving on Z does not interrupt the X recenter and vice versa).
+   The center line (visual, `followBox.centerLine`) crosses the box vertically along Z, marking the lateral X center. The blue **Recenter Point** marker (`restLine`) sits exactly where the camera places the ship when recentering — X at the box middle, Z at `position.z` inside the base — and is live-editable in the panel (Follow Box tab → **Recenter Point**), moving marker **and** target together.
+4. **Parallax** (`parallax.ts`): each frame, every layer measures the **camera position Δ** on any axis (`camDX/DY/DZ` between frames) and displaces its stars in the **opposite direction**, multiplied by the layer's `parallaxGain` — a perspective/motion **gain**: the higher `parallaxGain`, the more the grid items "slide" when the camera moves:
+   `star −= Δcamera × parallaxGain × (1 ± jitter)`.
+   The grids (pinned to the camera position, with independent orientation/rotation) stay put; only the stars "slide" over them — that is what produces depth. On top of that, stars have their own flight along Z (`speed`) with wrap (`zNearWrap`, `zFar`).
 
-**Resultado prático:** com a câmera parada, o fundo não reage ao movimento da nave dentro do box. Parallax de movimento acontece sempre que a câmera se move: (a) follow de borda quando a nave encosta no box (X/Z), (b) recenter quando a nave fica parada (após `recenter.delayMs`, aproximando da Recenter Point), ou (c) teclas IJKL/RF. Cada camada é disposta em profundidade pelo `position` relativo à câmera (hoje: `Y = −300 → −350 → −400`, todas com `gridSize` 1000), e o quanto suas estrelas "escorregam" ao movimento da câmera é o fator `parallaxGain` (hoje `0.15 → 0.09 → 0.03`, da de fundo para a de frente). A escala de profundidade é diretamente `position` + `gridSize` + `parallaxGain`.
+**Practical result:** with the camera still, the background does not react to ship movement inside the box. Motion parallax happens whenever the camera moves: (a) edge follow when the ship touches the box (X/Z), (b) recenter when the ship goes idle (after `recenter.delayMs`, closing on the Recenter Point), or (c) the IJKL/UO keys. Each layer is placed in depth by its `position` relative to the camera (currently `Y = −300 → −350 → −400`, all with `gridSize` 1000), and how much its stars "slide" with camera movement is the `parallaxGain` factor (currently `0.15 → 0.09 → 0.03`, back layer to front layer). The depth scale is directly `position` + `gridSize` + `parallaxGain`.
 
 ---
 
-## O que a POC tem hoje
+## What POC-1 delivered
 
-### Cena e render (`src/main.ts`, `src/gameobjects/`)
-- **Canvas portrait fixo 9:16** — buffer interno 540×960 (`BALANCE.layout.playfield`), centralizado na janela e dimensionado pelo tamanho da tela (`height: min(100vh,100%)`); as **laterais preenchem o espaço restante** (legenda de controles à esquerda, painel de debug à direita); em telas ≤ 760px as colunas somem e o canvas preenche a largura.
-- **Nave** (`ship.ts`) — caixa wireframe neon + semicone como thruster com flicker `.update(dt)`, transform aplicado via `applyTransform`.
-- **Câmera** (`cameraRig.ts`) — `PerspectiveCamera` com `rotation.order = 'YXZ'`, config aplicada por `applyConfig` (FOV/aspect/near/far/posição/rotação).
-- **Follow Box** (`followBox.ts`) — `LineLoop` desenhado no plano XZ ao redor de um centro configurável (posição) com meia-largura/meia-profundidade; **dead-zone** da câmera (`followCamera.ts`) usa o mesmo centro/tamanho — resize/posição ao vivo pelo painel. O recenter re-centraliza a nave quando ela fica parada, dentro ou fora do box, aproximando-a do **Recenter Point** (marcador azul `restLine`): ponto único fixo relativo ao box — X no centro, Z a `position.z` para dentro da borda da base (`anchor.z + halfZ + z`).
-- **Parallax** (`parallax.ts`) — camadas horizontais paralelas à base da nave, **presas à posição da câmera** (não à rotação: cada grade mantém rotação própria editável). Cada camada tem grade (`gridSize`, `gridOpacity`) e estrelas que reagem ao Δ da câmera com `parallaxGain`, além de voo próprio em Z (`speed`, `zNearWrap`, `zFar`). Configuráveis por layer.
-- **Gizmos** (`gizmos.ts`) — eixos do mundo (XY Z), grade de playfield e eixos da câmera (sprite labels), acompanhando a câmera a cada frame.
+### Scene and render (`src/main.ts`, `src/gameobjects/`)
+- **Fixed portrait 9:16 canvas** — internal buffer 540×960 (`BALANCE.layout.playfield`), centered in the window and sized by screen height (`height: min(100vh,100%)`); the **side columns fill the remaining space** (control legend on the left, debug panel on the right); at ≤760px the columns disappear and the canvas fills the width.
+- **Ship** (`ship.ts`) — neon wireframe box + half-cone thruster with `.update(dt)` flicker, transform applied through `applyTransform`.
+- **Camera** (`cameraRig.ts`) — `PerspectiveCamera` with `rotation.order = 'YXZ'`, config applied by `applyConfig` (FOV/aspect/near/far/position/rotation).
+- **Follow Box** (`followBox.ts`) — `LineLoop` drawn on the XZ plane around a configurable center (position) with half-width/half-depth; the camera **dead zone** (`followCamera.ts`) uses the same center/size — resize and reposition live from the panel. Recenter re-centers the ship when it goes idle, inside or outside the box, closing on the **Recenter Point** (blue `restLine` marker): a single fixed point relative to the box — X at the center, Z at `position.z` inside the base edge (`anchor.z + halfZ + z`).
+- **Parallax** (`parallax.ts`) — horizontal layers parallel to the ship's base, **pinned to the camera position** (not its rotation: each grid keeps its own editable rotation). Each layer has a grid (`gridSize`, `gridOpacity`) and stars that react to the camera Δ with `parallaxGain`, plus their own flight along Z (`speed`, `zNearWrap`, `zFar`). Configurable per layer.
+- **Gizmos** (`gizmos.ts`) — world axes (XY Z), playfield grid and camera axes (sprite labels), tracking the camera every frame.
 
-### Overlays (DOM sobre o canvas)
-- **Coordenadas da nave** (`shipCoords.ts`) — etiqueta `X / Y / Z` projetada "sobre a nave"; mapeia World→screen com `vector.project` + `getBoundingClientRect` do canvas (letterbox-safe), clamp nas margens, some quando atrás da câmera.
-- **Barra de Energia** (`energyHud.ts`) — HUD flutuante sobre a nave mostrando o pool de Energia (`ENERGY atual/max` + barra de preenchimento). O mesmo padrão de projeção do `shipCoords`; atualizada a cada frame com `energy.current / energy.max`.
-- **Painel de debug** (`debugControls.ts` + prancheta estática em `index.html`) — coluna direita, organizado em **abas navegáveis** (Cam · Ship · Follow Box · Parallax · **Weapons**): header fixo com readouts ao vivo de posição (nave/câmera) e rodapé com botão **Reset**. Sliders/spins/vectors editam os **objetos compartilhados** do jogo (source of truth única) e são sincronizados em duas vias: editar o HTML aplica no jogo (`applyCamera`/`applyShip`/`applyParallax`, ~15Hz via `sync()`, pulando o controle sob foco/drag do usuário).
-- **Aba Weapons** — seletor da **arma ativa** da nave (laser/plasma/beam/mjolnir; troca pelo seletor ou tecla `F`), modificadores de arma (dano x, cadência x, Energia x, crit, pulsos, AoE, largura de feixe, cone) e o pool de **Energia** (max/regen). Os `mods` alimentam o `firing.ts` sem tocar no código das armas.
-- **Legenda de controles** — coluna esquerda, estática em `index.html`.
+### Overlays (DOM on top of the canvas)
+- **Ship coordinates** (`shipCoords.ts`) — `X / Y / Z` label projected "over the ship"; maps world→screen with `vector.project` + the canvas `getBoundingClientRect` (letterbox-safe), clamped to the margins, hidden when behind the camera.
+- **Energy bar** (`energyHud.ts`) — floating HUD over the ship showing the Energy pool (`ENERGY current/max` + fill bar). Same projection pattern as `shipCoords`; updated every frame from `energy.current / energy.max`.
+- **Debug panel** (`debugControls.ts` + the static markup in `index.html`) — right column, organized in **navigable tabs** (Cam · Ship · Follow Box · Parallax · **Weapons**): fixed header with live position readouts (ship/camera) and a footer **Reset** button. Sliders/spins/vectors edit the game's **shared objects** (single source of truth) and sync both ways: editing the HTML applies to the game (`applyCamera`/`applyShip`/`applyParallax`), and the game writes back at ~15 Hz via `sync()`, skipping whichever control the user has focused or is dragging.
+- **Weapons tab** — selector for the ship's **active weapon** (laser/plasma/beam/mjolnir; switch via the selector or the `F` key), weapon modifiers (damage ×, rate ×, Energy ×, crit, pulses, AoE, beam width, cone) and the **Energy** pool (max/regen). The `mods` feed `firing.ts` without touching weapon code.
+- **Control legend** — left column, static in `index.html`.
 
 ### Input (`src/core/input.ts`)
-- Estado central de teclas com `preventDefault` na lista controlada; `blur` limpa o estado.
-- **Combinações Shift+Key**: quando Shift (esquerdo ou direito) está pressionado, gera códigos sintéticos `Shift+KeyX` (ex.: `Shift+KeyI`). Isso permite mapear rotações da câmera em Shift+IJKL/UO sem conflitar com movimento da câmera (IJKL/UO sozinhos).
+- Central key state with `preventDefault` on a controlled list; `blur` clears the state.
+- **Shift+Key combos**: while Shift (left or right) is held, synthetic `Shift+KeyX` codes are produced (e.g. `Shift+KeyI`). That allows mapping camera rotation to Shift+IJKL/UO without colliding with camera movement (bare IJKL/UO).
 
-### Weapons (arquitetura modular de armas)
-- **`core/weaponsCatalog.ts`** — `WeaponConfig` tipado + catálogo `WEAPONS` (Laser, Plasma, Beam, Mjolnir), dados puros importados pelo `BALANCE`. Cada arma declara perfil (`projectile`/`orb`/`beam`/`cone`), dano, cadência, custo de Energia, pool size e espec de projétil/feixe/cone.
-- **`weapons/behaviour.ts`** — interface Strategy (`WeaponBehaviour`), `WeaponServices` (Energia + alvos), `WeaponModifiers` e `defaultModifiers()`.
-- **`weapons/weapon.ts`** — GameObject dispositivo: cria o pool próprio e delega para o behaviour do registry.
-- **`weapons/registry.ts`** — `Record<WeaponId, factory>` — *seam de DLC*: adicionar arma = 1 entrada no catálogo + 1 no registry (+ `registerWeapon`).
-- **`weapons/behaviours/{laser,plasma,beam,mjolnir}.ts`** — as 4 armas. Laser/Plasma spawnam projéteis do pool; Beam/Mjolnir são visuais contínuos com hit-query por frame (dano por segundo).
-- **`gameobjects/shot.ts`** (projétil pooled, dano com decay por distância), **`gameobjects/beam.ts`** / **`gameobjects/cone.ts`** (visuais), **`gameobjects/testTarget.ts`** (alvo de teste).
-- **`systems/firing.ts`** — input → fogo, gate de Energia, troca cíclica/seletor de arma (`setActive`).
-- **`systems/collisionSystem.ts`** — colisão projétil×alvo por camadas (com AoE no plasma) e registro de targets.
-- **`systems/energy.ts`** — pool de Energia (`EnergyPort` + `EnergySystem`): `start`/`max`/`current` e `regenPerSec`; `spend()`/`canAfford()` são usados por todo disparo (e futuramente jets/dash). Barra visual em `systems/energyHud.ts`.
+### Weapons (modular weapon architecture)
+- **`core/weaponsCatalog.ts`** — typed `WeaponConfig` + the `WEAPONS` catalog (Laser, Plasma, Beam, Mjolnir), pure data imported by `BALANCE`. Each weapon declares a profile (`projectile`/`orb`/`beam`/`cone`), damage, cadence, Energy cost, pool size and its projectile/beam/cone spec.
+- **`weapons/behaviour.ts`** — the Strategy interface (`WeaponBehaviour`), `WeaponServices` (Energy + targets), `WeaponModifiers` and `defaultModifiers()`.
+- **`weapons/weapon.ts`** — the device game object: creates its own pool and delegates to the behaviour from the registry.
+- **`weapons/registry.ts`** — `Record<WeaponId, factory>` — the **DLC seam**: adding a weapon = 1 catalog entry + 1 registry entry (+ `registerWeapon`).
+- **`weapons/laserLevels.ts`** — `LASER_LEVELS` presets **L1–L10** + `applyLaserLevel(cfg, level)`. The invariant is `totalShots = forwardShots + 2 × diagonalShotsPerSide = level`, so the pulse count always equals the level:
+
+| Level | Forward | Per side | Total | Damage | Rate | Energy/shot |
+|---|---|---|---|---|---|---|
+| 1 | 1 | 0 | 1 | 1.0 | 8.0 | 0.25 |
+| 2 | 2 | 0 | 2 | 1.1 | 8.5 | 0.27 |
+| 3 | 3 | 0 | 3 | 1.3 | 9.0 | 0.30 |
+| 4 | 4 | 0 | 4 | 1.5 | 9.5 | 0.33 |
+| 5 | 3 | 1 | 5 | 1.8 | 10.0 | 0.36 |
+| 6 | 4 | 1 | 6 | 2.1 | 10.5 | 0.40 |
+| 7 | 3 | 2 | 7 | 2.5 | 11.0 | 0.44 |
+| 8 | 4 | 2 | 8 | 3.0 | 11.5 | 0.48 |
+| 9 | 3 | 3 | 9 | 3.6 | 12.0 | 0.52 |
+| 10 | 4 | 3 | 10 | 4.3 | 12.5 | 0.56 |
+
+  Constant across levels: `speed 30`, `lifetime 1` (range 30), `diagonalAngleDeg 22`, `forwardSpread 0.55`; `radius` grows 0.12 → 0.165. Levels are editable live in the panel's Weapons tab.
+- **`weapons/behaviours/{laser,plasma,beam,mjolnir}.ts`** — the 4 weapons. Laser/Plasma spawn projectiles from the pool; Beam/Mjolnir are continuous visuals with a per-frame hit query (damage per second).
+- **`gameobjects/shot.ts`** (pooled projectile, damage decaying with distance), **`gameobjects/beam.ts`** / **`gameobjects/cone.ts`** (visuals), **`gameobjects/testTarget.ts`** (test target).
+- **`systems/firing.ts`** — input → fire, Energy gate, cyclic/selector weapon switch (`setActive`).
+- **`systems/collisionSystem.ts`** — projectile × target collision by layer (with plasma AoE) and target registration.
+- **`systems/energy.ts`** — the Energy pool (`EnergyPort` + `EnergySystem`): `start`/`max`/`current` and `regenPerSec`; `spend()`/`canAfford()` are used by every shot (and later by jets/dash). Visual bar in `systems/energyHud.ts`.
 
 ---
 
-## Arquitetura
+## Architecture (as built)
 
 ```
 poc/
-  index.html                      # shell flex: legend (esq) · #app (canvas) · #panel (dir) + prancheta de abas do debug
+  index.html                      # flex shell: legend (left) · #app (canvas) · #panel (right) + debug tab markup
   src/
-    main.ts                       # bootstrap, loop rAF (dt clamp), composição de sistemas, sync() throttled do painel
-    style.css                     # layout portrait + neon theme + abas do painel
+    main.ts                       # bootstrap, rAF loop (dt clamp), system composition, throttled panel sync()
+    style.css                     # portrait layout + neon theme + panel tabs
     core/
-      balancer.ts                 # BALANCE: todos os números/settings
-      input.ts                    # estado de teclado
-      weaponsCatalog.ts           # WEAPONS: catálogo tipado das armas principais (Laser/Plasma/Beam/Mjolnir)
+      balancer.ts                 # BALANCE: every number/setting
+      input.ts                    # keyboard state
+      weaponsCatalog.ts           # WEAPONS: typed catalog of the primary weapons (Laser/Plasma/Beam/Mjolnir)
     gameobjects/
       cameraRig.ts                # PerspectiveCamera + applyConfig
-      ship.ts                     # nave wireframe + thruster
-      parallax.ts                 # 3 camadas parallax
-      followBox.ts                # caixa dead-zone (LineLoop)
-      gizmos.ts                   # eixos mundiais, grade, eixos da câmera
-      shot.ts                     # projétil pooled (laser/plasma)
-      beam.ts                     # visual de feixe contínuo (Beam)
-      cone.ts                     # visual de cone perfurante (Mjolnir)
-      testTarget.ts               # alvo de teste (valida colisão/dano)
+      ship.ts                     # wireframe ship + thruster
+      parallax.ts                 # 3 parallax layers
+      followBox.ts                # dead-zone box (LineLoop)
+      gizmos.ts                   # world axes, grid, camera axes
+      shot.ts                     # pooled projectile (laser/plasma) + ShotPool
+      beam.ts                     # continuous beam visual (Beam)
+      cone.ts                     # piercing cone visual (Mjolnir)
+      testTarget.ts               # test target (validates collision/damage)
     weapons/
-      weapon.ts                   # dispositivo de arma (device): pool + behaviour
-      behaviour.ts                # interface Strategy + WeaponServices/WeaponModifiers
-      registry.ts                 # Record<WeaponId, factory> — seam de DLC
+      weapon.ts                   # weapon device: pool + behaviour
+      behaviour.ts                # Strategy interface + WeaponServices/WeaponModifiers
+      registry.ts                 # Record<WeaponId, factory> — DLC seam
+      laserLevels.ts              # LASER_LEVELS L1-L10 + applyLaserLevel()
       behaviours/
-        laser.ts                  # projéteis retos pooled, decay com distância
-        plasma.ts                 # orbs lentos, AoE na colisão/expiração
-        beam.ts                   # DPS contínuo por hit-query
-        mjolnir.ts                # cone perfurante por hit-query
+        laser.ts                  # pooled straight projectiles, distance decay
+        plasma.ts                 # slow orbs, AoE on collision/expiry
+        beam.ts                   # continuous DPS by hit query
+        mjolnir.ts                # piercing cone by hit query
     systems/
-      controllers.ts              # input -> movimento da nave (acel/tilt) + câmera
-      followCamera.ts             # dead-zone follow (âncora = centro da caixa)
-      shipCoords.ts               # label X/Y/Z sobre a nave
-      energyHud.ts                # barra de Energia flutuante sobre a nave
-      debugControls.ts            # painel de debug (abas, sliders/readouts/reset, sync bidirecional)
-      firing.ts                   # disparo, gate de Energia, troca/seletor de arma
-      collisionSystem.ts          # colisão projétil×alvo + AoE + registro de targets
-      energy.ts                   # pool de Energia (EnergyPort)
+      controllers.ts              # input -> ship movement (accel/tilt) + camera
+      followCamera.ts             # dead-zone follow (anchor = box center)
+      shipCoords.ts               # X/Y/Z label over the ship
+      energyHud.ts                # floating Energy bar over the ship
+      debugControls.ts            # debug panel (tabs, sliders/readouts/reset, two-way sync)
+      firing.ts                   # firing, Energy gate, weapon switch/selector
+      collisionSystem.ts          # projectile × target collision + AoE + target registry
+      energy.ts                   # Energy pool (EnergyPort)
 ```
 
-Regra do projeto (docs POC §7): *GameObject* na forma `init → update(dt) → syncRender → dispose`; fábricas/functions, sem ECS; `BALANCE` como única fonte de números; zero alocação por frame em hot path.
+**Pattern actually used here:** game objects in the shape `init → update(dt) → syncRender → dispose`, built as **factory functions** returning interface-typed handles, with `BALANCE` as the single source of numbers and zero allocation per frame in hot paths.
+
+**Note for POC2:** the factory-function convention is **legacy, not a template**. New code follows the *pattern constructor* (`interface` + `class` + module, with domain classes inheriting their Three.js base) — decision `D11` in [`planning.spec.MD`](../.docs/plans/planning.spec.MD) §9, detailed in [`phase-0-poc2.md`](../.docs/phases/phase-0-poc2.md) §2. The lifecycle and the `BALANCE`/memory rules carry over unchanged.
 
 ---
 
-## Onde mexer nos números
+## Where the numbers live
 
-Tudo em `src/core/balancer.ts`:
+Everything in `src/core/balancer.ts`:
 
-| Bloco | O que controla |
+| Block | What it controls |
 |---|---|
-| `layout.playfield` | Resolução base do canvas portrait |
-| `controls.shipKeys / motion / tilt / camera` | Mapa de teclas, força (accel/decel/brake) + `maxSpeed`, bank (graus + ms) e move/rot speed da câmera |
-| `gameplay` | Pool de **Energia** (start/max/regen) e teclas de **fire/switch** (Space/F) |
-| `weapons.catalog` / `weapons.loadout` | Catálogo tipado (dados das 4 armas em `weaponsCatalog.ts`) e ordem de troca cíclica |
-| `ship.transform / follow / followBox` | Posição inicial; follow box (halfX/halfZ), "bounce" suave na borda (`bounce.timeMs`) e auto-recenter suave ao parar (`recenter`: delay/still/accel/maxSpeed) em direção ao **Recenter Point** (`restLine.position`: X relativo ao centro, Z relativo à base `anchor.z + halfZ + z`); posição/estilo da caixa + linha de centro (`centerLine`) + marcador `restLine` (cor/opacidade, position/width/height) |
-| `ship.visual` | Dimensões e cores wireframe da nave/thruster |
-| `camera` | FOV, posição/rotação iniciais, near/far |
-| `parallax.layers[]` | Por camada: contagem, velocidade/scroll das estrelas, `parallaxGain` (reação ao Δ da câmera), posição relativa à câmera e rotação da grade, tamanho (`gridSize`) e opacidade da grade (`gridOpacity`), profundidades de voo (`zNearWrap`/`zFar`) |
-| `thruster` | Posição/dimensões do jato |
+| `layout.playfield` | Base resolution of the portrait canvas |
+| `controls.shipKeys / motion / tilt / camera` | Key map, force (accel/decel/brake) + `maxSpeed`, bank (degrees + ms) and camera move/rot speed |
+| `gameplay` | The **Energy** pool (start/max/regen) and the **fire/switch** keys (Space/F) |
+| `weapons.catalog` / `weapons.loadout` | Typed catalog (the 4 weapons' data in `weaponsCatalog.ts`) and the cyclic switch order |
+| `ship.transform / follow / followBox` | Start position; follow box (halfX/halfZ), smooth edge "bounce" (`bounce.timeMs`) and smooth auto-recenter when idle (`recenter`: delay/still/accel/maxSpeed) toward the **Recenter Point** (`restLine.position`: X relative to the center, Z relative to the base `anchor.z + halfZ + z`); box position/style + center line (`centerLine`) + `restLine` marker (color/opacity, position/width/height) |
+| `ship.visual` | Ship/thruster wireframe dimensions and colors |
+| `camera` | FOV, initial position/rotation, near/far |
+| `parallax.layers[]` | Per layer: count, star speed/scroll, `parallaxGain` (reaction to the camera Δ), position relative to the camera and grid rotation, grid size (`gridSize`) and opacity (`gridOpacity`), flight depths (`zNearWrap`/`zFar`) |
+| `thruster` | Jet position/dimensions |
 
 ---
 
-## Notas / estado
+## Notes / state
 
-- Spike devida ao `phase-0-poc.md`: algumas features (label de coords, layout portrait, follow box) são **dev tools / previews** — sem requisito `*.spec.MD` locked.
-- **Weapons**: arquitetura modular pronta (catálogo + registry + behaviours + firing + collision + energia). Alvos de teste (`testTarget.ts`) existem só para validar colisão/dano — inimigos/meteoros reais vêm nas próximas fases do `todo.md`.
-- Sem áudio, colisão com inimigos/meteoros, HUD de jogo ou persistência ainda (fora de escopo desta fase).
-- O GDD e o planejamento ficam em `.docs/` (git-ignored) — busque com `rg --no-ignore "#tag/..."`.
+- Spike owed to `phase-0-poc.md`: some features (coordinate label, portrait layout, follow box, gizmos) are **dev tools / previews** — no locked `*.spec.MD` requirement.
+- **Weapons**: the modular architecture is complete (catalog + registry + behaviours + firing + collision + energy + laser levels). Test targets (`testTarget.ts`) exist only to validate collision/damage; real enemies and meteors are POC2 scope (`SDD-E01`/`SDD-E02`).
+- **Not in POC-1** (all assigned to POC2 cards): Force Field / Integrity and damage resolution (`SDD-C03`, `SDD-F04`), score / kills / game over / restart (`SDD-G10`), pause and inventory (`SDD-G11`), drops and collection (`SDD-F02`), explosions and screen feedback (`SDD-F05`), scene flow (`SDD-G01`), audio (§7), persistence.
+- The GDD and the planning live in `.docs/` — see the [documentation map](../README.md#18-documentation-map). Historically that folder was git-ignored; search with `rg --no-ignore "#tag/weapons" .docs` if your checkout still ignores it.
