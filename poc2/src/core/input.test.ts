@@ -9,7 +9,11 @@ import {
   type GamepadSource,
 } from './input'
 
-class FakeTarget extends EventTarget {}
+function makeTarget(): EventTarget {
+  const el = document.createElement('div')
+  document.body.append(el)
+  return el
+}
 
 function dispatchKey(
   target: EventTarget,
@@ -47,8 +51,8 @@ function makePad(partial: {
   }
 }
 
-function createTestInput(gamepads?: GamepadSource): { input: InputState; target: FakeTarget } {
-  const target = new FakeTarget()
+function createTestInput(gamepads?: GamepadSource): { input: InputState; target: EventTarget } {
+  const target = makeTarget()
   const input = new InputState({
     target,
     preventDefaultCodes: buildPreventDefaultCodes(),
@@ -138,24 +142,20 @@ describe('InputState keyboard', () => {
   it('calls preventDefault on listed codes and not on others', () => {
     const { input, target } = createTestInput()
     const prevented = dispatchKey(target, 'keydown', 'KeyW')
-    const allowed = dispatchKey(target, 'keydown', 'KeyQ')
+    const allowed = dispatchKey(target, 'keydown', 'KeyG')
     expect(prevented.defaultPrevented).toBe(true)
     expect(allowed.defaultPrevented).toBe(false)
     input.dispose()
   })
 
-  it('does not attach pointer or mouse listeners', () => {
-    const target = new FakeTarget()
-    const addSpy = vi.spyOn(target, 'addEventListener')
-    const input = new InputState({
-      target,
-      preventDefaultCodes: buildPreventDefaultCodes(),
-      gamepads: { getGamepads: () => [] },
-    })
-    const types = addSpy.mock.calls.map(([type]) => type)
-    expect(types).not.toContain('pointerdown')
-    expect(types).not.toContain('mousedown')
-    expect(types).not.toContain('mousemove')
+  it('does not write axes from mousemove (pointer-steer is out)', () => {
+    const { input, target } = createTestInput()
+    input.update(0.016)
+    expect(input.axis('moveX')).toBe(0)
+    target.dispatchEvent(new MouseEvent('mousemove', { clientX: 80, clientY: 12, bubbles: true }))
+    input.update(0.016)
+    expect(input.axis('moveX')).toBe(0)
+    expect(input.axis('moveZ')).toBe(0)
     input.dispose()
   })
 
@@ -196,7 +196,7 @@ describe('InputState gamepad', () => {
     const inside = makePad({ axes: [dz * 0.5, 0] })
     const full = makePad({ axes: [1, 0] })
     const inputInside = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [inside] },
     })
@@ -204,7 +204,7 @@ describe('InputState gamepad', () => {
     expect(inputInside.axis('moveX')).toBe(0)
 
     const inputFull = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [full] },
     })
@@ -217,7 +217,7 @@ describe('InputState gamepad', () => {
   it('stick-up (axis 1 = -1) yields axis moveZ < 0 when invertMoveZ is false', () => {
     const pad = makePad({ axes: [0, -1] })
     const input = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [pad] },
     })
@@ -248,7 +248,7 @@ describe('InputState gamepad', () => {
     const buttons = makeButtons(10)
     buttons[7] = { value: threshold, pressed: false }
     const input = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [makePad({ buttons })] },
     })
@@ -269,7 +269,7 @@ describe('InputState gamepad', () => {
     const buttons = makeButtons(10)
     buttons[4] = { value: 0, pressed: true }
     const input = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [makePad({ buttons })] },
     })
@@ -282,7 +282,7 @@ describe('InputState gamepad', () => {
     const buttons = makeButtons(10)
     buttons[9] = { value: 0, pressed: true }
     const input = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [makePad({ buttons })] },
     })
@@ -293,7 +293,7 @@ describe('InputState gamepad', () => {
 
   it('connectedPadCount counts non-null snapshots', () => {
     const input = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: {
         getGamepads: () => [makePad({}), null, makePad({ mapping: 'unknown' })],
@@ -306,7 +306,7 @@ describe('InputState gamepad', () => {
 
   it('update does not allocate', () => {
     const input = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [makePad({ axes: [0.5, -0.5] })] },
     })
@@ -322,7 +322,7 @@ describe('InputState gamepad', () => {
 describe('InputState rumble', () => {
   it('rumble no-ops and does not throw when there is no actuator', () => {
     const input = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [makePad({})] },
     })
@@ -334,7 +334,7 @@ describe('InputState rumble', () => {
   it('rumble no-ops when haptics.enabled is false', () => {
     const playEffect = vi.fn().mockResolvedValue('complete')
     const input = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       hapticsEnabled: false,
       gamepads: {
@@ -352,7 +352,7 @@ describe('InputState rumble', () => {
   it('rumble calls playEffect dual-rumble with the shieldHit preset', () => {
     const playEffect = vi.fn().mockResolvedValue('complete')
     const input = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: {
         getGamepads: () => [
@@ -374,7 +374,7 @@ describe('InputState rumble', () => {
   it('a second rumble may preempt the first (playEffect called twice)', () => {
     const playEffect = vi.fn().mockResolvedValue('preempted')
     const input = new InputState({
-      target: new FakeTarget(),
+      target: makeTarget(),
       preventDefaultCodes: [],
       gamepads: {
         getGamepads: () => [
@@ -387,5 +387,92 @@ describe('InputState rumble', () => {
     input.rumble('hullHit')
     expect(playEffect).toHaveBeenCalledTimes(2)
     input.dispose()
+  })
+})
+
+describe('InputState D19 mouse + touch', () => {
+  it('left mouse button holds fire; right button consumePress bomb once', () => {
+    const { input, target } = createTestInput()
+    target.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true, cancelable: true }))
+    expect(input.isPressed('fire')).toBe(true)
+    target.dispatchEvent(new PointerEvent('pointerdown', { button: 2, bubbles: true, cancelable: true }))
+    expect(input.consumePress('bomb')).toBe(true)
+    expect(input.consumePress('bomb')).toBe(false)
+    target.dispatchEvent(new PointerEvent('pointerup', { button: 0, bubbles: true, cancelable: true }))
+    expect(input.isPressed('fire')).toBe(false)
+    input.dispose()
+  })
+
+  it('prevents contextmenu when bomb is bound to button 2', () => {
+    const { input, target } = createTestInput()
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    target.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)
+    input.dispose()
+  })
+
+  it('wheel notch consumePress switchWeapon once per delta', () => {
+    const { input, target } = createTestInput()
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }))
+    expect(input.consumePress('switchWeapon')).toBe(true)
+    expect(input.consumePress('switchWeapon')).toBe(false)
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: -80, bubbles: true, cancelable: true }))
+    expect(input.consumePress('switchWeapon')).toBe(true)
+    input.dispose()
+  })
+
+  it('touch stick fills axis when pad stick is at rest', () => {
+    const touch = {
+      axisX: 1,
+      axisZ: 0,
+      isPressed: () => false,
+    }
+    const input = new InputState({
+      target: makeTarget(),
+      preventDefaultCodes: [],
+      gamepads: { getGamepads: () => [makePad({ axes: [0, 0] })] },
+      touch,
+    })
+    input.update(0.016)
+    expect(input.axis('moveX')).toBeCloseTo(1, 5)
+    input.dispose()
+  })
+
+  it('pad stick wins over touch stick', () => {
+    const touch = {
+      axisX: -1,
+      axisZ: 0,
+      isPressed: () => false,
+    }
+    const input = new InputState({
+      target: makeTarget(),
+      preventDefaultCodes: [],
+      gamepads: { getGamepads: () => [makePad({ axes: [1, 0] })] },
+      touch,
+    })
+    input.update(0.016)
+    expect(input.axis('moveX')).toBeCloseTo(1, 5)
+    input.dispose()
+  })
+
+  it('consumePress dash is true for ControlLeft and for LT', () => {
+    const { input, target } = createTestInput({ getGamepads: () => [] })
+    dispatchKey(target, 'keydown', 'ControlLeft')
+    expect(input.consumePress('dash')).toBe(true)
+    expect(input.consumePress('dash')).toBe(false)
+    input.dispose()
+
+    const buttons = makeButtons(10)
+    buttons[6] = { value: 1, pressed: true }
+    const padInput = new InputState({
+      target: makeTarget(),
+      preventDefaultCodes: [],
+      gamepads: { getGamepads: () => [makePad({ buttons })] },
+    })
+    padInput.update(0.016)
+    expect(padInput.consumePress('dash')).toBe(true)
+    padInput.update(0.016)
+    expect(padInput.consumePress('dash')).toBe(false)
+    padInput.dispose()
   })
 })

@@ -43,11 +43,11 @@
  * Orchestrator : hub-v4.3 / 2026-08-18  scope, requires, D19 scheme 4
  * Programming  : hub-v4.3 / 2026-08-18  nipple factory inject, dispose destroy()
  * Game Design  : hub-v4.3 / 2026-08-18  static stick, button layout, auto-hide
- * TDD          : hub-v4.3 / 2026-08-18  cases named; test file not yet written (red next)
+ * TDD          : hub-v4.3 / 2026-08-18  touch-controls.test.ts green
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: spec-complete
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

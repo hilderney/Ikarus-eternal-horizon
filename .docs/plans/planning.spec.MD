@@ -910,10 +910,10 @@ flowchart TD
 | Gate | **G0** |
 | Hub version | 4.3.0 |
 | Reference build | POC-1 (`poc/`) — frozen, playable (not a workstream) |
-| Target build | POC2 (`poc2/`) — Stage A–B and C01 done; C02 Controller next (D19 schemes specced) |
+| Target build | POC2 (`poc2/`) — Stage A–B, C01–C02 and G12 done; C03 ShipHealth or G09/G03 next |
 | Phase docs | `phase-0-poc.md` (history) · `phase-0-poc2.md` (architecture) |
 | SDD specs | one file per Stage A–G card under `.docs/specs/` + `_template.spec.ts` |
 | Agents | Orchestrator · Programming/Three.js · Game Design · TDD (§6.3, `D17`) |
 | Backlog | [`poc2/todo.md`](../../poc2/todo.md) — one entry per card |
 
-**Next steps:** 1) A02 D19 follow-up (mouse + TouchSource + consumePress) then TDD for `SDD-C02`; 2) C02 PlayerController green (device-blind force + dash); 3) G12 TouchControls when Fase 0 needs a phone; 4) C03 ShipHealth.
+**Next steps:** 1) `SDD-C03` ShipHealth; 2) G09/G03 to wire the ship, controllers and TouchControls into a playable Run.

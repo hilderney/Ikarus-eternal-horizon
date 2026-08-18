@@ -57,8 +57,8 @@
  * Orchestrator : hub-v4.3 / 2026-08-18  D19 four schemes; D18 slice still green
  * Programming  : hub-v4.3 / 2026-08-18  mouse + TouchSource + consumePress
  * Game Design  : hub-v4.3 / 2026-08-18  scheme table, mouse buttons, dash/bomb keys
- * TDD          : hub-v4.3 / 2026-08-18  D18 cases green; D19 cases named (red next)
- * Status: done (D18) · spec-complete (D19 follow-up)
+ * TDD          : hub-v4.3 / 2026-08-18  D18 + D19 cases green
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -267,7 +267,7 @@ export declare class InputState implements InputPort {
  *   R16. consumePress returns true at most once per rising edge. A held button
  *        does not retrigger. Wheel: one edge per notch (deltaY sign ignored —
  *        every notch cycles forward).
-
+ */
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
 /**
  * Visual:      N/A — no visual

@@ -66,11 +66,11 @@
  * Orchestrator : hub-v4.3 / 2026-08-18  four schemes via InputPort, D19
  * Programming  : hub-v4.3 / 2026-08-18  device-blind; dash consumePress; no nipplejs
  * Game Design  : hub-v4.3 / 2026-08-18  scheme table, dash placeholders, WASD+mouse
- * TDD          : hub-v4.3 / 2026-08-18  cases named; test file not yet written (red next)
+ * TDD          : hub-v4.3 / 2026-08-18  controller.test.ts green
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: spec-complete
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

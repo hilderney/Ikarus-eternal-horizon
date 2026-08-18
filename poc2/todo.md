@@ -18,7 +18,7 @@ Scaffold is done. This phase is the POC-1 “feel” port: move the ship, camera
 - [x] Scaffold: folder tree, Vite/TS/eslint/vitest, three-area shell, `npm run verify` green
 - [x] `BALANCE` as the only source of numbers (add `ship.health`, `difficulty`, `score`, `drops`, `vfx`) · `SDD-A01` · [balancer.spec.ts](../.docs/specs/balancer.spec.ts) · **port**
 - [x] Input: keyboard + Gamepad API (left stick / RT fire / LB switch / Start pause) + dual-rumble haptics · `SDD-A02` · [input.spec.ts](../.docs/specs/input.spec.ts) · **port** (+ `D18`)
-- [ ] Input D19 follow-up: mouse buttons/wheel + `TouchSource` + `consumePress` (bomb / switchBomb / dash) · `SDD-A02` · [input.spec.ts](../.docs/specs/input.spec.ts) · **new** (`D19`)
+- [x] Input D19 follow-up: mouse buttons/wheel + `TouchSource` + `consumePress` (bomb / switchBomb / dash) · `SDD-A02` · [input.spec.ts](../.docs/specs/input.spec.ts) · **new** (`D19`)
 - [x] Math helpers + scratch vectors (zero alloc) · `SDD-A03` · [math.spec.ts](../.docs/specs/math.spec.ts) · **new**
 - [x] Game loop: rAF, `dt` clamp 0.05, pause gate, ~15 Hz debugger sidecar · `SDD-A04` · [game-loop.spec.ts](../.docs/specs/game-loop.spec.ts) · **new**
 - [x] Generic `ObjectPool<T>` (exhaustion returns `null`, never allocates) · `SDD-A05` · [object-pool.spec.ts](../.docs/specs/object-pool.spec.ts) · **new**
@@ -26,12 +26,12 @@ Scaffold is done. This phase is the POC-1 “feel” port: move the ship, camera
 - [ ] Three-area layout `area-inputs · game-area · debugger-area`, collapse ≤760px · `SDD-G06` · [ui-areas.spec.ts](../.docs/specs/ui-areas.spec.ts) · **port**
 - [x] Perspective camera (`YXZ`, live `applyConfig`) · `SDD-B01` · [game-camera.spec.ts](../.docs/specs/game-camera.spec.ts) · **port**
 - [x] Ship as `THREE.Group` (hull, thruster flicker, weapon tip) · `SDD-C01` · [ship.spec.ts](../.docs/specs/ship.spec.ts) · **port**
-- [ ] Force motion (`accel`/`decel`/`brake`, `maxSpeed`) + tilt/bank + dash · four schemes via InputPort · `SDD-C02` · [controller.spec.ts](../.docs/specs/controller.spec.ts) · **port** (`D19`)
+- [x] Force motion (`accel`/`decel`/`brake`, `maxSpeed`) + tilt/bank + dash · four schemes via InputPort · `SDD-C02` · [controller.spec.ts](../.docs/specs/controller.spec.ts) · **port** (`D19`)
 - [x] LimitBox: dead-zone follow, edge bounce, auto-recenter to Recenter Point · `SDD-B03` · [limit-box.spec.ts](../.docs/specs/limit-box.spec.ts) · **port**
 - [x] Parallax: 3 layers pinned to camera, stars slide by `parallaxGain` · `SDD-B02` · [parallax.spec.ts](../.docs/specs/parallax.spec.ts) · **port**
 - [x] Gizmos: world axes, playfield grid, camera axes (toggle, Q09) · `SDD-B04` · [gizmos.spec.ts](../.docs/specs/gizmos.spec.ts) · **port**
 - [ ] Run scene owns camera / parallax / limit-box / gizmos / ship and drives the loop · `SDD-G03` · [run-scene.spec.ts](../.docs/specs/run-scene.spec.ts) · **new**
-- [ ] Touch overlay: nipplejs stick + on-screen Fire/Bomb/Switch/Dash/Pause · `SDD-G12` · [touch-controls.spec.ts](../.docs/specs/touch-controls.spec.ts) · **new** (`D19`)
+- [x] Touch overlay: nipplejs stick + on-screen Fire/Bomb/Switch/Dash/Pause · `SDD-G12` · [touch-controls.spec.ts](../.docs/specs/touch-controls.spec.ts) · **new** (`D19`)
 
 **Fase 0 done when:** ship flies with POC-1 inertia and bank; camera follows the box with bounce + recenter; three parallax speeds read at a glance.
 

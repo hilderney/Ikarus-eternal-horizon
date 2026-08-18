@@ -1,17 +1,18 @@
 /**
- * SDD-A02 Input — keyboard + Gamepad API + dual-rumble haptics (D18).
- * Port of POC-1 keyboard behaviour; pad poll and rumble are POC2 additions.
+ * SDD-A02 Input — keyboard + Gamepad API + mouse buttons/wheel + TouchSource (D19).
+ * Port of POC-1 keyboard behaviour; pad poll/rumble are D18; mouse/touch are D19.
  */
 
 import { BALANCE } from './balancer'
 
-/** Logical actions. Keyboard codes and pad buttons both resolve here. */
+/** Logical actions. Keyboard, pad, mouse and touch all resolve here (D19). */
 export type InputAction =
   | 'fire'
+  | 'bomb'
   | 'switchWeapon'
+  | 'switchBomb'
+  | 'dash'
   | 'pause'
-  | 'boost'
-  | 'special'
 
 /** C02 force dir. +moveX = KeyD / +X. +moveZ = KeyS / +Z (back). −moveZ = KeyW (forward). */
 export type AxisId = 'moveX' | 'moveZ'
@@ -30,6 +31,7 @@ export interface InputPort {
   isDown(code: string): boolean
   axis(id: AxisId): number
   isPressed(action: InputAction): boolean
+  consumePress(action: InputAction): boolean
   rumble(preset: RumblePreset): void
   readonly connectedPadCount: number
   dispose(): void
@@ -64,13 +66,53 @@ export interface GamepadSource {
   getGamepads(): readonly (GamepadSnap | null)[]
 }
 
-/** Construction data. Target and pad source are injected so tests do not need `window`. */
+/** Produced by SDD-G12. Injected so A02 never imports nipplejs. */
+export interface TouchSource {
+  readonly axisX: number
+  readonly axisZ: number
+  isPressed(action: InputAction): boolean
+}
+
+/** Construction data. Target and pad/touch sources are injected so tests do not need `window`. */
 export interface InputStateOptions {
   readonly target?: EventTarget
   readonly preventDefaultCodes: readonly string[]
   readonly gamepads?: GamepadSource
+  readonly touch?: TouchSource
   /** Defaults to BALANCE.haptics.enabled. Tests may override. */
   readonly hapticsEnabled?: boolean
+}
+
+const FIRE_BIT = 1
+const BOMB_BIT = 2
+const SWITCH_WEAPON_BIT = 4
+const SWITCH_BOMB_BIT = 8
+const DASH_BIT = 16
+const PAUSE_BIT = 32
+
+const ZERO_TOUCH: TouchSource = {
+  axisX: 0,
+  axisZ: 0,
+  isPressed(): boolean {
+    return false
+  },
+}
+
+function actionBit(action: InputAction): number {
+  switch (action) {
+    case 'fire':
+      return FIRE_BIT
+    case 'bomb':
+      return BOMB_BIT
+    case 'switchWeapon':
+      return SWITCH_WEAPON_BIT
+    case 'switchBomb':
+      return SWITCH_BOMB_BIT
+    case 'dash':
+      return DASH_BIT
+    case 'pause':
+      return PAUSE_BIT
+  }
 }
 
 function applyDeadzone(value: number, deadzone: number): number {
@@ -100,6 +142,9 @@ export function buildPreventDefaultCodes(): readonly string[] {
     BALANCE.gameplay.fireKey,
     BALANCE.gameplay.switchKey,
     BALANCE.gameplay.pauseKey,
+    BALANCE.gameplay.bombKey,
+    BALANCE.gameplay.switchBombKey,
+    BALANCE.gameplay.dashKey,
     'ShiftLeft',
     'ShiftRight',
   ])
@@ -111,12 +156,16 @@ export class InputState implements InputPort {
   private _shiftPressed = false
   private readonly _target: EventTarget
   private readonly _gamepads: GamepadSource
+  private readonly _touch: TouchSource
   private readonly _preventDefaultCodes: ReadonlySet<string>
   private readonly _hapticsEnabled: boolean
   private _pad: GamepadSnap | null = null
-  private _axisX = 0
-  private _axisZ = 0
+  private _padAxisX = 0
+  private _padAxisZ = 0
   private _connectedPadCount = 0
+  private _mouseButtons = 0
+  private _prevBits = 0
+  private _edgeBits = 0
   private _disposed = false
 
   private readonly _onKeyDown = (event: Event): void => {
@@ -130,6 +179,7 @@ export class InputState implements InputPort {
     } else if (this._shiftPressed) {
       this._keys.add(`Shift+${e.code}`)
     }
+    this._latchHeld()
   }
 
   private readonly _onKeyUp = (event: Event): void => {
@@ -139,11 +189,42 @@ export class InputState implements InputPort {
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
       this._shiftPressed = false
     }
+    this._latchHeld()
   }
 
   private readonly _onBlur = (): void => {
     this._keys.clear()
     this._shiftPressed = false
+    this._mouseButtons = 0
+    this._prevBits = 0
+    this._edgeBits = 0
+  }
+
+  private readonly _onPointerDown = (event: Event): void => {
+    const e = event as PointerEvent
+    this._mouseButtons |= 1 << e.button
+    this._latchHeld()
+  }
+
+  private readonly _onPointerUp = (event: Event): void => {
+    const e = event as PointerEvent
+    this._mouseButtons &= ~(1 << e.button)
+    this._latchHeld()
+  }
+
+  private readonly _onPointerCancel = (): void => {
+    this._mouseButtons = 0
+    this._latchHeld()
+  }
+
+  private readonly _onWheel = (event: Event): void => {
+    const e = event as WheelEvent
+    e.preventDefault()
+    this._edgeBits |= SWITCH_WEAPON_BIT
+  }
+
+  private readonly _onContextMenu = (event: Event): void => {
+    event.preventDefault()
   }
 
   private readonly _onGamepadConnected = (): void => {
@@ -158,11 +239,17 @@ export class InputState implements InputPort {
     this._preventDefaultCodes = new Set(options.preventDefaultCodes)
     this._target = options.target ?? window
     this._gamepads = options.gamepads ?? defaultGamepadSource()
+    this._touch = options.touch ?? ZERO_TOUCH
     this._hapticsEnabled = options.hapticsEnabled ?? BALANCE.haptics.enabled
 
     this._target.addEventListener('keydown', this._onKeyDown)
     this._target.addEventListener('keyup', this._onKeyUp)
     this._target.addEventListener('blur', this._onBlur)
+    this._target.addEventListener('pointerdown', this._onPointerDown)
+    this._target.addEventListener('pointerup', this._onPointerUp)
+    this._target.addEventListener('pointercancel', this._onPointerCancel)
+    this._target.addEventListener('wheel', this._onWheel, { passive: false })
+    this._target.addEventListener('contextmenu', this._onContextMenu)
     this._target.addEventListener('gamepadconnected', this._onGamepadConnected)
     this._target.addEventListener('gamepaddisconnected', this._onGamepadDisconnected)
   }
@@ -196,13 +283,15 @@ export class InputState implements InputPort {
     if (this._pad) {
       const rawX = this._pad.axes[gp.axes.moveX] ?? 0
       let rawZ = this._pad.axes[gp.axes.moveZ] ?? 0
-      this._axisX = applyDeadzone(rawX, gp.deadzone)
+      this._padAxisX = applyDeadzone(rawX, gp.deadzone)
       rawZ = applyDeadzone(rawZ, gp.deadzone)
-      this._axisZ = gp.invertMoveZ ? -rawZ : rawZ
+      this._padAxisZ = gp.invertMoveZ ? -rawZ : rawZ
     } else {
-      this._axisX = 0
-      this._axisZ = 0
+      this._padAxisX = 0
+      this._padAxisZ = 0
     }
+
+    this._latchHeld()
   }
 
   isDown(code: string): boolean {
@@ -210,9 +299,17 @@ export class InputState implements InputPort {
   }
 
   axis(id: AxisId): number {
-    const stick = id === 'moveX' ? this._axisX : this._axisZ
-    if (stick !== 0) {
-      return stick
+    const pad = id === 'moveX' ? this._padAxisX : this._padAxisZ
+    if (pad !== 0) {
+      return pad
+    }
+
+    const dz = BALANCE.controls.touch.deadzone
+    const touch = id === 'moveX'
+      ? applyDeadzone(this._touch.axisX, dz)
+      : applyDeadzone(this._touch.axisZ, dz)
+    if (touch !== 0) {
+      return touch
     }
 
     const keys = BALANCE.controls.shipKeys
@@ -240,23 +337,62 @@ export class InputState implements InputPort {
   isPressed(action: InputAction): boolean {
     const gp = BALANCE.controls.gamepad
     const gameplay = BALANCE.gameplay
+    const mouse = BALANCE.controls.mouse
+
+    let held = this._touch.isPressed(action)
 
     switch (action) {
       case 'fire':
-        return this._keys.has(gameplay.fireKey) || this._isPadButtonPressed(gp.buttons.fire)
+        held =
+          held ||
+          this._keys.has(gameplay.fireKey) ||
+          this._isPadButtonPressed(gp.buttons.fire) ||
+          this._isMouseDown(mouse.fireButton)
+        break
+      case 'bomb':
+        held =
+          held ||
+          this._keys.has(gameplay.bombKey) ||
+          this._isPadButtonPressed(gp.buttons.bomb) ||
+          this._isMouseDown(mouse.bombButton)
+        break
       case 'switchWeapon':
-        return (
-          this._keys.has(gameplay.switchKey) || this._isPadButtonPressed(gp.buttons.switchWeapon)
-        )
+        held =
+          held ||
+          this._keys.has(gameplay.switchKey) ||
+          this._isPadButtonPressed(gp.buttons.switchWeapon)
+        break
+      case 'switchBomb':
+        held =
+          held ||
+          this._keys.has(gameplay.switchBombKey) ||
+          this._isPadButtonPressed(gp.buttons.switchBomb) ||
+          this._isMouseDown(mouse.switchBombButton)
+        break
+      case 'dash':
+        held =
+          held ||
+          this._keys.has(gameplay.dashKey) ||
+          this._isPadButtonPressed(gp.buttons.dash)
+        break
       case 'pause':
-        return this._keys.has(gameplay.pauseKey) || this._isPadButtonPressed(gp.buttons.pause)
-      case 'boost':
-        return this._isPadButtonPressed(gp.buttons.boost)
-      case 'special':
-        return this._isPadButtonPressed(gp.buttons.special)
-      default:
-        return false
+        held =
+          held ||
+          this._keys.has(gameplay.pauseKey) ||
+          this._isPadButtonPressed(gp.buttons.pause)
+        break
     }
+
+    return held
+  }
+
+  consumePress(action: InputAction): boolean {
+    const bit = actionBit(action)
+    if ((this._edgeBits & bit) === 0) {
+      return false
+    }
+    this._edgeBits &= ~bit
+    return true
   }
 
   rumble(preset: RumblePreset): void {
@@ -288,11 +424,47 @@ export class InputState implements InputPort {
     this._target.removeEventListener('keydown', this._onKeyDown)
     this._target.removeEventListener('keyup', this._onKeyUp)
     this._target.removeEventListener('blur', this._onBlur)
+    this._target.removeEventListener('pointerdown', this._onPointerDown)
+    this._target.removeEventListener('pointerup', this._onPointerUp)
+    this._target.removeEventListener('pointercancel', this._onPointerCancel)
+    this._target.removeEventListener('wheel', this._onWheel)
+    this._target.removeEventListener('contextmenu', this._onContextMenu)
     this._target.removeEventListener('gamepadconnected', this._onGamepadConnected)
     this._target.removeEventListener('gamepaddisconnected', this._onGamepadDisconnected)
     this._keys.clear()
     this._shiftPressed = false
+    this._mouseButtons = 0
+    this._prevBits = 0
+    this._edgeBits = 0
     this._pad = null
+  }
+
+  private _latchHeld(): void {
+    let bits = 0
+    if (this.isPressed('fire')) {
+      bits |= FIRE_BIT
+    }
+    if (this.isPressed('bomb')) {
+      bits |= BOMB_BIT
+    }
+    if (this.isPressed('switchWeapon')) {
+      bits |= SWITCH_WEAPON_BIT
+    }
+    if (this.isPressed('switchBomb')) {
+      bits |= SWITCH_BOMB_BIT
+    }
+    if (this.isPressed('dash')) {
+      bits |= DASH_BIT
+    }
+    if (this.isPressed('pause')) {
+      bits |= PAUSE_BIT
+    }
+    this._edgeBits |= bits & ~this._prevBits
+    this._prevBits = bits
+  }
+
+  private _isMouseDown(button: number): boolean {
+    return (this._mouseButtons & (1 << button)) !== 0
   }
 
   private _isPadButtonPressed(index: number): boolean {
