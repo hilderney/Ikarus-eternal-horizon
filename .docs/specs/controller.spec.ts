@@ -4,7 +4,7 @@
  * Card:         SDD-C02 PlayerController + CameraController
  * Hub:          .docs/plans/planning.spec.MD §5 (card) · §6.1 (DoD) · §6.3 (agents)
  * Requirements: SHIP-01, SHIP-13 (POC2 play), SHIP-04 (mouse-as-buttons via D19;
- *               pointer-steer still deferred), SHIP-08 (dash *input* now; energy gate later)
+ *               pointer-steer still deferred), SHIP-08 (dash spends shared D03 energy)
  * Change type:  split
  * POC-1 origin: poc/src/systems/controllers.ts  — frozen reference (keyboard force + tilt)
  * Test file:    poc2/src/gameobjects/controller/controller.test.ts
@@ -19,7 +19,10 @@
  * Owns:      Input → ship force and the debug camera. Device-blind.
  *            PlayerController: analog force (accel/decel/brake, maxSpeed) from
  *            `InputPort.axis('moveX'|'moveZ')`, tilt/bank on rotation.z, and a
- *            kinematic dash impulse from `consumePress('dash')`.
+ *            kinematic dash impulse from `consumePress('dash')`. Dash L1–L12
+ *            (`dash-levels.ts`) spends optional `EnergyPort` (D03). Lateral dash
+ *            barrel-rolls 360° on the tilt axis (180° at midpoint); forward/back
+ *            with no lateral component does not roll.
  *            CameraController: IJKL/UO translation and Shift+IJKL/UO rotation
  *            (keyboard debug rig — not a pad / touch / mouse camera).
  *
@@ -31,8 +34,8 @@
  *            object (B01), Ship mesh (C01), why motion is slower (C03) — it
  *            only reads speedMul/accelMul. Fire / bomb / switchWeapon /
  *            switchBomb (E07 / §7 bomb). Pause overlay (G11). Pointer-steer
- *            "mouse moves the ship" (SHIP-04 remainder). Dash Energy drain
- *            (SHIP-08 / D03) — this card only the velocity impulse + cooldown.
+ *            "mouse moves the ship" (SHIP-04 remainder). Dedicated jet Energy
+ *            reserve (SHIP-08 G1) — this card spends the shared D03 pool.
  * Player-facing: the POC-1 inertia and bank, plus a short dodge burst. Wrong
  *            accel/brake/tilt feels like a different game. Camera keys are a
  *            debug rig, not combat control.
@@ -54,8 +57,9 @@
  *
  * Downstream (who breaks if this contract changes):
  *   SDD-C03 ShipHealth — supplies speedMul/accelMul; controller must not import it
+ *   SDD-D03 EnergyManager — optional EnergyPort; dash spend on successful snap
  *   SDD-G03 RunScene   — constructs both controllers and ticks them
- *   SDD-G08 Debugger   — live-edits BALANCE.controls the controllers read
+ *   SDD-G08 Debugger   — Equips dash level 1–12 binds PlayerController.setDashLevel
  *   SDD-G12 TouchControls — overlay only; C02 still never sees nipplejs
  *   SDD-E07 FiringManager — fire / switchWeapon / bomb / switchBomb (not this class)
  *   SDD-G11 PauseScene    — pause (not this class)
@@ -63,10 +67,10 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.3 / 2026-08-18  four schemes via InputPort, D19
- * Programming  : hub-v4.3 / 2026-08-18  device-blind; dash consumePress; no nipplejs
- * Game Design  : hub-v4.3 / 2026-08-18  scheme table, dash placeholders, WASD+mouse
- * TDD          : hub-v4.3 / 2026-08-18  controller.test.ts green
+ * Orchestrator : hub-v4.3 / 2026-08-19  dash L1–L12 + lateral barrel roll + D03 spend
+ * Programming  : hub-v4.3 / 2026-08-19  device-blind; dash consumePress; EnergyPort
+ * Game Design  : hub-v4.3 / 2026-08-19  band-of-4 cost/distance; 360° roll on laterals
+ * TDD          : hub-v4.3 / 2026-08-19  controller.test.ts + dash-levels.test.ts green
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
@@ -173,6 +177,12 @@ export interface CameraPose {
   rotation: { x: number; y: number; z: number }
 }
 
+/** Same shape as D03 EnergyPort. Optional — tests without a pool stay ungated. */
+export interface DashEnergyPort {
+  canAfford(cost: number): boolean
+  spend(cost: number): void
+}
+
 export interface PlayerControllerOptions {
   readonly input: InputPort
   readonly transform: ShipTransform
@@ -182,6 +192,7 @@ export interface PlayerControllerOptions {
   readonly keys: ShipKeys
   readonly modifiers: MotionModifiers
   readonly onDash?: () => void
+  readonly energy?: DashEnergyPort
 }
 
 export interface CameraControllerOptions {
@@ -195,6 +206,9 @@ export declare class PlayerController {
 
   /** Integrates force on X/Z, ramps tilt, applies dash. Writes transform. No GPU. */
   update(dt: number): void
+
+  dashLevel(): number
+  setDashLevel(level: number): void
 
   dispose(): void
 }
@@ -234,11 +248,16 @@ export declare class CameraController {
  *   brake/decel are NOT multiplied (hub: maxSpeed/accel only).
  *   Tilt: rise rate = maxDeg/(riseMs/1000), fall rate = maxDeg/(fallMs/1000).
  *   axis 'z' writes transform.rotation.z (POC-1 default).
- *   Dash: on consumePress('dash') and dashCdMs===0, set dashMs = durationMs,
- *         dashCdMs = cooldownMs, and snap (vx,vz) along the current dir
+ *   Dash: on consumePress('dash') and dashCdMs===0, if energy is injected it
+ *         must canAfford(DASH_LEVELS[level].energyCost) or the snap is skipped
+ *         (press still consumed). On snap: spend, set dashMs = durationMs,
+ *         dashCdMs = cooldownMs, snap (vx,vz) along the current dir
  *         (if dir==0, along current velocity; if still, no-op). While dashMs>0
- *         the speed cap is effective maxSpeed * dash.speedMul. Energy is not
- *         spent here (SHIP-08 later).
+ *         the speed cap is effective maxSpeed * DASH_LEVELS[level].speedMul
+ *         (L1 equals BALANCE.controls.dash.speedMul). If |dashDirX| > 0, start
+ *         a 360° barrel roll on the tilt axis in the travel direction over
+ *         durationMs (midpoint ±180°, finish upright). Forward/back-only
+ *         (|dashDirX|≈0) does not roll.
  *
  * Non-obvious — CameraController:
  *   Translation: pose.position += dir * moveSpeed * dt on x/y/z.
@@ -255,8 +274,8 @@ export declare class CameraController {
  *       (except the dash snap, which is a bounded impulse).
  *   R2. Opposite input while moving uses brake (120), not accel (60).
  *   R3. Released axis coasts with decel (60) to exactly 0 (no sign flip through 0).
- *   R4. Speed never exceeds maxSpeed * speedMul (or that × dash.speedMul during
- *       dash). Accel used is accel * accelMul. The controller does not know why
+ *   R4. Speed never exceeds maxSpeed * speedMul (or that × DASH_LEVELS speedMul
+ *       during dash). Accel used is accel * accelMul. The controller does not know why
  *       the multipliers changed.
  *   R5. Tilt ramps to dirX * maxDeg * sign in riseMs; settles to 0 in fallMs.
  *       Default axis is 'z', sign is -1.
@@ -273,6 +292,11 @@ export declare class CameraController {
  *   R12. Dash starts only on consumePress('dash') while cooldown is 0.
  *        A held dash button does not retrigger. Cooldown starts at dash start.
  *        A successful snap calls optional onDash (C01 status.dashing pulse).
+ *        If energy is injected, canAfford must pass or the snap is skipped.
+ *        Unknown setDashLevel values are ignored (stay on the current row).
+ *   R13. Lateral dash barrel-rolls 360° on the tilt axis over durationMs,
+ *        sign(dirX)*tilt.sign. Midpoint is ±180°; the craft finishes upright.
+ *        Forward/back with no lateral component does not roll.
  *   R9. Memory: no GPU. Per-frame allocation: none (no new Vector3).
  *   R10. dispose() drops input references; nothing to free on GPU.
  */
@@ -328,10 +352,14 @@ export declare class CameraController {
  *   BALANCE.controls.tilt.fallMs     = 200
  *   BALANCE.controls.shipKeys        = { A/D = X, W/S = Z }
  *
- * Dash — placeholders until SHIP-08 energy playtest:
- *   BALANCE.controls.dash.speedMul    = 2.2
- *   BALANCE.controls.dash.durationMs  = 140
- *   BALANCE.controls.dash.cooldownMs  = 750
+ * Dash L1 matches BALANCE.controls.dash; L2–L12 live in dash-levels.ts
+ * (same band-of-4 step as laser energy, ×10 for cost; distance via speedMul):
+ *   BALANCE.controls.dash.speedMul    = DASH_LEVELS[0].speedMul (L1)
+ *   BALANCE.controls.dash.durationMs  = 200
+ *   BALANCE.controls.dash.cooldownMs  = 800
+ *   DASH_LEVELS energyCost / speedMul: 12 rows, band-of-4 (step doubles each
+ *   band, same shape as laser energy). L1 cost and travel are the floor;
+ *   L12 is the longest / dearest dash.
  *
  * Camera debug rig (unchanged):
  *   BALANCE.controls.camera.moveSpeed = 12
@@ -351,7 +379,8 @@ export declare class CameraController {
  *            framing, not combat. Keyboard + pad + mouse + touch must feel like
  *            the same ship.
  * Leveling:  hull levels scale maxSpeed/accel via injected multipliers (C03).
- *            Dash duration/cooldown do not scale with hull in G0.
+ *            Dash L1–L12 scale cost and travel (speedMul); duration/cooldown
+ *            stay on BALANCE.controls.dash.
  * Graphics:  N/A — tilt is presented by C01; touch chrome is G12.
  * Pillars:   playable pillar fragment "move on X/Y". D19 four schemes.
  */
@@ -363,6 +392,7 @@ export declare class CameraController {
 // ─── 7. Acceptance → executable cases ────────────────────────────────────────
 /**
  * File: poc2/src/gameobjects/controller/controller.test.ts
+ *       poc2/src/gameobjects/controller/dash-levels.test.ts
  * Runner: vitest
  * Mocks: InputPort stub (Set of codes + axis values + consumePress queue),
  *        ShipTransform object, CameraPose object, BALANCE.controls slice,
@@ -384,6 +414,11 @@ export declare class CameraController {
  *   it('nipple-sized axis 1,-1 is indistinguishable from a full stick')            // R11, D19 scheme 4
  *   it('consumePress dash snaps speed along dir and ignores a held button')        // R12
  *   it('successful dash calls onDash so the ship can pulse status.dashing')        // R12, C01
+ *   it('lateral dash rolls 180 at the midpoint and finishes upright')              // R13
+ *   it('forward dash without lateral does not barrel-roll')                        // R13
+ *   it('dash spends energy and skips when the pool cannot afford')                 // R12, D03
+ *   it('dash spends the L1 energy cost on a successful snap')                      // R12, D03
+ *   it('dash L12 travels farther than L1')                                         // R12
  *   it('dash is ignored while cooldown is active')                                 // R12
  *   it('update(dt) allocates no objects')                                          // R9
  *

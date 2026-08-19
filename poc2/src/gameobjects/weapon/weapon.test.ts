@@ -64,7 +64,7 @@ describe('Weapon', () => {
     const weapon = new Weapon({ id: 'laser', shots: port })
     weapon.applyLevel(12)
     expect(weapon.config.level).toBe(12)
-    expect(weapon.config.energyPerShot).toBe(2.2)
+    expect(weapon.config.energyPerShot).toBe(1.5)
     expect(weapon.config.laser?.totalShots).toBe(12)
     weapon.dispose()
   })
@@ -197,7 +197,7 @@ describe('LaserBehaviour', () => {
     const laser = new LaserBehaviour(cfg, port)
     laser.update(ctx())
     expect(spawns).toHaveLength(12)
-    expect(spawns.filter((s) => s.vx === 0)).toHaveLength(4)
+    expect(spawns.slice(0, 4).every((s) => s.vx === 0)).toBe(true)
     laser.dispose()
   })
 

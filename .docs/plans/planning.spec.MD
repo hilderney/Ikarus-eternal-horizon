@@ -19,7 +19,7 @@
 
 **What changed in 4.3.0:**
 - **Four exclusive control schemes** (`D19`): Keyboard · Mix (keyboard + mouse) · Gamepad · Touch. **One active at a time.** Default keyboard. Player switches on pause (`G11`). Pointer-steer still deferred. Closes Q07. `C02` stays device-blind; `A02` gates sources.
-- Combat vocabulary: move, fire, bomb, switch weapon, switch bomb, dash, pause. Dash input is G0; Energy drain stays `SHIP-08`.
+- Combat vocabulary: move, fire, bomb, switch weapon, switch bomb, dash, pause. Dash input is G0; dash spends the shared D03 pool (`C02` L1–L12). A dedicated jet reserve stays `SHIP-08`.
 - `BALANCE.controls.mouse` / `.touch` / `.dash` and extra gameplay keys added to A01.
 
 **What changed in 4.2.0:**
@@ -144,7 +144,7 @@ IDs are **stable and never renumbered**. Origin of the definitions is `.docs/pla
 | `SHIP-05` | G1 | must | Force Field absorbs before Integrity | Shield bar drains first; hull only after it hits zero | `C03` |
 | `SHIP-06` | G1 | must | Minimal inventory with Metal Scrap | Collected resource shows in the UI | `C01` `F02` `G11` |
 | `SHIP-07` | G1 | must | Repair in the CraftSlot consuming Metal Scrap | Integrity rises when the craft completes | §7 craft |
-| `SHIP-08` | G1 | should | Jet with its own Energy reserve | Boost drains and recharges when idle | §7 (`C02` `D03` seam). **Dash input** is `D19` / C02 now |
+| `SHIP-08` | G1 | should | Jet with its own Energy reserve | Boost drains and recharges when idle | §7 (`C02` `D03` seam). **Dash input + shared-pool spend** is `C02` now |
 | `SHIP-09` | G2 | must | Full Energy economy (weapons, jets, craft) | Actions drain Energy per config | `D03` |
 | `SHIP-10` | G2 | must | Equipment slots applying effects | Equipping changes the matching attribute | §7 `EQP-` |
 | `SHIP-11` | G2 | must | Tech tree with the 3 branches | Spent points change run stats | §7 |
@@ -383,11 +383,11 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-C02` Controller
 - **Folder:** `src/gameobjects/controller/`
-- **Scope:** `class PlayerController` maps **device-blind** inputs to ship commands — axis-based force motion (`accel`/`decel`/`brake`, `maxSpeed`), tilt/bank (`rotation.z`, `maxDeg`, `riseMs`/`fallMs`), kinematic **dash** (`consumePress('dash')`). Analog dirs come from `InputPort.axis('moveX'|'moveZ')` which already merged WASD / left stick / nipple (`D19`). `class CameraController` stays keyboard (IJKL/UO + Shift) — debug rig, not a pad/touch/mouse camera. Never imports nipplejs, never listens to pointer events. Fire / bomb / switch / pause are **not** consumed here (E07 / G11).
+- **Scope:** `class PlayerController` maps **device-blind** inputs to ship commands — axis-based force motion (`accel`/`decel`/`brake`, `maxSpeed`), tilt/bank (`rotation.z`, `maxDeg`, `riseMs`/`fallMs`), kinematic **dash** (`consumePress('dash')`, L1–L12 cost/distance, optional D03 `EnergyPort`). Lateral dash barrel-rolls 360° on the tilt axis (180° at midpoint); forward/back-only does not roll. Analog dirs come from `InputPort.axis('moveX'|'moveZ')` which already merged WASD / left stick / nipple (`D19`). `class CameraController` stays keyboard (IJKL/UO + Shift) — debug rig, not a pad/touch/mouse camera. Never imports nipplejs, never listens to pointer events. Fire / bomb / switch / pause are **not** consumed here (E07 / G11).
 - **Requires:** A01, A02, A03, B01, C01.
 - **Lib:** — (no dependency — input→force mapping; Three.js vectors for integration)
-- **Rules:** ship control is continuous force; tilt ramps in `riseMs`, settles in `fallMs`; **effective `maxSpeed`/`accel` read the degradation multiplier from `C03`** — the controller never knows why it is slower. Dash is a bounded impulse + cooldown; Energy drain is `SHIP-08` later.
-- **Maps:** `SHIP-01`, `SHIP-13` (POC2 play), `SHIP-04` (`D19`), `SHIP-08` (input only). **Acceptance:** the tuned feel of POC-1 (inertia + bank) is preserved on keyboard; left stick, WASD+mouse, and the nipple produce the same force curve after deadzone.
+- **Rules:** ship control is continuous force; tilt ramps in `riseMs`, settles in `fallMs`; **effective `maxSpeed`/`accel` read the degradation multiplier from `C03`** — the controller never knows why it is slower. Dash is a bounded impulse + cooldown; it spends the shared D03 pool (L1–L12). Dedicated jet reserve is `SHIP-08`.
+- **Maps:** `SHIP-01`, `SHIP-13` (POC2 play), `SHIP-04` (`D19`), `SHIP-08` (dash spend on shared pool). **Acceptance:** the tuned feel of POC-1 (inertia + bank) is preserved on keyboard; left stick, WASD+mouse, and the nipple produce the same force curve after deadzone.
 
 #### `SDD-C03` ShipHealth (Force Field · Integrity · degradation)
 - **Folder:** `src/gameobjects/ship/ship-health.ts`
@@ -604,11 +604,11 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-G08` Debugger panel (debugger-area)
 - **Folder:** `src/ui/debugger/` (one module per tab) · spec [debugger.spec.ts](../specs/debugger.spec.ts)
-- **Scope:** **one tab per subject.** This pass: **Ship** (pose, 0–255 pools, statuses) and **Equips** (loadout lists + equipped weapon level 1–12 via E07). Later: Cam / LimitBox / Parallax / Weapons catalog / Energy / Shots / Collision. Two-way sync ~15 Hz, skip focused control, Reset. Q09 DEV flag.
+- **Scope:** **one tab per subject.** This pass: **Ship** (pose, 0–255 pools, statuses) and **Equips** (loadout lists + equipped weapon level 1–12 via E07 + dash level 1–12 via C02). Later: Cam / LimitBox / Parallax / Weapons catalog / Energy / Shots / Collision. Two-way sync ~15 Hz, skip focused control, Reset. Q09 DEV flag.
 - **Requires:** A01, C01, G06.
 - **Lib:** **HTML/CSS** (panel + controls markup)
 - **Rules:** a new tab must not touch existing ones except when a subject moves (loadout → Equips). Tabs must not invent numbers the sim does not own.
-- **Maps:** dev tool (no locked requirement; Q09 decides shipping). **Acceptance:** Ship shows the flying craft’s sheet live; Equips weapon level changes the live laser volley; Reset restores spawn defaults.
+- **Maps:** dev tool (no locked requirement; Q09 decides shipping). **Acceptance:** Ship shows the flying craft’s sheet live; Equips weapon level changes the live laser volley; Equips dash level changes dash cost/distance; Reset restores spawn defaults.
 
 #### `SDD-G09` Renderer
 - **Folder:** `src/render/renderer.ts`
@@ -722,7 +722,7 @@ Declared for naming/traceability; detailed cards arrive in later phases:
 - **Bomb** (`gameobjects/bomb/`) + **BombShot** — Pulse Nova / Swarm Torpedo / Star Killer — `WPN-06`.
 - **Enemy archetypes & bosses** — Tank/Warrior/Rogue + MiniBosses/Mega Asteroid/Boss General — `ENM-03`, `ENM-05`–`ENM-08`.
 - **Craft / skills** — pause screen surface from `G11`, 1 CraftSlot real-time — `SHIP-07`, `SHIP-11`, `RUL-05`.
-- **Jet / dash** — own Energy reserve on the `C02`/`D03` seam — `SHIP-08`.
+- **Jet / dash** — dedicated Energy reserve on the `C02`/`D03` seam — `SHIP-08`. Dash already spends the shared D03 pool.
 - **Rankings + persistence** — Weekly/Monthly/Annual/Eternal boards, UTC, Survivor boards separate — `RNK-`.
 - **Audio** — **Howler**-based SFX/music/stingers + radio waveform HUD, post-G1.
 - **Assets** — low-poly neon art pipeline.

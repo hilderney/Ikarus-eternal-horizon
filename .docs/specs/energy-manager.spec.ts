@@ -3,7 +3,7 @@
  *
  * Card:         SDD-D03 EnergyManager
  * Hub:          .docs/plans/planning.spec.MD §5 (card) · §6.1 (DoD) · §6.3 (agents)
- * Requirements: SHIP-09, WPN-05  (SHIP-08 jet seam — not implemented here)
+ * Requirements: SHIP-09, WPN-05, SHIP-08 (dash spends this pool; dedicated jet reserve later)
  * Change type:  class-ify
  * POC-1 origin: poc/src/systems/energy.ts  — frozen reference
  * Test file:    poc2/src/systems/energy-manager.test.ts
@@ -16,8 +16,8 @@
 // ─── 1. Scope ────────────────────────────────────────────────────────────────
 /**
  * Owns:      The shared Energy pool { current, max, regenPerSec }. Ports
- *            canAfford / spend / update(regen). Every weapon (and future jets
- *            / craft) draws from this one pool.
+ *            canAfford / spend / update(regen). Every weapon and C02 dash
+ *            draws from this one pool.
  * Does not own: fire input (E07), weapon cadence (D02+), HUD bar (G07),
  *            BALANCE numbers (A01). No visual of any kind.
  * Player-facing: the Energy bar dropping per shot/second and refusing fire
@@ -37,8 +37,9 @@
  *   SDD-D05 Beam           — canAfford/spend per second (G2)
  *   SDD-D06 Mjolnir        — canAfford/spend per second (G2)
  *   SDD-E07 FiringManager  — injects EnergyPort into BehaviourCtx
+ *   SDD-C02 PlayerController — dash spend on successful snap (L1–L12)
  *   SDD-G07 HUD            — reads current/max
- *   SHIP-08 jet            — §7 seam on the same port
+ *   SHIP-08 jet            — dedicated reserve still later; dash uses this pool
  */
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────

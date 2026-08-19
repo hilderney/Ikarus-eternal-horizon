@@ -2,6 +2,7 @@
  * SDD-G08 Equips tab — ship loadout + equipped weapon level, bound to the live sim.
  */
 
+import { DASH_LEVELS } from '../../gameobjects/controller/dash-levels'
 import { LASER_LEVELS } from '../../gameobjects/weapon/laser-levels'
 import type { DebuggerBinds, DebuggerTab } from './debugger'
 
@@ -53,6 +54,7 @@ interface EquipsClone {
   equippedEnergyConverter: string | null
   energyConverters: string[]
   weaponLevel: number
+  dashLevel: number
 }
 
 const WEAPON_IDS = ['laser', 'plasma', 'beam', 'mjolnir'] as const
@@ -98,6 +100,20 @@ export class EquipsTab implements DebuggerTab {
       },
     )
     this._list(form, 'weapons', 'loadout.weapons')
+
+    this._group(form, 'Dash')
+    this._scalar(
+      form,
+      'dash level',
+      'dash.level',
+      1,
+      DASH_LEVELS.length,
+      1,
+      () => this._binds.dash.level(),
+      (value) => {
+        this._binds.dash.setLevel(value)
+      },
+    )
 
     this._group(form, 'Bombs')
     this._equipped(form, 'equippedBomb', 'loadout.equippedBomb', [...BOMB_IDS], (id) => {
@@ -151,6 +167,7 @@ export class EquipsTab implements DebuggerTab {
     this._binds.ship.equipWeapon(defaults.equippedWeapon)
     this._binds.ship.equipBomb(defaults.equippedBomb)
     this._binds.weapons.setLevel(defaults.weaponLevel)
+    this._binds.dash.setLevel(defaults.dashLevel)
     writeLoadoutField(live, 'equippedWings', defaults.equippedWings)
     writeLoadoutField(live, 'equippedShield', defaults.equippedShield)
     writeLoadoutField(live, 'equippedArmor', defaults.equippedArmor)
@@ -318,6 +335,7 @@ function cloneEquips(binds: DebuggerBinds): EquipsClone {
     equippedEnergyConverter: port.loadout.equippedEnergyConverter,
     energyConverters: [...port.loadout.energyConverters],
     weaponLevel: binds.weapons.level(),
+    dashLevel: binds.dash.level(),
   }
 }
 

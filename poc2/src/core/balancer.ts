@@ -4,6 +4,7 @@
  * Weapon *behaviour* is D02; catalog data lives in catalog.ts and is re-exported here.
  */
 
+import { DASH_LEVELS } from '../gameobjects/controller/dash-levels'
 import { WEAPONS } from '../gameobjects/weapon/catalog'
 import type { WeaponConfig, WeaponId, WeaponProfile } from '../gameobjects/weapon/catalog'
 
@@ -386,8 +387,8 @@ const BALANCE_DATA: Balance = {
       brake: 120,
     },
     dash: {
-      speedMul: 2.2,
-      durationMs: 200,
+      speedMul: DASH_LEVELS[0]?.speedMul ?? 2.05,
+      durationMs: 500,
       cooldownMs: 800,
     },
     tilt: {

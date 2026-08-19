@@ -3,6 +3,7 @@ import { BALANCE } from '../../core/balancer'
 import type { InputAction, InputPort } from '../../core/input'
 import { CameraController } from './camera-controller'
 import cameraSource from './camera-controller.ts?raw'
+import { dashLevel } from './dash-levels'
 import { PlayerController, type ShipTransform } from './player-controller'
 import playerSource from './player-controller.ts?raw'
 
@@ -255,7 +256,7 @@ describe('PlayerController', () => {
     input.moveX = 1
     input.queueDash()
     controller.update(0.05)
-    const dashDx = 12 * 2.2 * 0.05
+    const dashDx = 12 * (dashLevel(1)?.speedMul ?? 0) * 0.05
     expect(transform.position.x).toBeCloseTo(dashDx, 5)
     const x = transform.position.x
     controller.update(0.05)
@@ -281,6 +282,149 @@ describe('PlayerController', () => {
     input.queueDash()
     controller.update(0.05)
     expect(onDash).toHaveBeenCalledTimes(1)
+    controller.dispose()
+  })
+
+  it('lateral dash rolls 180 at the midpoint and finishes upright', () => {
+    const input = new FakeInput()
+    const transform = makeTransform()
+    const controller = makePlayer(input, transform)
+    input.moveX = 1
+    input.queueDash()
+    controller.update(0.1)
+    expect(transform.rotation.z).toBeCloseTo(-180, 5)
+    controller.update(0.1)
+    expect(transform.rotation.z).toBeCloseTo(0, 5)
+    controller.dispose()
+  })
+
+  it('forward dash without lateral does not barrel-roll', () => {
+    const input = new FakeInput()
+    const transform = makeTransform()
+    const controller = makePlayer(input, transform)
+    input.moveZ = -1
+    input.queueDash()
+    controller.update(0.1)
+    expect(transform.rotation.z).toBeCloseTo(0, 5)
+    controller.dispose()
+  })
+
+  it('back dash without lateral does not barrel-roll', () => {
+    const input = new FakeInput()
+    const transform = makeTransform()
+    const controller = makePlayer(input, transform)
+    input.moveZ = 1
+    input.queueDash()
+    controller.update(0.1)
+    expect(transform.rotation.z).toBeCloseTo(0, 5)
+    controller.dispose()
+  })
+
+  it('left dash rolls the opposite way and finishes upright', () => {
+    const input = new FakeInput()
+    const transform = makeTransform()
+    const controller = makePlayer(input, transform)
+    input.moveX = -1
+    input.queueDash()
+    controller.update(0.1)
+    expect(transform.rotation.z).toBeCloseTo(180, 5)
+    controller.update(0.1)
+    expect(transform.rotation.z).toBeCloseTo(0, 5)
+    controller.dispose()
+  })
+
+  it('dash spends energy and skips when the pool cannot afford', () => {
+    const input = new FakeInput()
+    const transform = makeTransform()
+    const spent: number[] = []
+    const onDash = vi.fn()
+    const energy = {
+      canAfford: () => false,
+      spend(cost: number) {
+        spent.push(cost)
+      },
+    }
+    const controller = new PlayerController({
+      input,
+      transform,
+      motion: BALANCE.controls.motion,
+      dash: BALANCE.controls.dash,
+      tilt: BALANCE.controls.tilt,
+      keys: BALANCE.controls.shipKeys,
+      modifiers: { speedMul: 1, accelMul: 1 },
+      onDash,
+      energy,
+    })
+    input.moveX = 1
+    input.queueDash()
+    controller.update(0.05)
+    expect(spent).toEqual([])
+    expect(onDash).not.toHaveBeenCalled()
+    expect(transform.position.x).toBeCloseTo(60 * 0.05 * 0.05, 5)
+    controller.dispose()
+  })
+
+  it('dash spends the L1 energy cost on a successful snap', () => {
+    const input = new FakeInput()
+    const transform = makeTransform()
+    const spent: number[] = []
+    const controller = new PlayerController({
+      input,
+      transform,
+      motion: BALANCE.controls.motion,
+      dash: BALANCE.controls.dash,
+      tilt: BALANCE.controls.tilt,
+      keys: BALANCE.controls.shipKeys,
+      modifiers: { speedMul: 1, accelMul: 1 },
+      energy: {
+        canAfford: () => true,
+        spend(cost: number) {
+          spent.push(cost)
+        },
+      },
+    })
+    input.moveX = 1
+    input.queueDash()
+    controller.update(0.05)
+    expect(spent).toEqual([dashLevel(1)?.energyCost])
+    controller.dispose()
+  })
+
+  it('dash L12 travels farther than L1', () => {
+    const input = new FakeInput()
+    const transform = makeTransform()
+    const spent: number[] = []
+    const controller = new PlayerController({
+      input,
+      transform,
+      motion: BALANCE.controls.motion,
+      dash: BALANCE.controls.dash,
+      tilt: BALANCE.controls.tilt,
+      keys: BALANCE.controls.shipKeys,
+      modifiers: { speedMul: 1, accelMul: 1 },
+      energy: {
+        canAfford: () => true,
+        spend(cost: number) {
+          spent.push(cost)
+        },
+      },
+    })
+    controller.setDashLevel(12)
+    input.moveX = 1
+    input.queueDash()
+    controller.update(0.05)
+    expect(transform.position.x).toBeCloseTo(12 * (dashLevel(12)?.speedMul ?? 0) * 0.05, 5)
+    expect(spent).toEqual([dashLevel(12)?.energyCost])
+    controller.dispose()
+  })
+
+  it('setDashLevel ignores unknown levels', () => {
+    const input = new FakeInput()
+    const transform = makeTransform()
+    const controller = makePlayer(input, transform)
+    expect(controller.dashLevel()).toBe(1)
+    controller.setDashLevel(99)
+    expect(controller.dashLevel()).toBe(1)
     controller.dispose()
   })
 

@@ -18,7 +18,7 @@
 /**
  * Owns:      The debugger-area tuning surface. **One tab per subject.** This
  *            pass implements **Ship** (pose / pools / statuses) and **Equips**
- *            (loadout + equipped weapon level). Later tabs: Cam, LimitBox,
+ *            (loadout + equipped weapon level + dash level). Later tabs: Cam, LimitBox,
  *            Parallax, Weapons catalog, Energy, Shots, Collision — each a
  *            module, composed only in debugger.ts. Two-way sync ~15 Hz, skip
  *            focused control, Reset. Q09: `import.meta.env.DEV`.
@@ -47,8 +47,8 @@
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
  * Orchestrator : hub-v4.3 / 2026-08-18  one tab per subject; Ship first
- * Programming  : hub-v4.3 / 2026-08-19  ShipTab + EquipsTab; weapon level → E07
- * Game Design  : hub-v4.3 / 2026-08-19  loadout lives on Equips; laser L1–L12
+ * Programming  : hub-v4.3 / 2026-08-19  ShipTab + EquipsTab; weapon + dash level
+ * Game Design  : hub-v4.3 / 2026-08-19  loadout lives on Equips; laser/dash L1–L12
  * TDD          : hub-v4.3 / 2026-08-19  debugger.test.ts (Ship + Equips)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
@@ -136,6 +136,7 @@ export interface DebuggerWeaponsBind {
 export interface DebuggerBinds {
   readonly ship: DebuggerShipBind
   readonly weapons: DebuggerWeaponsBind
+  readonly dash: DebuggerWeaponsBind
   readonly camera?: object
   readonly cameraApply?: () => void
   readonly parallax?: object
@@ -236,7 +237,7 @@ export declare class WeaponsTab implements DebuggerTab {
  *                 else refresh from binds
  *   reset       — restore mount-time snapshot, then apply hooks
  *   ShipTab     — pose, six byte pools, three statuses; id is 'ship'
- *   EquipsTab   — loadout lists + equipped weapon level 1–12; id is 'equips'
+ *   EquipsTab   — loadout lists + equipped weapon level 1–12 + dash level 1–12; id is 'equips'
  */
 
 // ─── 5. Rules and invariants ─────────────────────────────────────────────────
@@ -251,7 +252,8 @@ export declare class WeaponsTab implements DebuggerTab {
  *   R4. Reset restores the snapshot taken at mount, then apply hooks run.
  *   R5. ShipTab shows pose, six byte pools, three statuses. EquipsTab shows
  *       every loadout field plus equipped weapon level (LASER_LEVELS 1–12)
- *       via FiringManager.setWeaponLevel. Neither invents a second table.
+ *       via FiringManager.setWeaponLevel and dash level (DASH_LEVELS 1–12)
+ *       via PlayerController.setDashLevel. Neither invents a second table.
  *   R6. Q09: when `enabled === false`, mount writes nothing into the host
  *       and sync/reset are no-ops.
  *   R7. Memory: DOM created on mount, removed on dispose. Per-frame
@@ -284,9 +286,10 @@ export declare class WeaponsTab implements DebuggerTab {
  *     agility / deflection / integrity / shield / precision / energy
  *       each current + max, slider 0–255, spawn 100/100
  *     status_flickering, status_dashing, status_shooting, status_recovering
- *   Equips — same loadout objects the sim reads, plus live weapon level:
+ *   Equips — same loadout objects the sim reads, plus live weapon and dash level:
  *     equippedWeapon + weapons[]  (equipWeapon / FiringManager.setActive)
  *     weapon level 1–12           (FiringManager.setWeaponLevel → applyLaserLevel)
+ *     dash level 1–12             (PlayerController.setDashLevel → DASH_LEVELS)
  *     equippedBomb + bombs[]
  *     equippedWings + wings[]
  *     equippedShield + shields[]   // fit module, not Force Field pool
@@ -338,6 +341,7 @@ export declare class WeaponsTab implements DebuggerTab {
  *   it('shows equippedWeapon and the weapons list')                         // R5
  *   it('shows bomb/wings/shield-fit/armor/collector/converter equipped+list') // R5
  *   it('shows equipped weapon level 1–12 from the live firing bind')        // R5, D02
+ *   it('shows dash level 1–12 from the live controller bind')               // R5, C02
  *   it('writes equippedWeapon into the ship bind')                          // R2
  *   it('reset restores mount-time loadout and weapon level')                // R4
  *   it('does not import ShipTab form groups')                               // R1

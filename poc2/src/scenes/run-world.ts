@@ -150,6 +150,7 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       onDash: () => {
         ship.setDashing(true)
       },
+      energy,
     })
     const camCtl = new CameraController({
       input,
@@ -388,6 +389,12 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
           level: () => world.firing.weaponLevel(),
           setLevel: (level) => {
             world.firing.setWeaponLevel(level)
+          },
+        },
+        dash: {
+          level: () => world.player.dashLevel(),
+          setLevel: (level) => {
+            world.player.setDashLevel(level)
           },
         },
       }

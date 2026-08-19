@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { copyWeaponConfig, WEAPONS } from './catalog'
 import { applyLaserLevel, LASER_LEVELS } from './laser-levels'
 
-const ENERGY = [1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.1, 2.2] as const
+const ENERGY = [0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 0.9, 1.1, 1.3, 1.5] as const
 const VOLLEY = [
   [1, 0],
   [2, 0],
@@ -43,22 +43,22 @@ describe('LASER_LEVELS', () => {
     )
   })
 
-  it('applyLaserLevel(cfg, 5) writes damage 1.8, rate 10, energy 1.5, radius 0.14', () => {
+  it('applyLaserLevel(cfg, 5) writes damage 1.8, rate 5.4, energy 0.5, radius 0.08', () => {
     const cfg = copyWeaponConfig(WEAPONS.laser)
     applyLaserLevel(cfg, 5)
     expect(cfg.damage).toBe(1.8)
-    expect(cfg.rate).toBe(10)
-    expect(cfg.energyPerShot).toBe(1.5)
-    expect(cfg.projectile?.radius).toBe(0.14)
+    expect(cfg.rate).toBe(5.4)
+    expect(cfg.energyPerShot).toBe(0.5)
+    expect(cfg.projectile?.radius).toBe(0.08)
     expect(cfg.laser?.forwardShots).toBe(3)
     expect(cfg.laser?.diagonalShotsPerSide).toBe(1)
     expect(cfg.laser?.totalShots).toBe(5)
   })
 
-  it('applyLaserLevel(cfg, 12) writes 4 forward + 4 per side and energy 2.2', () => {
+  it('applyLaserLevel(cfg, 12) writes 4 forward + 4 per side and energy 1.5', () => {
     const cfg = copyWeaponConfig(WEAPONS.laser)
     applyLaserLevel(cfg, 12)
-    expect(cfg.energyPerShot).toBe(2.2)
+    expect(cfg.energyPerShot).toBe(1.5)
     expect(cfg.laser?.forwardShots).toBe(4)
     expect(cfg.laser?.diagonalShotsPerSide).toBe(4)
     expect(cfg.laser?.totalShots).toBe(12)

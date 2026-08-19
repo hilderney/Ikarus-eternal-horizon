@@ -50,7 +50,7 @@ POC-1 is frozen. These specs describe **`poc2/` only**.
 | G11 | [pause-scene.spec.ts](./pause-scene.spec.ts) | `poc2/src/scenes/pause-scene.test.ts` |
 | G12 | [touch-controls.spec.ts](./touch-controls.spec.ts) | `poc2/src/ui/touch-controls/touch-controls.test.ts` |
 
-Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B, C01–C03, D01–D03, G06, G08 (Ship + Equips), G09, G03 and G12 are **done**. D04 + E04 + a thin E07 are **implemented**. D05/D06 stay catalog-only until G2. Fase 0 is playable; Space/RT fires laser, F/LB switches to plasma (no splash until F01). Laser range is from the fire point (not a world plane). The debugger-area shows Ship and Equips in DEV. D03 energy is the same pool as `ship.stats.energy` (Ship tab slider). Regen runs only while `recovering`. Equips weapon level 1–12 is `FiringManager.setWeaponLevel`.
+Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B, C01–C03, D01–D03, G06, G08 (Ship + Equips), G09, G03 and G12 are **done**. D04 + E04 + a thin E07 are **implemented**. D05/D06 stay catalog-only until G2. Fase 0 is playable; Space/RT fires laser, F/LB switches to plasma (no splash until F01). Laser range is from the fire point (not a world plane). The debugger-area shows Ship and Equips in DEV. D03 energy is the same pool as `ship.stats.energy` (Ship tab slider). Regen runs only while `recovering`. Equips weapon level 1–12 is `FiringManager.setWeaponLevel`. Equips dash level 1–12 is `PlayerController.setDashLevel`; lateral dash barrel-rolls 360° (180° at midpoint).
 
 ## Next steps (playable order)
 

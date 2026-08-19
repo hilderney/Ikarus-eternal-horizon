@@ -74,6 +74,7 @@ export interface DebuggerWeaponsBind {
 export interface DebuggerBinds {
   readonly ship: DebuggerShipBind
   readonly weapons: DebuggerWeaponsBind
+  readonly dash: DebuggerWeaponsBind
 }
 
 export interface DebuggerOptions {

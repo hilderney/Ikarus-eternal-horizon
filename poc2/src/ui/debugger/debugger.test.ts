@@ -76,6 +76,7 @@ function makeSheet(): LiveSheet {
 function makeBinds(sheet: LiveSheet): DebuggerBinds {
   let shooting = false
   let weaponLevel = 1
+  let dashLevel = 1
   const refreshRecovering = (): void => {
     sheet.status.recovering = !shooting && !sheet.status.dashing && !sheet.status.flickering
   }
@@ -108,6 +109,12 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
       level: () => weaponLevel,
       setLevel(level) {
         weaponLevel = level
+      },
+    },
+    dash: {
+      level: () => dashLevel,
+      setLevel(level) {
+        dashLevel = level
       },
     },
   }
@@ -341,6 +348,17 @@ describe('EquipsTab', () => {
     expect(binds.weapons.level()).toBe(12)
   })
 
+  it('shows dash level 1–12 from the live controller bind', () => {
+    const { host, binds } = mountTab()
+    const slider = bind(host, 'dash.level')
+    expect(slider.min).toBe('1')
+    expect(slider.max).toBe('12')
+    expect(slider.value).toBe('1')
+    slider.value = '12'
+    slider.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.dash.level()).toBe(12)
+  })
+
   it('writes equippedWeapon into the ship bind', () => {
     const { host, sheet } = mountTab()
     const select = selectBind(host, 'loadout.equippedWeapon')
@@ -353,11 +371,14 @@ describe('EquipsTab', () => {
     const { host, sheet, binds, tab } = mountTab()
     sheet.loadout.equippedWeapon = 'plasma'
     binds.weapons.setLevel(8)
+    binds.dash.setLevel(8)
     tab.reset()
     expect(sheet.loadout.equippedWeapon).toBe('laser')
     expect(binds.weapons.level()).toBe(1)
+    expect(binds.dash.level()).toBe(1)
     expect(selectBind(host, 'loadout.equippedWeapon').value).toBe('laser')
     expect(bind(host, 'weapons.level').value).toBe('1')
+    expect(bind(host, 'dash.level').value).toBe('1')
   })
 
   it('does not import ShipTab form groups', () => {

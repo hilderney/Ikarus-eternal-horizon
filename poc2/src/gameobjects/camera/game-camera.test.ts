@@ -67,9 +67,9 @@ describe('GameCamera', () => {
     rig.dispose()
   })
 
-  it('defaults to fov 85 at {3,14,6} / {-55,24,-14} deg, near 5 far 10000', () => {
+  it('defaults to BALANCE.camera fov at {3,14,6} / {-55,24,-14} deg, near 5 far 10000', () => {
     const rig = new GameCamera(defaultConfig())
-    expect(rig.camera.fov).toBe(85)
+    expect(rig.camera.fov).toBe(BALANCE.camera.fov)
     expect(rig.camera.position.x).toBe(3)
     expect(rig.camera.position.y).toBe(14)
     expect(rig.camera.position.z).toBe(6)

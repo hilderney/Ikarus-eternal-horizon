@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DASH_LEVELS } from '../gameobjects/controller/dash-levels'
 import { BALANCE } from './balancer'
 
 describe('BALANCE', () => {
@@ -81,7 +82,11 @@ describe('BALANCE', () => {
     expect(BALANCE.gameplay.bombKey).toBe('KeyE')
     expect(BALANCE.gameplay.switchBombKey).toBe('KeyQ')
     expect(BALANCE.gameplay.dashKey).toBe('ControlLeft')
-    expect(BALANCE.controls.dash).toEqual({ speedMul: 2.2, durationMs: 200, cooldownMs: 800 })
+    expect(BALANCE.controls.dash).toEqual({
+      speedMul: DASH_LEVELS[0]?.speedMul,
+      durationMs: 200,
+      cooldownMs: 800,
+    })
     expect(BALANCE.controls.mouse).toEqual({
       fireButton: 0,
       bombButton: 2,
