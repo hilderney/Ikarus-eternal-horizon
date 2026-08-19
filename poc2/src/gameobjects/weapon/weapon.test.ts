@@ -59,6 +59,16 @@ describe('Weapon', () => {
     weapon.dispose()
   })
 
+  it('applyLevel writes the LASER_LEVELS row onto config', () => {
+    const { port } = recordingPort()
+    const weapon = new Weapon({ id: 'laser', shots: port })
+    weapon.applyLevel(12)
+    expect(weapon.config.level).toBe(12)
+    expect(weapon.config.energyPerShot).toBe(2.2)
+    expect(weapon.config.laser?.totalShots).toBe(12)
+    weapon.dispose()
+  })
+
   it('throws when the registry has no factory for that id', () => {
     const { port } = recordingPort()
     expect(() => new Weapon({ id: 'beam', shots: port })).toThrow(/no weapon factory/)
@@ -125,7 +135,7 @@ describe('LaserBehaviour', () => {
     const mods = defaultModifiers()
     mods.energyMul = 2
     laser.update(ctx({ mods }, energy))
-    expect(energy.spent).toEqual([0.5])
+    expect(energy.spent).toEqual([2])
     laser.dispose()
   })
 
@@ -176,6 +186,17 @@ describe('LaserBehaviour', () => {
     const laser = new LaserBehaviour(cfg, port)
     laser.update(ctx())
     expect(spawns).toHaveLength(10)
+    expect(spawns.filter((s) => s.vx === 0)).toHaveLength(4)
+    laser.dispose()
+  })
+
+  it('L12 spawns 12 bolts — 4 forward + 4 per side', () => {
+    const { port, spawns } = recordingPort()
+    const cfg = copyWeaponConfig(WEAPONS.laser)
+    applyLaserLevel(cfg, 12)
+    const laser = new LaserBehaviour(cfg, port)
+    laser.update(ctx())
+    expect(spawns).toHaveLength(12)
     expect(spawns.filter((s) => s.vx === 0)).toHaveLength(4)
     laser.dispose()
   })

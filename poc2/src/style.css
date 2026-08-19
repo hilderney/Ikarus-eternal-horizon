@@ -38,7 +38,7 @@ body {
 }
 
 .area {
-  min-width: 0;
+  min-width: 30%;
 }
 
 /* Side columns fill whatever the portrait canvas leaves over. */

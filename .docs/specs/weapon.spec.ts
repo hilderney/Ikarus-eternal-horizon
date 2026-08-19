@@ -27,7 +27,7 @@
  *            lifecycle (E04), FiringManager input (E07), Plasma behaviour
  *            (D04 registers into this seam). Beam/Mjolnir (D05/D06) are
  *            catalog rows only this pass — not registered, not in loadout.
- * Player-facing: L1 cyan needle at 8/s; L5/L10 volley shapes when applyLaserLevel
+ * Player-facing: L1 cyan needle at 8/s cost 1; L5/L12 volley shapes when applyLaserLevel
  *            is used. Adding a weapon must not edit class Weapon.
  */
 
@@ -57,12 +57,12 @@
 /**
  * Orchestrator : hub-v4.3 / 2026-08-18  E04 owns pool; catalog extract; D14 no Scene
  * Programming  : hub-v4.3 / 2026-08-18  ShotAcquirePort, ShotSpawn from D01, no scene.add
- * Game Design  : hub-v4.3 / 2026-08-18  LASER_LEVELS port; loadout laser+plasma
- * TDD          : hub-v4.3 / 2026-08-18  cases named; test file not yet written (red next)
+ * Game Design  : hub-v4.3 / 2026-08-19  LASER_LEVELS L1–L12 volley + energy table
+ * TDD          : hub-v4.3 / 2026-08-18  weapon + laser + catalog tests green
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: spec-complete
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -261,7 +261,7 @@ export declare class LaserBehaviour implements WeaponBehaviour {
  *   --------------------|------------------------------------------------
  *   catalog.ts          | WEAPONS data; imported by balancer.ts
  *   registry.ts         | WEAPON_REGISTRY + registerWeapon (D12 seam)
- *   laser-levels.ts     | LASER_LEVELS[1..10] + applyLaserLevel
+ *   laser-levels.ts     | LASER_LEVELS[1..12] + applyLaserLevel
  *   weapon.ts           | class Weapon — device: config + behaviour
  *   behaviours/laser.ts | class LaserBehaviour
  *
@@ -306,7 +306,7 @@ export declare class LaserBehaviour implements WeaponBehaviour {
  *   R6. totalShots = forwardShots + 2 * diagonalShotsPerSide = level
  *       for every LASER_LEVELS row.
  *   R7. L1 = 1 forward; L4 = 4 forward; L5 = 3 forward + 1/side; L10 = 4
- *       forward + 3/side.
+ *       forward + 3/side; L12 = 4 forward + 4/side.
  *   R8. Laser bolts: speed 30, lifetime 1, aoeRadius 0. Catalog poolSize 128
  *       is consumed by E04, not by this class.
  *   R9. Per-frame allocation: none. Shots come from E04; acquire null skips
@@ -338,26 +338,28 @@ export declare class LaserBehaviour implements WeaponBehaviour {
  *
  * Laser catalog (L1 defaults; applyLaserLevel overwrites per level):
  *   id / displayName / color     = 'laser' / 'Laser' / 0x22d3ee
- *   rate / energyPerShot / damage = 8 / 0.25 / 1
+ *   rate / energyPerShot / damage = 8 / 1 / 1
  *   profile / poolSize           = 'projectile' / 128
  *   muzzleOffset                 = { x: 0, y: 0, z: -1.4 }
  *   projectile.speed / lifetime / radius / damageDecayPerUnit = 30 / 1 / 0.12 / 0
  *   laser.forwardShots / diagonalShotsPerSide / totalShots    = 1 / 0 / 1
  *   laser.diagonalAngleDeg / forwardSpread / diagonalSpreadDeg = 22 / 0.55 / 10
  *
- * LASER_LEVELS (copied from poc/src/weapons/laserLevels.ts — port, do not retune):
+ * LASER_LEVELS (POC2 retune — energyPerShot is one spend per volley, not per bolt):
  *
  *   L  dmg  rate  energy  speed  radius  life  fwd  diag/side  angle  spread
- *   1  1    8     0.25    30     0.12    1     1    0          22     0.55
- *   2  1.1  8.5   0.27    30     0.125   1     2    0          22     0.55
- *   3  1.3  9     0.30    30     0.13    1     3    0          22     0.55
- *   4  1.5  9.5   0.33    30     0.135   1     4    0          22     0.55
- *   5  1.8  10    0.36    30     0.14    1     3    1          22     0.55
- *   6  2.1  10.5  0.40    30     0.145   1     4    1          22     0.55
- *   7  2.5  11    0.44    30     0.15    1     3    2          22     0.55
- *   8  3    11.5  0.48    30     0.155   1     4    2          22     0.55
- *   9  3.6  12    0.52    30     0.16    1     3    3          22     0.55
- *  10  4.3  12.5  0.56    30     0.165   1     4    3          22     0.55
+ *   1  1    8     1.0     30     0.12    1     1    0          22     0.55
+ *   2  1.1  8.5   1.2     30     0.125   1     2    0          22     0.55
+ *   3  1.3  9     1.3     30     0.13    1     3    0          22     0.55
+ *   4  1.5  9.5   1.4     30     0.135   1     4    0          22     0.55
+ *   5  1.8  10    1.5     30     0.14    1     3    1          22     0.55
+ *   6  2.1  10.5  1.6     30     0.145   1     4    1          22     0.55
+ *   7  2.5  11    1.7     30     0.15    1     3    2          22     0.55
+ *   8  3    11.5  1.8     30     0.155   1     4    2          22     0.55
+ *   9  3.6  12    1.9     30     0.16    1     3    3          22     0.55
+ *  10  4.3  12.5  2.0     30     0.165   1     4    3          22     0.55
+ *  11  5.1  13    2.1     30     0.17    1     3    4          22     0.55
+ *  12  6    13.5  2.2     30     0.175   1     4    4          22     0.55
  *
  * Invariant: fwd + 2*diag/side = level for every row. Speed 30 · lifetime 1
  * on every row. Play starts at L1; no in-run level UI this pass (G08 later).
@@ -365,9 +367,9 @@ export declare class LaserBehaviour implements WeaponBehaviour {
  * Plasma / Beam / Mjolnir rows: see D04 / D05 / D06. Nested orb/beam/cone
  * live in catalog.ts now so A01 is not a second table.
  *
- * Feel:      L1 is a single cyan needle. Cadence 8, cost 0.25 vs regen 8
- *            means full-auto forever on a healthy pool. Thickness from D01
- *            (2×radius).
+ * Feel:      L1 is a single cyan needle. Cadence 8, cost 1 vs regen 8 is
+ *            break-even full-auto. Higher levels dump the pool. Thickness
+ *            from D01 (2×radius).
  * Leveling:  this table IS the laser leveling. Hull fireRateMul (C03) scales
  *            cooldown on top via mods.rateMul.
  * Graphics:  cyan 0x22d3ee. Pillar 4.
@@ -395,6 +397,7 @@ export declare class LaserBehaviour implements WeaponBehaviour {
  *
  * describe('Weapon')
  *   it('constructs from id by asking the registry, not a switch on WeaponId')     // R2, D12
+ *   it('applyLevel writes the LASER_LEVELS row onto config')                       // G08 Equips
  *   it('throws when the registry has no factory for that id')                      // R13
  *   it('update forwards BehaviourCtx to the behaviour')                            // R1
  *   it('dispose disposes behaviour and does not dispose the acquire port')         // R10
@@ -408,21 +411,23 @@ export declare class LaserBehaviour implements WeaponBehaviour {
  *   it('L1 spawns 1 forward bolt with vx=0, vz=-30, aoeRadius 0, color 0x22d3ee')  // R7, R8
  *   it('L5 spawns 5 bolts — 3 forward + 1 per side')                               // R7, Acceptance
  *   it('L10 spawns 10 bolts — 4 forward + 3 per side')                             // R7, Acceptance
+ *   it('L12 spawns 12 bolts — 4 forward + 4 per side')                             // R7
  *   it('muzzle uses catalog muzzleOffset via ctx.muzzle (not a literal)')          // catalog
  *   it('skips a bolt when acquire() returns null (no new)')                        // R9
  *   it('update allocates no objects')                                              // R9
  *
  * describe('LASER_LEVELS')
- *   it('has 10 rows, levels 1..10')                                                // table
+ *   it('has 12 rows, levels 1..12')                                                // table
  *   it('every row satisfies forward + 2*diagPerSide === level')                    // R6
  *   it('every row has speed 30 and lifetime 1')                                    // R8
- *   it('L1 / L4 / L5 / L10 match the forward/side counts 1 / 4 / 3+1 / 4+3')       // R7
- *   it('applyLaserLevel(cfg, 5) writes damage 1.8, rate 10, energy 0.36, radius 0.14')
+ *   it('volley is front + equal diagonals per the L1–L12 table')                   // R7
+ *   it('applyLaserLevel(cfg, 5) writes damage 1.8, rate 10, energy 1.5, radius 0.14')
+ *   it('applyLaserLevel(cfg, 12) writes 4 forward + 4 per side and energy 2.2')
  *   it('applyLaserLevel(cfg, 99) is a no-op')                                      // R11
  *
  * Manual:
  *   A-manual-1. [manual] L5 fan is readable as 3-forward + 2-diagonal
  *   A-manual-2. [manual] holding fire at 0 energy produces silence, not a stall
  *
- * Coverage: R1–R13 + card Acceptance (L5=5, L10=10, new id needs no Weapon edit).
+ * Coverage: R1–R13 + card Acceptance (L5=5, L12=12, new id needs no Weapon edit).
  */

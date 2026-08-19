@@ -181,6 +181,7 @@ export interface PlayerControllerOptions {
   readonly tilt: TiltConfig
   readonly keys: ShipKeys
   readonly modifiers: MotionModifiers
+  readonly onDash?: () => void
 }
 
 export interface CameraControllerOptions {
@@ -271,6 +272,7 @@ export declare class CameraController {
  *        accel.
  *   R12. Dash starts only on consumePress('dash') while cooldown is 0.
  *        A held dash button does not retrigger. Cooldown starts at dash start.
+ *        A successful snap calls optional onDash (C01 status.dashing pulse).
  *   R9. Memory: no GPU. Per-frame allocation: none (no new Vector3).
  *   R10. dispose() drops input references; nothing to free on GPU.
  */
@@ -381,6 +383,7 @@ export declare class CameraController {
  *   it('half-stick (|axis|=0.5) accelerates at half of accel 60')                  // R11 analog
  *   it('nipple-sized axis 1,-1 is indistinguishable from a full stick')            // R11, D19 scheme 4
  *   it('consumePress dash snaps speed along dir and ignores a held button')        // R12
+ *   it('successful dash calls onDash so the ship can pulse status.dashing')        // R12, C01
  *   it('dash is ignored while cooldown is active')                                 // R12
  *   it('update(dt) allocates no objects')                                          // R9
  *

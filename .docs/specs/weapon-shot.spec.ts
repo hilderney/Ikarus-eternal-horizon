@@ -56,11 +56,11 @@
  *                                       update/syncRender split vs POC-1
  * Game Design  : hub-v4.3 / 2026-08-18  ShotSpawn is the number pipe; L1 laser
  *                                       table; no second catalog on this card
- * TDD          : hub-v4.3 / 2026-08-18  cases named; test file not yet written (red next)
+ * TDD          : hub-v4.3 / 2026-08-18  weapon-shot.test.ts green
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: implemented
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

@@ -45,12 +45,12 @@
 /**
  * Orchestrator : hub-v4.3 / 2026-08-18  unchanged port; D02/D04 consume EnergyPort
  * Programming  : hub-v4.3 / 2026-08-18  no THREE; HUD reads current/max on the class
- * Game Design  : hub-v4.3 / 2026-08-18  100/100/8; laser 0.25 vs regen 8 is full-auto
- * TDD          : hub-v4.3 / 2026-08-18  cases named; test file not yet written (red next)
+ * Game Design  : hub-v4.3 / 2026-08-19  100/100/8; laser L1 cost 1 vs regen 8 is even
+ * TDD          : hub-v4.3 / 2026-08-19  pool bind + recovering gate green
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: spec-complete
+ * Status: done
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -69,6 +69,11 @@ export interface EnergyPort {
   spend(cost: number): void
 }
 
+export interface EnergyPool {
+  current: number
+  max: number
+}
+
 export interface EnergyConfig {
   readonly start: number
   readonly max: number
@@ -77,6 +82,8 @@ export interface EnergyConfig {
 
 export interface EnergyManagerOptions {
   readonly config: EnergyConfig
+  readonly pool?: EnergyPool
+  readonly canRegen?: () => boolean
 }
 
 export declare class EnergyManager implements EnergyPort {
@@ -92,7 +99,7 @@ export declare class EnergyManager implements EnergyPort {
   /** current = max(0, current - cost). Does not clamp above max. */
   spend(cost: number): void
 
-  /** current = min(max, current + regenPerSec * dt). */
+  /** current = min(max, current + regenPerSec * dt) when canRegen() is true. */
   update(dt: number): void
 
   dispose(): void
@@ -109,7 +116,8 @@ export declare class EnergyManager implements EnergyPort {
  * Non-obvious:
  *   canAfford does not spend. Behaviours must check then spend (no rollback).
  *   spend of more than current floors at 0 (no negative energy).
- *   spend does not start a delay — regen is continuous (unlike C03 shield).
+ *   spend does not start a delay — regen is gated by canRegen (recovering),
+ *   not by a post-spend timer (unlike C03 shield).
  *   Fire-blocked-at-0 is a canAfford(cost) false when current < cost, which
  *   at current === 0 is true for any cost > 0. This class does not know about
  *   weapons; E07/D02 ask the port.
@@ -121,11 +129,13 @@ export declare class EnergyManager implements EnergyPort {
  *   R2. Constructor sets current = start, which equals max in the starting BALANCE.
  *   R3. canAfford(cost) is current >= cost. Never throws.
  *   R4. spend subtracts cost and clamps to [0, +∞) from below only.
- *   R5. update regenerates regenPerSec * dt, clamped to max.
+ *   R5. update regenerates regenPerSec * dt, clamped to max, only when
+ *       canRegen() is true (default always; run binds ship.status.recovering).
  *   R6. current never exceeds max and never goes below 0.
  *   R7. At current === 0, canAfford(any positive cost) is false — fire blocks.
  *   R8. Memory: no GPU. Per-frame allocation: none.
  *   R9. No visual, no HUD writes, no THREE imports.
+ *   R10. Optional pool is the C01 stats.energy object; spend/update write through it.
  */
 
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
@@ -147,15 +157,15 @@ export declare class EnergyManager implements EnergyPort {
  *   BALANCE.gameplay.energy.regenPerSec = 8
  *
  * Starting loadout drain (for feel, not this class's table):
- *   Laser  : 0.25 per shot × 8/s  ≈ 2/s   — regen 8 wins; full-auto forever
+ *   Laser L1: 1 per volley × 8/s  = 8/s  — regen 8 is break-even
  *   Plasma : 1.5 per orb  × 1.6/s ≈ 2.4/s — still comfortable
  *   Beam   : 3/s                       — noticeable; dump-and-pause
- *   Mjolnir: 2.2/s                     — between laser and beam
+ *   Mjolnir: 2.2/s                     — between laser L1 and beam
  *
- * Feel:      Energy is a pacing resource, not a hard magazine. Laser should
- *            almost never starve a healthy ship. Beam/Mjolnir should force
- *            bursts. Hitting 0 is a silence, not a crash — regen of 8 brings
- *            a laser shot back in 0.03 s, a beam needs a real pause.
+ * Feel:      Energy is a pacing resource, not a hard magazine. Laser L1 is
+ *            break-even vs regen 8; higher laser levels dump the pool.
+ *            Beam/Mjolnir force bursts. Hitting 0 is a silence, not a crash —
+ *            regen of 8 brings an L1 volley back in 0.125 s.
  * Leveling:  N/A here. Weapon energyPerShot/PerSec live in D02 catalog;
  *            hull fireRateMul (C03) changes cadence, not this pool.
  * Graphics:  N/A. G07 draws the bar.
@@ -183,6 +193,8 @@ export declare class EnergyManager implements EnergyPort {
  *   it('canAfford(0) is true even at current 0')                                   // R3
  *   it('update/spend allocate no objects')                                         // R8
  *   it('module does not import three')                                             // R9
+ *   it('spend and regen write through the bound C01 energy pool')                  // R10
+ *   it('update skips regen when canRegen is false')                                // R5
  *
  * Manual:
  *   A-manual-1. [manual] laser drain is visible on the HUD bar (G07)

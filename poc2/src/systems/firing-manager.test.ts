@@ -47,6 +47,7 @@ function makeWeapon(id: WeaponId, onUpdate?: (ctx: BehaviourCtx) => void): Weapo
     dispose() {
       weapon.disposed += 1
     },
+    applyLevel() {},
   }
   return weapon
 }
@@ -73,6 +74,55 @@ describe('FiringManager', () => {
     })
     manager.update(0.016)
     expect(ctxs[0]?.holding).toBe(true)
+    manager.dispose()
+  })
+
+  it('setShooting follows fire hold so recovering can gate energy regen', () => {
+    const shooting = {
+      value: false,
+      setShooting(v: boolean) {
+        this.value = v
+      },
+    }
+    const manager = new FiringManager({
+      input: inputStub({ fire: true }),
+      ship: { position: { x: 0, y: 0, z: 0 } },
+      energy: { canAfford: () => true, spend() {} },
+      health: { modifiers: { fireRateMul: 1 } },
+      loadout: ['laser'],
+      shooting,
+      registry: {
+        create(id) {
+          return makeWeapon(id)
+        },
+      },
+    })
+    manager.update(0.016)
+    expect(shooting.value).toBe(true)
+    manager.dispose()
+  })
+
+  it('does not clear shooting on fire release (ship timer owns the pulse)', () => {
+    const calls: boolean[] = []
+    const manager = new FiringManager({
+      input: inputStub(),
+      ship: { position: { x: 0, y: 0, z: 0 } },
+      energy: { canAfford: () => true, spend() {} },
+      health: { modifiers: { fireRateMul: 1 } },
+      loadout: ['laser'],
+      shooting: {
+        setShooting(value) {
+          calls.push(value)
+        },
+      },
+      registry: {
+        create(id) {
+          return makeWeapon(id)
+        },
+      },
+    })
+    manager.update(0.016)
+    expect(calls).toEqual([])
     manager.dispose()
   })
 
@@ -146,6 +196,32 @@ describe('FiringManager', () => {
     manager.cycleWeapon()
     expect(weapons[0]?.disposed).toBe(1)
     expect(manager.activeId()).toBe('plasma')
+    manager.dispose()
+  })
+
+  it('setWeaponLevel reapplies on the next loadout weapon', () => {
+    const levels: number[] = []
+    const manager = new FiringManager({
+      input: inputStub(),
+      ship: { position: { x: 0, y: 0, z: 0 } },
+      energy: { canAfford: () => true, spend() {} },
+      health: { modifiers: { fireRateMul: 1 } },
+      loadout: ['laser', 'plasma'],
+      registry: {
+        create(id) {
+          const weapon = makeWeapon(id)
+          weapon.applyLevel = (level) => {
+            levels.push(level)
+          }
+          return weapon
+        },
+      },
+    })
+    expect(manager.weaponLevel()).toBe(1)
+    manager.setWeaponLevel(12)
+    expect(manager.weaponLevel()).toBe(12)
+    manager.cycleWeapon()
+    expect(levels[levels.length - 1]).toBe(12)
     manager.dispose()
   })
 

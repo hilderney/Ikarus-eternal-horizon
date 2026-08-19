@@ -17,15 +17,15 @@
 // ─── 1. Scope ────────────────────────────────────────────────────────────────
 /**
  * Owns:      The debugger-area tuning surface. **One tab per subject.** This
- *            pass specifies and implements **Ship** first (binds C01
- *            ShipDebugPort). Later tabs: Cam, LimitBox, Parallax, Weapons,
- *            Energy, Shots, Collision — each a module, composed only in
- *            debugger.ts. Two-way sync ~15 Hz, skip focused control, Reset.
- *            Q09: `import.meta.env.DEV`.
+ *            pass implements **Ship** (pose / pools / statuses) and **Equips**
+ *            (loadout + equipped weapon level). Later tabs: Cam, LimitBox,
+ *            Parallax, Weapons catalog, Energy, Shots, Collision — each a
+ *            module, composed only in debugger.ts. Two-way sync ~15 Hz, skip
+ *            focused control, Reset. Q09: `import.meta.env.DEV`.
  * Does not own: the values' meaning (A01 / C01 / C02 / C03 / D02 / D03),
  *            gizmos (B04), the area shell (G06), the 15 Hz sidecar (A04).
- * Player-facing: N/A in production. In DEV, the Ship tab must show the same
- *            sheet the sim uses — a second invented table is a bug.
+ * Player-facing: N/A in production. In DEV, Ship + Equips must show the same
+ *            sheet and weapon the sim uses — a second invented table is a bug.
  */
 
 // ─── 8. Requires ─────────────────────────────────────────────────────────────
@@ -47,13 +47,13 @@
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
  * Orchestrator : hub-v4.3 / 2026-08-18  one tab per subject; Ship first
- * Programming  : hub-v4.3 / 2026-08-18  ShipTab binds ShipDebugPort
- * Game Design  : hub-v4.3 / 2026-08-18  byte stats 0–255, statuses, loadout lists
- * TDD          : hub-v4.3 / 2026-08-18  debugger.test.ts (Ship tab)
+ * Programming  : hub-v4.3 / 2026-08-19  ShipTab + EquipsTab; weapon level → E07
+ * Game Design  : hub-v4.3 / 2026-08-19  loadout lives on Equips; laser L1–L12
+ * TDD          : hub-v4.3 / 2026-08-19  debugger.test.ts (Ship + Equips)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: done (Ship tab) · later tabs pending
+ * Status: done (Ship + Equips) · later tabs pending
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -64,6 +64,7 @@
 
 export type DebuggerTabId =
   | 'ship'
+  | 'equips'
   | 'cam'
   | 'limit-box'
   | 'parallax'
@@ -99,6 +100,7 @@ export interface DebuggerShipBind {
     readonly status: {
       flickering: boolean
       dashing: boolean
+      shooting: boolean
       recovering: boolean
     }
     readonly loadout: {
@@ -126,8 +128,14 @@ export interface DebuggerShipBind {
   equipBomb(id: string | null): void
 }
 
+export interface DebuggerWeaponsBind {
+  level(): number
+  setLevel(level: number): void
+}
+
 export interface DebuggerBinds {
   readonly ship: DebuggerShipBind
+  readonly weapons: DebuggerWeaponsBind
   readonly camera?: object
   readonly cameraApply?: () => void
   readonly parallax?: object
@@ -136,15 +144,6 @@ export interface DebuggerBinds {
   readonly follow?: object
   readonly recenterPoint?: object
   readonly controls?: object
-  readonly weapons?: {
-    readonly catalog: object
-    readonly loadout: readonly string[]
-    activeId(): string
-    setActive(id: string): void
-    readonly mods: object
-    readonly energy: { max: number; regenPerSec: number; current: number }
-    applyLaserLevel(level: number): void
-  }
 }
 
 export interface DebuggerOptions {
@@ -165,6 +164,15 @@ export interface DebuggerPort {
 export declare class Debugger implements DebuggerPort {
   constructor(options: DebuggerOptions)
   updateReadout(ship: { x: number; y: number; z: number }, camera: { x: number; y: number; z: number }): void
+  sync(): void
+  reset(): void
+  dispose(): void
+}
+
+export declare class EquipsTab implements DebuggerTab {
+  constructor(binds: DebuggerBinds)
+  readonly id: DebuggerTabId
+  mount(panel: HTMLElement): void
   sync(): void
   reset(): void
   dispose(): void
@@ -217,30 +225,33 @@ export declare class WeaponsTab implements DebuggerTab {
 
 // ─── 3. Key fields and methods ───────────────────────────────────────────────
 /**
- * Files (one public class per file). This pass: debugger.ts + ship-tab.ts.
+ * Files (one public class per file). This pass: debugger.ts + ship-tab.ts
+ * + equips-tab.ts.
  * Later: cam-tab, limit-box-tab, parallax-tab, weapons-tab, energy/shots/collision.
  *
- *   defaults    | structuredClone of ship snapshot at mount | Reset source
+ *   defaults    | structuredClone of ship/equips snapshot at mount | Reset source
  *   focused     | document.activeElement skip                 | two-way sync
  *
  *   sync        — for each control, skip if it is document.activeElement,
- *                 else refresh from binds.ship.snapshot()
- *   reset       — restore mount-time ship sheet, then applyTransform
- *   ShipTab     — every ShipDebugPort field; id is 'ship'
+ *                 else refresh from binds
+ *   reset       — restore mount-time snapshot, then apply hooks
+ *   ShipTab     — pose, six byte pools, three statuses; id is 'ship'
+ *   EquipsTab   — loadout lists + equipped weapon level 1–12; id is 'equips'
  */
 
 // ─── 5. Rules and invariants ─────────────────────────────────────────────────
 /**
  *   R1. One module per tab. Adding a tab does not edit an existing tab file
- *       (only debugger.ts composition). This pass mounts **Ship** first;
- *       other tab ids may exist as empty placeholders.
+ *       (only debugger.ts composition), except when a subject moves (loadout
+ *       left Ship for Equips). This pass mounts **Ship** then **Equips**.
  *   R2. Two-way: editing a slider/spin writes the bound object immediately
  *       and calls the matching apply hook. Sync pulls model → view at
  *       BALANCE.debug.syncHz (~15 Hz, POC-1 SYNC_INTERVAL 0.066).
  *   R3. `sync()` skips any control that is `document.activeElement`.
  *   R4. Reset restores the snapshot taken at mount, then apply hooks run.
- *   R5. ShipTab shows every field of ShipDebugPort (pose, six byte pools,
- *       three statuses, equipped + lists). It does not invent numbers.
+ *   R5. ShipTab shows pose, six byte pools, three statuses. EquipsTab shows
+ *       every loadout field plus equipped weapon level (LASER_LEVELS 1–12)
+ *       via FiringManager.setWeaponLevel. Neither invents a second table.
  *   R6. Q09: when `enabled === false`, mount writes nothing into the host
  *       and sync/reset are no-ops.
  *   R7. Memory: DOM created on mount, removed on dispose. Per-frame
@@ -268,19 +279,21 @@ export declare class WeaponsTab implements DebuggerTab {
  *   BALANCE.debug.syncHz  = 15  // POC-1 0.066 s ≈ 15.15 Hz; name the intent
  *
  * Tab contents:
- *   Ship (this pass) — from C01 ShipDebugPort, not a parallel table:
+ *   Ship — from C01 ShipDebugPort:
  *     position xyz, rotation xyz (degrees)
  *     agility / deflection / integrity / shield / precision / energy
  *       each current + max, slider 0–255, spawn 100/100
- *     status_flickering, dashing, status_recovering (checkboxes / flags)
- *     equippedWeapon + weapons[]
+ *     status_flickering, status_dashing, status_shooting, status_recovering
+ *   Equips — same loadout objects the sim reads, plus live weapon level:
+ *     equippedWeapon + weapons[]  (equipWeapon / FiringManager.setActive)
+ *     weapon level 1–12           (FiringManager.setWeaponLevel → applyLaserLevel)
  *     equippedBomb + bombs[]
  *     equippedWings + wings[]
  *     equippedShield + shields[]   // fit module, not Force Field pool
  *     equippedArmor + armors[]
  *     equippedEnergyCollector + energyCollectors[]
  *     equippedEnergyConverter + energyConverters[]
- *   Later: Cam, LimitBox, Parallax, Weapons (L1–L10), Energy, Shots, Collision.
+ *   Later: Cam, LimitBox, Parallax, Weapons catalog, Energy, Shots, Collision.
  *
  * Feel:      A tuner, not a toy. Moving a Ship slider must move the sheet
  *            the sim reads. Reset is sacred.
@@ -307,24 +320,33 @@ export declare class WeaponsTab implements DebuggerTab {
  *
  * describe('Debugger')
  *   it('mounts the Ship tab first (id ship)')                               // R1
+ *   it('mounts Equips as the second tab')                                   // R1
  *   it('enabled:false mounts nothing and no-ops sync/reset')                // R6, Q09
  *   it('dispose removes the panel from the host')                           // R7
  *
  * describe('ShipTab')
  *   it('shows position and rotation from ShipDebugPort')                    // R5
  *   it('shows agility/deflection/integrity/shield/precision/energy 0–255')  // R5
- *   it('shows flickering, dashing, recovering flags')                       // R5
- *   it('shows equippedWeapon and the weapons list')                         // R5
- *   it('shows bomb/wings/shield-fit/armor/collector/converter equipped+list') // R5
+ *   it('shows flickering, dashing, shooting, recovering flags')             // R5
+ *   it('does not host loadout controls (Equips tab owns them)')             // R5
  *   it('writes a slider change into the bound stats pool immediately')      // R2
  *   it('sync skips the focused slider')                                     // R3
  *   it('reset restores mount-time ship sheet defaults')                     // R4
  *   it('does not import CamTab or invent a second number table')            // R1, R5
  *
+ * describe('EquipsTab')
+ *   it('shows equippedWeapon and the weapons list')                         // R5
+ *   it('shows bomb/wings/shield-fit/armor/collector/converter equipped+list') // R5
+ *   it('shows equipped weapon level 1–12 from the live firing bind')        // R5, D02
+ *   it('writes equippedWeapon into the ship bind')                          // R2
+ *   it('reset restores mount-time loadout and weapon level')                // R4
+ *   it('does not import ShipTab form groups')                               // R1
+ *
  * Manual:
  *   A-manual-1. [manual] Ship tab current/max match the flying craft
  *   A-manual-2. [manual] dragging integrity current updates the sheet live
- *   A-manual-3. [manual] production build (Q09) shows an empty debugger-area
+ *   A-manual-3. [manual] Equips weapon level 12 fans 12 laser bolts
+ *   A-manual-4. [manual] production build (Q09) shows an empty debugger-area
  *
- * Coverage: R1–R8 + Ship tab Acceptance. Other tabs: later passes.
+ * Coverage: R1–R8 + Ship + Equips Acceptance. Other tabs: later passes.
  */

@@ -29,7 +29,7 @@ describe('BALANCE', () => {
   })
 
   it('exposes dynamic camera fov=85 at {3,14,6} / {-55,24,-14}', () => {
-    expect(BALANCE.camera.fov).toBe(85)
+    expect(BALANCE.camera.fov).toBe(110)
     expect(BALANCE.camera.position).toEqual({ x: 3, y: 14, z: 6 })
     expect(BALANCE.camera.rotation).toEqual({ x: -55, y: 24, z: -14 })
     expect(BALANCE.camera.near).toBe(5)
@@ -81,7 +81,7 @@ describe('BALANCE', () => {
     expect(BALANCE.gameplay.bombKey).toBe('KeyE')
     expect(BALANCE.gameplay.switchBombKey).toBe('KeyQ')
     expect(BALANCE.gameplay.dashKey).toBe('ControlLeft')
-    expect(BALANCE.controls.dash).toEqual({ speedMul: 2.2, durationMs: 140, cooldownMs: 750 })
+    expect(BALANCE.controls.dash).toEqual({ speedMul: 2.2, durationMs: 200, cooldownMs: 800 })
     expect(BALANCE.controls.mouse).toEqual({
       fireButton: 0,
       bombButton: 2,
@@ -125,7 +125,9 @@ describe('BALANCE', () => {
 
   it('exposes ship.stats byteCap 255 and spawn pools 100/100', () => {
     expect(BALANCE.ship.stats.byteCap).toBe(255)
-    expect(BALANCE.ship.stats.flickerMs).toBe(400)
+    expect(BALANCE.ship.stats.flickerMs).toBe(2000)
+    expect(BALANCE.ship.stats.shootingMs).toBe(500)
+    expect(BALANCE.ship.stats.dashingMs).toBe(500)
     for (const key of ['agility', 'deflection', 'integrity', 'shield', 'precision', 'energy'] as const) {
       expect(BALANCE.ship.stats[key]).toEqual({ current: 100, max: 100 })
     }

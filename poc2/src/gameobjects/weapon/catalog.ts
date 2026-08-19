@@ -71,7 +71,7 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
     displayName: 'Laser',
     color: 0x22d3ee,
     rate: 8,
-    energyPerShot: 0.25,
+    energyPerShot: 1,
     damage: 1,
     profile: 'projectile',
     poolSize: 128,

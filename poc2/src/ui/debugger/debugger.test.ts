@@ -2,8 +2,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DebuggerBinds, DebuggerShipBind } from './debugger'
 import { Debugger } from './debugger'
+import { EquipsTab } from './equips-tab'
 import { ShipTab } from './ship-tab'
 import shipTabSource from './ship-tab.ts?raw'
+import equipsTabSource from './equips-tab.ts?raw'
 
 interface LiveSheet {
   position: { x: number; y: number; z: number }
@@ -16,7 +18,7 @@ interface LiveSheet {
     precision: { current: number; max: number }
     energy: { current: number; max: number }
   }
-  status: { flickering: boolean; dashing: boolean; recovering: boolean }
+  status: { flickering: boolean; dashing: boolean; shooting: boolean; recovering: boolean }
   loadout: {
     equippedWeapon: string | null
     weapons: string[]
@@ -51,7 +53,7 @@ function makeSheet(): LiveSheet {
       precision: pool(),
       energy: pool(),
     },
-    status: { flickering: false, dashing: false, recovering: true },
+    status: { flickering: false, dashing: false, shooting: false, recovering: true },
     loadout: {
       equippedWeapon: 'laser',
       weapons: ['laser', 'plasma'],
@@ -73,8 +75,9 @@ function makeSheet(): LiveSheet {
 
 function makeBinds(sheet: LiveSheet): DebuggerBinds {
   let shooting = false
+  let weaponLevel = 1
   const refreshRecovering = (): void => {
-    sheet.status.recovering = !shooting && !sheet.status.flickering
+    sheet.status.recovering = !shooting && !sheet.status.dashing && !sheet.status.flickering
   }
   const ship: DebuggerShipBind = {
     snapshot: () => sheet,
@@ -85,9 +88,11 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
     },
     setDashing(value) {
       sheet.status.dashing = value
+      refreshRecovering()
     },
     setShooting(value) {
       shooting = value
+      sheet.status.shooting = value
       refreshRecovering()
     },
     equipWeapon(id) {
@@ -97,7 +102,15 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
       sheet.loadout.equippedBomb = id
     },
   }
-  return { ship }
+  return {
+    ship,
+    weapons: {
+      level: () => weaponLevel,
+      setLevel(level) {
+        weaponLevel = level
+      },
+    },
+  }
 }
 
 function bind(host: HTMLElement, path: string, kind: string = 'range'): HTMLInputElement {
@@ -135,6 +148,22 @@ describe('Debugger', () => {
     expect(panel?.getAttribute('data-tab')).toBe('ship')
     expect(host.querySelector('.debug-tabs label')?.textContent).toBe('Ship')
     expect(host.querySelector('.debug-panel')).not.toBeNull()
+    dbg.dispose()
+  })
+
+  it('mounts Equips as the second tab', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new ShipTab(binds), new EquipsTab(binds)],
+      enabled: true,
+    })
+    const labels = [...host.querySelectorAll('.debug-tabs label')].map((el) => el.textContent)
+    expect(labels).toEqual(['Ship', 'Equips'])
+    expect(host.querySelector('[data-tab="equips"]')).not.toBeNull()
     dbg.dispose()
   })
 
@@ -211,33 +240,18 @@ describe('ShipTab', () => {
     }
   })
 
-  it('shows flickering, dashing, recovering flags', () => {
+  it('shows flickering, dashing, shooting, recovering flags', () => {
     const { host, sheet } = mountTab()
     expect(bind(host, 'status.flickering', 'checkbox').checked).toBe(sheet.status.flickering)
     expect(bind(host, 'status.dashing', 'checkbox').checked).toBe(sheet.status.dashing)
+    expect(bind(host, 'status.shooting', 'checkbox').checked).toBe(sheet.status.shooting)
     expect(bind(host, 'status.recovering', 'checkbox').checked).toBe(sheet.status.recovering)
   })
 
-  it('shows equippedWeapon and the weapons list', () => {
-    const { host, sheet } = mountTab()
-    expect(selectBind(host, 'loadout.equippedWeapon').value).toBe('laser')
-    expect(bind(host, 'loadout.weapons', 'text').value).toBe(sheet.loadout.weapons.join(', '))
-  })
-
-  it('shows bomb/wings/shield-fit/armor/collector/converter equipped+list', () => {
+  it('does not host loadout controls (Equips tab owns them)', () => {
     const { host } = mountTab()
-    expect(selectBind(host, 'loadout.equippedBomb').value).toBe('')
-    expect(bind(host, 'loadout.bombs', 'text').value).toBe('')
-    expect(selectBind(host, 'loadout.equippedWings').value).toBe('')
-    expect(bind(host, 'loadout.wings', 'text').value).toBe('')
-    expect(selectBind(host, 'loadout.equippedShield').value).toBe('')
-    expect(bind(host, 'loadout.shields', 'text').value).toBe('')
-    expect(selectBind(host, 'loadout.equippedArmor').value).toBe('')
-    expect(bind(host, 'loadout.armors', 'text').value).toBe('')
-    expect(selectBind(host, 'loadout.equippedEnergyCollector').value).toBe('')
-    expect(bind(host, 'loadout.energyCollectors', 'text').value).toBe('')
-    expect(selectBind(host, 'loadout.equippedEnergyConverter').value).toBe('')
-    expect(bind(host, 'loadout.energyConverters', 'text').value).toBe('')
+    expect(host.querySelector('[data-bind="loadout.equippedWeapon"]')).toBeNull()
+    expect(host.querySelector('[data-bind="weapons.level"]')).toBeNull()
   })
 
   it('writes a slider change into the bound stats pool immediately', () => {
@@ -276,5 +290,78 @@ describe('ShipTab', () => {
   it('does not import CamTab or invent a second number table', () => {
     expect(shipTabSource).not.toMatch(/CamTab|cam-tab/)
     expect(shipTabSource).toMatch(/snapshot\(\)/)
+  })
+})
+
+describe('EquipsTab', () => {
+  function mountTab(sheet = makeSheet()): {
+    host: HTMLElement
+    sheet: LiveSheet
+    binds: DebuggerBinds
+    tab: EquipsTab
+  } {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(sheet)
+    const tab = new EquipsTab(binds)
+    tab.mount(host)
+    return { host, sheet, binds, tab }
+  }
+
+  it('shows equippedWeapon and the weapons list', () => {
+    const { host, sheet } = mountTab()
+    expect(selectBind(host, 'loadout.equippedWeapon').value).toBe('laser')
+    expect(bind(host, 'loadout.weapons', 'text').value).toBe(sheet.loadout.weapons.join(', '))
+  })
+
+  it('shows bomb/wings/shield-fit/armor/collector/converter equipped+list', () => {
+    const { host } = mountTab()
+    expect(selectBind(host, 'loadout.equippedBomb').value).toBe('')
+    expect(bind(host, 'loadout.bombs', 'text').value).toBe('')
+    expect(selectBind(host, 'loadout.equippedWings').value).toBe('')
+    expect(bind(host, 'loadout.wings', 'text').value).toBe('')
+    expect(selectBind(host, 'loadout.equippedShield').value).toBe('')
+    expect(bind(host, 'loadout.shields', 'text').value).toBe('')
+    expect(selectBind(host, 'loadout.equippedArmor').value).toBe('')
+    expect(bind(host, 'loadout.armors', 'text').value).toBe('')
+    expect(selectBind(host, 'loadout.equippedEnergyCollector').value).toBe('')
+    expect(bind(host, 'loadout.energyCollectors', 'text').value).toBe('')
+    expect(selectBind(host, 'loadout.equippedEnergyConverter').value).toBe('')
+    expect(bind(host, 'loadout.energyConverters', 'text').value).toBe('')
+  })
+
+  it('shows equipped weapon level 1–12 from the live firing bind', () => {
+    const { host, binds } = mountTab()
+    const slider = bind(host, 'weapons.level')
+    expect(slider.min).toBe('1')
+    expect(slider.max).toBe('12')
+    expect(slider.value).toBe('1')
+    slider.value = '12'
+    slider.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.weapons.level()).toBe(12)
+  })
+
+  it('writes equippedWeapon into the ship bind', () => {
+    const { host, sheet } = mountTab()
+    const select = selectBind(host, 'loadout.equippedWeapon')
+    select.value = 'plasma'
+    select.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(sheet.loadout.equippedWeapon).toBe('plasma')
+  })
+
+  it('reset restores mount-time loadout and weapon level', () => {
+    const { host, sheet, binds, tab } = mountTab()
+    sheet.loadout.equippedWeapon = 'plasma'
+    binds.weapons.setLevel(8)
+    tab.reset()
+    expect(sheet.loadout.equippedWeapon).toBe('laser')
+    expect(binds.weapons.level()).toBe(1)
+    expect(selectBind(host, 'loadout.equippedWeapon').value).toBe('laser')
+    expect(bind(host, 'weapons.level').value).toBe('1')
+  })
+
+  it('does not import ShipTab form groups', () => {
+    expect(equipsTabSource).not.toMatch(/status\.flickering|stats\.energy/)
+    expect(equipsTabSource).toMatch(/snapshot\(\)/)
   })
 })

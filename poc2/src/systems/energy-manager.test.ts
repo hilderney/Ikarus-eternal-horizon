@@ -89,4 +89,28 @@ describe('EnergyManager', () => {
     expect(energySource).not.toMatch(/\bfrom ['"]three['"]/)
     expect(energySource).not.toMatch(/\bimport\s+['"]three['"]/)
   })
+
+  it('spend and regen write through the bound C01 energy pool', () => {
+    const pool = { current: 50, max: 100 }
+    const energy = new EnergyManager({
+      config: BALANCE.gameplay.energy,
+      pool,
+    })
+    energy.spend(10)
+    expect(pool.current).toBe(40)
+    expect(energy.current).toBe(40)
+    energy.update(1)
+    expect(pool.current).toBe(48)
+    energy.dispose()
+  })
+
+  it('update skips regen when canRegen is false', () => {
+    const gated = new EnergyManager({
+      config: { start: 50, max: 100, regenPerSec: 8 },
+      canRegen: () => false,
+    })
+    gated.update(1)
+    expect(gated.current).toBe(50)
+    gated.dispose()
+  })
 })

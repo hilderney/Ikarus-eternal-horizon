@@ -59,7 +59,7 @@ The scope below is a **build order for POC2 (`poc2/`)**, a new project. POC-1 (`
 | Score / run end | none | `RunState` + `ScoreManager` (`G10`) |
 | Verification | no tests, no lint | `typecheck` + `lint` + `test` gate the DoD (§6.1) |
 
-**Already solved in POC-1 and only being ported** (do not re-design): balancer, input with Shift combos, camera rig, 3-layer parallax with `parallaxGain`, limit-box with bounce + auto-recenter, ship with tilt/bank, force-based motion, pooled shots with distance decay, **all four weapons** (Laser/Plasma/Beam/Mjolnir), laser levels L1–L10, energy pool, layered collision with AoE, debugger panel with live two-way sync.
+**Already solved in POC-1 and only being ported** (do not re-design): balancer, input with Shift combos, camera rig, 3-layer parallax with `parallaxGain`, limit-box with bounce + auto-recenter, ship with tilt/bank, force-based motion, pooled shots with distance decay, **all four weapons** (Laser/Plasma/Beam/Mjolnir), laser levels (POC-1 L1–L10; POC2 L1–L12), energy pool, layered collision with AoE, debugger panel with live two-way sync.
 
 ---
 
@@ -374,7 +374,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-C01` Ship
 - **Folder:** `src/gameobjects/ship/` · spec [ship.spec.ts](../specs/ship.spec.ts)
-- **Scope:** `class Ship extends THREE.Group`. Modular mounts + **ship sheet** for G08: pose, **byte stats 0–255** (agility, deflection, integrity, shield, precision, energy — spawn `current=max=100`, cap 255), statuses (`flickering`, `dashing`, `recovering`), loadout (equipped + owned lists: weapons, bombs, wings, shield fits, armor, energy collector, energy converter). `debugSnapshot(): ShipDebugPort`. Combat still uses C03/D03 until those cards consume the sheet.
+- **Scope:** `class Ship extends THREE.Group`. Modular mounts + **ship sheet** for G08: pose, **byte stats 0–255** (agility, deflection, integrity, shield, precision, energy — spawn `current=max=100`, cap 255), statuses (`flickering` 2000ms spawn, `shooting` 500ms, `dashing` 500ms, `recovering` only if those three are false), loadout (equipped + owned lists: weapons, bombs, wings, shield fits, armor, energy collector, energy converter). `debugSnapshot(): ShipDebugPort`. D03 writes `stats.energy`. Hull combat still uses C03 until that card consumes integrity/shield.
 - **Requires:** A01, A03.
 - **Lib:** **Three.js** (`Group`, `Mesh`, `BoxGeometry`, `ConeGeometry`, `SphereGeometry`, `MeshBasicMaterial`)
 - **View:** neon wireframe hull + accent box + thruster cone (additive) + equipment tip sphere.
@@ -418,12 +418,12 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 - **Requires:** A01, A03, A05, D01, D03, **E04**.
 - **Lib:** **Three.js** (bolt visuals via `weapon-shot` only)
 - **Rules:** energy gate via `EnergyPort`; rate = `1/(rate × rateMul)`; **adding a weapon = 1 catalog entry + 1 registry entry**. This pass registers `laser` (D04 registers `plasma`). `beam` / `mjolnir` stay catalog-only (G2).
-- **Levels:** L1=1f … L10=4f+3/side; **speed 30 · lifetime 1 (range 30)**; play starts at L1.
-- **Maps:** `WPN-01`, `WPN-04`, `WPN-05`, `SHIP-03`. **Acceptance:** L5 fires 5 bolts; L10 fires 10; registering a new id needs no edit to `Weapon`.
+- **Levels:** L1=1f … L12=4f+4/side; **speed 30 · lifetime 1 (range 30)**; play starts at L1. `energyPerShot` is one spend per volley (L1=1 … L12=2.2).
+- **Maps:** `WPN-01`, `WPN-04`, `WPN-05`, `SHIP-03`. **Acceptance:** L5 fires 5 bolts; L12 fires 12; registering a new id needs no edit to `Weapon`.
 
 #### `SDD-D03` EnergyManager
 - **Folder:** `src/systems/energy-manager.ts`
-- **Scope:** `class EnergyManager implements EnergyPort` — shared pool `{ current, max, regenPerSec }`; `canAfford(cost)`, `spend(cost)`, `update(dt)` (regen). All fire (and future jets/craft) draw from it.
+- **Scope:** `class EnergyManager implements EnergyPort` — shared pool `{ current, max, regenPerSec }`; `canAfford(cost)`, `spend(cost)`, `update(dt)` (regen). Optional `pool` is C01 `stats.energy` so G08 is combat energy. Regen only while `canRegen()` (run binds `ship.status.recovering`). All fire (and future jets/craft) draw from it.
 - **Requires:** A01.
 - **Lib:** — (no dependency — pool arithmetic only)
 - **Maps:** `SHIP-09`, `WPN-05`, `SHIP-08` (seam). **Acceptance:** laser drains visibly; at 0 fire blocks with a low-energy state.
@@ -604,11 +604,11 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-G08` Debugger panel (debugger-area)
 - **Folder:** `src/ui/debugger/` (one module per tab) · spec [debugger.spec.ts](../specs/debugger.spec.ts)
-- **Scope:** **one tab per subject.** This pass: **Ship** bound to C01 `ShipDebugPort` (pose, 0–255 pools, statuses, loadout lists). Later: Cam / LimitBox / Parallax / Weapons / Energy / Shots / Collision. Two-way sync ~15 Hz, skip focused control, Reset. Q09 DEV flag.
+- **Scope:** **one tab per subject.** This pass: **Ship** (pose, 0–255 pools, statuses) and **Equips** (loadout lists + equipped weapon level 1–12 via E07). Later: Cam / LimitBox / Parallax / Weapons catalog / Energy / Shots / Collision. Two-way sync ~15 Hz, skip focused control, Reset. Q09 DEV flag.
 - **Requires:** A01, C01, G06.
 - **Lib:** **HTML/CSS** (panel + controls markup)
-- **Rules:** a new tab must not touch existing ones; Ship tab must not invent numbers the sim does not own.
-- **Maps:** dev tool (no locked requirement; Q09 decides shipping). **Acceptance:** the Ship tab shows the flying craft’s sheet live; Reset restores spawn defaults.
+- **Rules:** a new tab must not touch existing ones except when a subject moves (loadout → Equips). Tabs must not invent numbers the sim does not own.
+- **Maps:** dev tool (no locked requirement; Q09 decides shipping). **Acceptance:** Ship shows the flying craft’s sheet live; Equips weapon level changes the live laser volley; Reset restores spawn defaults.
 
 #### `SDD-G09` Renderer
 - **Folder:** `src/render/renderer.ts`

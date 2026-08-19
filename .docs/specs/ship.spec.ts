@@ -51,7 +51,7 @@
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
  * Orchestrator : hub-v4.3 / 2026-08-18  ship sheet 0–255, loadout lists, G08 port
- * Programming  : hub-v4.3 / 2026-08-18  ShipDebugPort; combat still C03/D03 until wired
+ * Programming  : hub-v4.3 / 2026-08-19  D03 bound to stats.energy; hull still C03
  * Game Design  : hub-v4.3 / 2026-08-18  byte pools start max 100, hard cap 255
  * TDD          : hub-v4.3 / 2026-08-18  debugSnapshot cases added
  *
@@ -129,6 +129,7 @@ export interface ShipStats {
 export interface ShipStatus {
   flickering: boolean
   dashing: boolean
+  shooting: boolean
   recovering: boolean
 }
 
@@ -234,7 +235,7 @@ export declare class Ship extends THREE.Group {
  *   weaponTip             | THREE.Mesh      | sphere at the bow; colour/radius from setEquippedWeapon
  *   transform             | ShipTransform   | logical pose; rotation in degrees
  *   stats                 | ShipStats       | byte pools 0–255; start current=max=100
- *   status                | ShipStatus      | flickering, dashing, recovering
+ *   status                | ShipStatus      | flickering, dashing, shooting, recovering
  *   loadout               | ShipLoadout     | equipped + owned lists (G08)
  *   debugSnapshot         | () => port      | pose + stats + status + loadout
  *   applyTransform        | (t) => void     | copies pose; does not scene.add
@@ -248,7 +249,7 @@ export declare class Ship extends THREE.Group {
  *   Post: dispose leaves the Group empty of GPU resources; safe to scene.remove.
  *   Inv:  hardpoints/ordnance/equipment arrays are not replaced; entries change via methods.
  *   Inv:  every stats.*.current and stats.*.max is an integer in [0, byteCap].
- *   Inv:  status.recovering === !shooting && !status.flickering (derived, not stored).
+ *   Inv:  status.recovering === !shooting && !dashing && !flickering (derived).
  *   Inv:  loadout.equippedWeapon is hardpoints[0].equipped; weapons list is owned ids.
  */
 
@@ -264,7 +265,7 @@ export declare class Ship extends THREE.Group {
  *   R4. setEquippedWeapon(color, radius) sets tip material colour and
  *       scale = max(0.03, radius). It does not construct a Weapon.
  *   R5. update(dt) accumulates thruster flicker time and counts down status
- *       flickering (BALANCE.ship.stats.flickerMs). Thruster scale is applied in
+ *       timers (flickerMs / shootingMs / dashingMs). Thruster scale is applied in
  *       syncRender: scale.y = 0.72 + 0.28 * sin(t*42) * sin(t*13 + 1.3)
  *       (POC-1 port). X/Z scale stay 1.
  *   R6. Memory: geometries and materials created once. dispose() must reach
@@ -277,10 +278,11 @@ export declare class Ship extends THREE.Group {
  *        current = max = 100 (agility, deflection, integrity, shield, precision,
  *        energy). current and max never exceed byteCap. Integrity 0 is still
  *        death — C03 reports it once wired to this sheet.
- *   R11. status.flickering is true after spawn for flickerMs and after a hit
- *        (F04/C03 will call setFlickering). status.dashing is C02 via setDashing.
- *        status.recovering is true only when not shooting and not flickering —
- *        that is the gate for energy gain (D03).
+ *   R11. status.flickering is true after spawn for flickerMs (2000) and after a
+ *        hit (F04/C03 will call setFlickering). status.shooting pulses shootingMs
+ *        (500) from E07 while fire is held. status.dashing pulses dashingMs (500)
+ *        from C02 onDash. status.recovering is true only when shooting, dashing
+ *        and flickering are all false — that is the gate for energy gain (D03).
  *   R12. Loadout lists are owned gear. Equipped* is the active slot. Starting
  *        weapons list = BALANCE.weapons.loadout; bombs/wings/shields/armors/
  *        collectors/converters start empty until §7. Shield *fit* (ShieldFitId)
@@ -326,7 +328,9 @@ export declare class Ship extends THREE.Group {
  *
  * Byte sheet (G08 Ship tab — A01 BALANCE.ship.stats):
  *   byteCap     = 255
- *   flickerMs   = 400   // spawn i-frames / hit flicker
+ *   flickerMs   = 2000  // spawn i-frames
+ *   shootingMs  = 500   // status_shooting pulse after fire
+ *   dashingMs   = 500   // status_dashing pulse after dash
  *   agility, deflection, integrity, shield, precision, energy
  *               = { current: 100, max: 100 } at spawn
  *
@@ -337,8 +341,8 @@ export declare class Ship extends THREE.Group {
  *   precision   — + chance to hit (E07/F01 later)
  *   energy      — weapon pool (D03; regen only while recovering)
  *
- * Until C03/D03 consume this sheet, combat still uses BALANCE.ship.health
- * (integrityMax 100, shieldMax 50) and BALANCE.gameplay.energy. G08 shows
+ * Until C03 consumes this sheet, combat hull still uses BALANCE.ship.health
+ * (integrityMax 100, shieldMax 50). D03 energy is `stats.energy`. G08 shows
  * the sheet — not a third table.
  *
  * Feel:      POC-1 silhouette is the law — same brick, same cyan/indigo, same
@@ -385,7 +389,8 @@ export declare class Ship extends THREE.Group {
  *   it('byte pools start at current=max=100 with byteCap 255')                             // R10
  *   it('debugSnapshot exposes position, rotation, stats, status, loadout')                 // R13, G08
  *   it('debugSnapshot returns the same stats/status object identity across calls')         // R13
- *   it('recovering is true when not shooting and not flickering')                          // R11
+ *   it('recovering is true only when shooting, dashing and flickering are all false')  // R11
+ *   it('spawn flicker lasts flickerMs; shooting and dashing last their BALANCE windows') // R11
  *   it('setDashing / setShooting / setFlickering update status for the debugger')          // R11
  *   it('loadout.weapons starts as BALANCE.weapons.loadout; equippedWeapon tracks slot 0')  // R12
  *   it('wings/shields/armors/collectors/converters start empty')                           // R12, §7

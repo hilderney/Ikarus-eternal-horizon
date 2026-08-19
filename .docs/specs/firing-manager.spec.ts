@@ -113,6 +113,7 @@ export interface BehaviourCtx {
 export interface WeaponPort {
   readonly id: WeaponId
   readonly config: { readonly muzzleOffset: { x: number; y: number; z: number } }
+  applyLevel(level: number): void
   update(ctx: BehaviourCtx): void
   dispose(): void
 }
@@ -139,6 +140,8 @@ export declare class FiringManager {
   readonly mods: WeaponModifiers
   activeId(): WeaponId
   weapon(): WeaponPort
+  weaponLevel(): number
+  setWeaponLevel(level: number): void
   setActive(id: WeaponId): void
   cycleWeapon(): void
   update(dt: number): void
@@ -156,9 +159,12 @@ export declare class FiringManager {
  *            muzzle = ship.position + weapon.config.muzzleOffset (scratch vec, no alloc).
  *            mods.rateMul = health.modifiers.fireRateMul.
  *            weapon.update({ dt, holding: isPressed('fire'), muzzle, services, mods }).
+ *            Optional shooting.setShooting(true) while fire is held; the ship
+ *            timer (shootingMs) clears the flag. Recovering gates D03 regen.
  *            Energy gate is inside the behaviour via EnergyPort — this class does not
  *            duplicate canAfford, but must pass the port (WPN-05).
- *   setActive / cycleWeapon — dispose previous Weapon, registry.create(next). D12.
+ *   setActive / cycleWeapon — dispose previous Weapon, registry.create(next),
+ *            then applyLevel(weaponLevel). D12.
  *   dispose — weapon.dispose().
  */
 
@@ -209,7 +215,7 @@ export declare class FiringManager {
  *   BALANCE.weapons.loadout             = ['laser', 'plasma']   // WPN-03 this pass
  *   BALANCE.gameplay.energy             = { start: 100, max: 100, regenPerSec: 8 }
  *   BALANCE.ship.health.fireRateMul     = [1, 0.9, 0.75, 0.55]  // hull 0/1/2/3
- *   Laser catalog (D02): rate 8, energyPerShot 0.25, damage 1
+ *   Laser catalog (D02): rate 8, energyPerShot 1, damage 1
  *
  * Feel:      POC-1 firing is the law. Space **or RT** is continuous hold-to-fire, not tap.
  *            F **or LB** is a clean swap — the next weapon speaks immediately at its own
@@ -233,11 +239,14 @@ export declare class FiringManager {
  *
  * describe('FiringManager')
  *   it('holding Space calls weapon.update with holding true')                         // R1, SHIP-03
+ *   it('setShooting follows fire hold so recovering can gate energy regen')            // C01 recovering
+ *   it('does not clear shooting on fire release (ship timer owns the pulse)')          // C01 shootingMs
  *   it('holding RT (isPressed fire) calls weapon.update with holding true')           // R1, D18
  *   it('KeyF edge cycles the loadout once per press')                                 // R2, WPN-03
  *   it('LB edge cycles the loadout once per press')                                   // R2, D18
  *   it('does not call rumble fireLaser on a Laser pulse')                             // R12, Q13
  *   it('cycleWeapon disposes the previous weapon and registry.creates the next')      // R3
+ *   it('setWeaponLevel reapplies on the next loadout weapon')                         // G08 Equips
  *   it('setActive ignores an id outside the loadout')                                 // R4
  *   it('copies health.modifiers.fireRateMul into mods.rateMul every update')          // R5, SHIP-12
  *   it('passes EnergyPort into ctx.services; empty energy still calls update')        // R6, WPN-05

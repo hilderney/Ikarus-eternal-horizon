@@ -263,6 +263,27 @@ describe('PlayerController', () => {
     controller.dispose()
   })
 
+  it('successful dash calls onDash so the ship can pulse status.dashing', () => {
+    const input = new FakeInput()
+    const transform = makeTransform()
+    const onDash = vi.fn()
+    const controller = new PlayerController({
+      input,
+      transform,
+      motion: BALANCE.controls.motion,
+      dash: BALANCE.controls.dash,
+      tilt: BALANCE.controls.tilt,
+      keys: BALANCE.controls.shipKeys,
+      modifiers: { speedMul: 1, accelMul: 1 },
+      onDash,
+    })
+    input.moveX = 1
+    input.queueDash()
+    controller.update(0.05)
+    expect(onDash).toHaveBeenCalledTimes(1)
+    controller.dispose()
+  })
+
   it('dash is ignored while cooldown is active', () => {
     const input = new FakeInput()
     const transform = makeTransform()

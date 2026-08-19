@@ -84,6 +84,8 @@ export interface BytePoolConfig {
 export interface ShipStatsConfig {
   readonly byteCap: number
   readonly flickerMs: number
+  readonly shootingMs: number
+  readonly dashingMs: number
   readonly agility: BytePoolConfig
   readonly deflection: BytePoolConfig
   readonly integrity: BytePoolConfig
@@ -257,7 +259,9 @@ export declare const BALANCE: Balance
  *   ship.visual                 = { size {1.5,1,2}, wireframe 0x22d3ee, accent 0x6d28d9, thruster 0x60c5ff }
  *   ship.inventory.caps         = { metalScrap: 999, prismaticCrystal: 99, denseCore: 49, darkMatter: 9 }
  *   ship.stats.byteCap          = 255
- *   ship.stats.flickerMs        = 400
+ *   ship.stats.flickerMs        = 2000
+ *   ship.stats.shootingMs       = 500
+ *   ship.stats.dashingMs        = 500
  *   ship.stats.{agility,deflection,integrity,shield,precision,energy} = { current: 100, max: 100 }
  *   debug.syncHz                = 15  // G08 sidecar; same as loop.sidecarHz
  *   weapons.loadout             = ['laser', 'plasma']  // WPN-03; catalog holds all four
@@ -265,7 +269,8 @@ export declare const BALANCE: Balance
  *   shot.despawn                = { zNear: 16, zFar: -32, halfX: 16 }  // E04
  *
  * New sections (placeholders, Q08 owns the hull curve). Combat still reads
- * ship.health until C03/D03 consume the C01 byte sheet; G08 shows ship.stats.
+ * ship.health until C03 consume the C01 integrity/shield bytes; D03 already
+ * writes ship.stats.energy; G08 shows ship.stats.
  *   ship.health.integrityMax    = 100
  *   ship.health.shieldMax       = 50
  *   ship.health.shieldRegenPerSec = 2

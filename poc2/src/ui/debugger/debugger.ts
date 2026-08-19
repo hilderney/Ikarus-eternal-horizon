@@ -6,6 +6,7 @@ import { BALANCE } from '../../core/balancer'
 
 export type DebuggerTabId =
   | 'ship'
+  | 'equips'
   | 'cam'
   | 'limit-box'
   | 'parallax'
@@ -37,6 +38,7 @@ export interface DebuggerShipBind {
     readonly status: {
       flickering: boolean
       dashing: boolean
+      shooting: boolean
       recovering: boolean
     }
     readonly loadout: {
@@ -64,8 +66,14 @@ export interface DebuggerShipBind {
   equipBomb(id: string | null): void
 }
 
+export interface DebuggerWeaponsBind {
+  level(): number
+  setLevel(level: number): void
+}
+
 export interface DebuggerBinds {
   readonly ship: DebuggerShipBind
+  readonly weapons: DebuggerWeaponsBind
 }
 
 export interface DebuggerOptions {
@@ -85,6 +93,7 @@ export interface DebuggerPort {
 
 const TAB_LABELS: Record<DebuggerTabId, string> = {
   ship: 'Ship',
+  equips: 'Equips',
   cam: 'Cam',
   'limit-box': 'LimitBox',
   parallax: 'Parallax',

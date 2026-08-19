@@ -196,6 +196,8 @@ export interface BytePoolConfig {
 export interface ShipStatsConfig {
   readonly byteCap: number
   readonly flickerMs: number
+  readonly shootingMs: number
+  readonly dashingMs: number
   readonly agility: BytePoolConfig
   readonly deflection: BytePoolConfig
   readonly integrity: BytePoolConfig
@@ -385,8 +387,8 @@ const BALANCE_DATA: Balance = {
     },
     dash: {
       speedMul: 2.2,
-      durationMs: 140,
-      cooldownMs: 750,
+      durationMs: 200,
+      cooldownMs: 800,
     },
     tilt: {
       axis: 'z',
@@ -487,7 +489,9 @@ const BALANCE_DATA: Balance = {
     },
     stats: {
       byteCap: 255,
-      flickerMs: 400,
+      flickerMs: 2000,
+      shootingMs: 500,
+      dashingMs: 500,
       agility: { current: 100, max: 100 },
       deflection: { current: 100, max: 100 },
       integrity: { current: 100, max: 100 },
@@ -507,7 +511,7 @@ const BALANCE_DATA: Balance = {
     },
   },
   camera: {
-    fov: 85,
+    fov: 110,
     position: { x: 3, y: 14, z: 6 },
     rotation: { x: -55, y: 24, z: -14 },
     near: 5,
@@ -583,7 +587,7 @@ const BALANCE_DATA: Balance = {
     enemy: 100,
     meteor: 25,
     miniBoss: 2500,
-    megaAsteroid: 5000,
+    megaAsteroid: 10000,
     boss: 25000,
     noDamageStreakMul: 1.5,
   },

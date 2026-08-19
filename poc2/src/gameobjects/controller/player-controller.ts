@@ -51,6 +51,7 @@ export interface PlayerControllerOptions {
   readonly tilt: TiltConfig
   readonly keys: ShipKeys
   readonly modifiers: MotionModifiers
+  readonly onDash?: () => void
 }
 
 function pushVelocity(
@@ -102,6 +103,7 @@ export class PlayerController {
   private readonly _dash: DashConfig
   private readonly _tilt: TiltConfig
   private readonly _modifiers: MotionModifiers
+  private readonly _onDash: (() => void) | undefined
   private _vx = 0
   private _vz = 0
   private _tiltCur = 0
@@ -116,6 +118,7 @@ export class PlayerController {
     this._dash = options.dash
     this._tilt = options.tilt
     this._modifiers = options.modifiers
+    this._onDash = options.onDash
     void options.keys
   }
 
@@ -146,6 +149,7 @@ export class PlayerController {
         this._vz = (dirZ / dirLen) * dashCap
         this._dashMs = this._dash.durationMs
         this._dashCdMs = this._dash.cooldownMs
+        this._onDash?.()
       } else {
         const vLen = Math.hypot(this._vx, this._vz)
         if (vLen > 0) {
@@ -153,6 +157,7 @@ export class PlayerController {
           this._vz = (this._vz / vLen) * dashCap
           this._dashMs = this._dash.durationMs
           this._dashCdMs = this._dash.cooldownMs
+          this._onDash?.()
         }
       }
     }

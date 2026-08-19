@@ -218,8 +218,8 @@ export declare function registerPlasma(): void
  * Feel:      The "second gun" (WPN-03). Slow enough to miss if you panic-strafe;
  *            fat enough that a near-miss will pay once F01 exists. Compared
  *            to laser: ~1/5 the cadence, 2.5× the damage, splash 2.2. Energy
- *            1.5 vs laser 0.25 makes dumping plasma a commitment (~2.4/s vs
- *            regen 8).
+ *            1.5 vs laser L1 1 makes dumping plasma still a slower drain
+ *            (~2.4/s vs laser L1 8/s vs regen 8).
  * Leveling:  no plasma level table in POC2. aoeMul / damageMul from equipment
  *            (§7) scale the orb. Hull fireRateMul slows the already-low rate.
  * Graphics:  orange 0xfb923c; reads as "orb" vs cyan "needle" in <0.3s.

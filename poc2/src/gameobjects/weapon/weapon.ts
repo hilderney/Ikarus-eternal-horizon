@@ -4,6 +4,7 @@
 
 import { copyWeaponConfig, WEAPONS } from './catalog'
 import type { WeaponConfig, WeaponId } from './catalog'
+import { applyLaserLevel } from './laser-levels'
 import type { BehaviourCtx, ShotAcquirePort, WeaponBehaviour } from './registry'
 import { WEAPON_REGISTRY } from './registry'
 
@@ -30,6 +31,10 @@ export class Weapon {
 
   update(ctx: BehaviourCtx): void {
     this.behaviour.update(ctx)
+  }
+
+  applyLevel(level: number): void {
+    applyLaserLevel(this.config, level)
   }
 
   dispose(): void {

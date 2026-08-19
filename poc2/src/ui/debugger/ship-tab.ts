@@ -7,22 +7,6 @@ import type { DebuggerBinds, DebuggerTab } from './debugger'
 
 type PoolName = 'agility' | 'deflection' | 'integrity' | 'shield' | 'precision' | 'energy'
 type PoseKey = 'position' | 'rotation'
-type ListKey =
-  | 'weapons'
-  | 'bombs'
-  | 'wings'
-  | 'shields'
-  | 'armors'
-  | 'energyCollectors'
-  | 'energyConverters'
-type EquippedKey =
-  | 'equippedWeapon'
-  | 'equippedBomb'
-  | 'equippedWings'
-  | 'equippedShield'
-  | 'equippedArmor'
-  | 'equippedEnergyCollector'
-  | 'equippedEnergyConverter'
 
 interface NumberHandle {
   readonly kind: 'number'
@@ -39,36 +23,13 @@ interface BoolHandle {
   write(value: boolean): void
 }
 
-interface TextHandle {
-  readonly kind: 'text'
-  readonly el: HTMLInputElement | HTMLSelectElement
-  read(): string
-  write(value: string): void
-}
-
-type Handle = NumberHandle | BoolHandle | TextHandle
+type Handle = NumberHandle | BoolHandle
 
 interface SheetClone {
   position: { x: number; y: number; z: number }
   rotation: { x: number; y: number; z: number }
   stats: Record<PoolName, { current: number; max: number }>
-  status: { flickering: boolean; dashing: boolean }
-  loadout: {
-    equippedWeapon: string | null
-    weapons: string[]
-    equippedBomb: string | null
-    bombs: string[]
-    equippedWings: string | null
-    wings: string[]
-    equippedShield: string | null
-    shields: string[]
-    equippedArmor: string | null
-    armors: string[]
-    equippedEnergyCollector: string | null
-    energyCollectors: string[]
-    equippedEnergyConverter: string | null
-    energyConverters: string[]
-  }
+  status: { flickering: boolean; dashing: boolean; shooting: boolean }
 }
 
 const POOLS: readonly PoolName[] = [
@@ -79,13 +40,6 @@ const POOLS: readonly PoolName[] = [
   'precision',
   'energy',
 ]
-
-const WEAPON_IDS = ['laser', 'plasma', 'beam', 'mjolnir'] as const
-const BOMB_IDS = ['pulseNova', 'swarmTorpedo', 'starKiller'] as const
-const WING_IDS = ['standard', 'agility', 'armored'] as const
-const FIT_IDS = ['light', 'standard', 'heavy'] as const
-const COLLECTOR_IDS = ['passive', 'wide'] as const
-const CONVERTER_IDS = ['scrap', 'crystal'] as const
 
 export class ShipTab implements DebuggerTab {
   readonly id = 'ship' as const
@@ -119,41 +73,21 @@ export class ShipTab implements DebuggerTab {
     this._flag(form, 'status_flickering', 'status.flickering', (value) => {
       this._binds.ship.setFlickering(value)
     })
-    this._flag(form, 'dashing', 'status.dashing', (value) => {
+    this._flag(form, 'status_dashing', 'status.dashing', (value) => {
       this._binds.ship.setDashing(value)
+    })
+    this._flag(form, 'status_shooting', 'status.shooting', (value) => {
+      this._binds.ship.setShooting(value)
     })
     this._flag(form, 'status_recovering', 'status.recovering', (value) => {
       if (value) {
         this._binds.ship.setShooting(false)
+        this._binds.ship.setDashing(false)
         this._binds.ship.setFlickering(false)
         return
       }
       this._binds.ship.setShooting(true)
     })
-
-    this._group(form, 'Loadout')
-    this._equipped(form, 'equippedWeapon', 'loadout.equippedWeapon', [...WEAPON_IDS], (id) => {
-      this._binds.ship.equipWeapon(id)
-    })
-    this._list(form, 'weapons', 'loadout.weapons')
-    this._equipped(form, 'equippedBomb', 'loadout.equippedBomb', [...BOMB_IDS], (id) => {
-      this._binds.ship.equipBomb(id)
-    })
-    this._list(form, 'bombs', 'loadout.bombs')
-    this._equipped(form, 'equippedWings', 'loadout.equippedWings', [...WING_IDS])
-    this._list(form, 'wings', 'loadout.wings')
-    this._equipped(form, 'equippedShield', 'loadout.equippedShield', [...FIT_IDS])
-    this._list(form, 'shields', 'loadout.shields')
-    this._equipped(form, 'equippedArmor', 'loadout.equippedArmor', [...FIT_IDS])
-    this._list(form, 'armors', 'loadout.armors')
-    this._equipped(form, 'equippedEnergyCollector', 'loadout.equippedEnergyCollector', [
-      ...COLLECTOR_IDS,
-    ])
-    this._list(form, 'energyCollectors', 'loadout.energyCollectors')
-    this._equipped(form, 'equippedEnergyConverter', 'loadout.equippedEnergyConverter', [
-      ...CONVERTER_IDS,
-    ])
-    this._list(form, 'energyConverters', 'loadout.energyConverters')
 
     panel.append(form)
     this._form = form
@@ -170,10 +104,8 @@ export class ShipTab implements DebuggerTab {
         const next = handle.read()
         handle.el.value = String(next)
         handle.valueEl.textContent = formatNum(next)
-      } else if (handle.kind === 'bool') {
-        handle.el.checked = handle.read()
       } else {
-        handle.el.value = handle.read()
+        handle.el.checked = handle.read()
       }
     }
   }
@@ -193,21 +125,7 @@ export class ShipTab implements DebuggerTab {
     this._binds.ship.applyTransform()
     this._binds.ship.setDashing(defaults.status.dashing)
     this._binds.ship.setFlickering(defaults.status.flickering)
-    this._binds.ship.setShooting(false)
-    this._binds.ship.equipWeapon(defaults.loadout.equippedWeapon)
-    this._binds.ship.equipBomb(defaults.loadout.equippedBomb)
-    writeLoadoutField(live.loadout, 'equippedWings', defaults.loadout.equippedWings)
-    writeLoadoutField(live.loadout, 'equippedShield', defaults.loadout.equippedShield)
-    writeLoadoutField(live.loadout, 'equippedArmor', defaults.loadout.equippedArmor)
-    writeLoadoutField(live.loadout, 'equippedEnergyCollector', defaults.loadout.equippedEnergyCollector)
-    writeLoadoutField(live.loadout, 'equippedEnergyConverter', defaults.loadout.equippedEnergyConverter)
-    replaceList(live.loadout, 'weapons', defaults.loadout.weapons)
-    replaceList(live.loadout, 'bombs', defaults.loadout.bombs)
-    replaceList(live.loadout, 'wings', defaults.loadout.wings)
-    replaceList(live.loadout, 'shields', defaults.loadout.shields)
-    replaceList(live.loadout, 'armors', defaults.loadout.armors)
-    replaceList(live.loadout, 'energyCollectors', defaults.loadout.energyCollectors)
-    replaceList(live.loadout, 'energyConverters', defaults.loadout.energyConverters)
+    this._binds.ship.setShooting(defaults.status.shooting)
     this.sync()
   }
 
@@ -356,85 +274,12 @@ export class ShipTab implements DebuggerTab {
         if (path === 'status.dashing') {
           return status.dashing
         }
+        if (path === 'status.shooting') {
+          return status.shooting
+        }
         return status.recovering
       },
       write,
-    })
-  }
-
-  private _equipped(
-    host: HTMLElement,
-    label: string,
-    path: string,
-    options: readonly string[],
-    onEquip?: (id: string | null) => void,
-  ): void {
-    const row = document.createElement('label')
-    row.className = 'debug-row debug-selectrow'
-    const name = document.createElement('span')
-    name.className = 'debug-label'
-    name.textContent = label
-    const select = document.createElement('select')
-    select.dataset.bind = path
-    const empty = document.createElement('option')
-    empty.value = ''
-    empty.textContent = '(none)'
-    select.append(empty)
-    for (const id of options) {
-      const opt = document.createElement('option')
-      opt.value = id
-      opt.textContent = id
-      select.append(opt)
-    }
-    const key = path.replace('loadout.', '') as EquippedKey
-    select.addEventListener('input', () => {
-      const id = select.value === '' ? null : select.value
-      if (onEquip) {
-        onEquip(id)
-        return
-      }
-      writeLoadoutField(this._binds.ship.snapshot().loadout, key, id)
-    })
-    row.append(name, select)
-    host.append(row)
-    this._handles.push({
-      kind: 'text',
-      el: select,
-      read: () => this._binds.ship.snapshot().loadout[key] ?? '',
-      write: (value) => {
-        const id = value === '' ? null : value
-        if (onEquip) {
-          onEquip(id)
-          return
-        }
-        writeLoadoutField(this._binds.ship.snapshot().loadout, key, id)
-      },
-    })
-  }
-
-  private _list(host: HTMLElement, label: string, path: string): void {
-    const row = document.createElement('label')
-    row.className = 'debug-row debug-textrow'
-    const name = document.createElement('span')
-    name.className = 'debug-label'
-    name.textContent = label
-    const input = document.createElement('input')
-    input.type = 'text'
-    input.dataset.bind = path
-    input.placeholder = 'id, id'
-    const key = path.replace('loadout.', '') as ListKey
-    input.addEventListener('input', () => {
-      replaceList(this._binds.ship.snapshot().loadout, key, parseList(input.value))
-    })
-    row.append(name, input)
-    host.append(row)
-    this._handles.push({
-      kind: 'text',
-      el: input,
-      read: () => this._binds.ship.snapshot().loadout[key].join(', '),
-      write: (value) => {
-        replaceList(this._binds.ship.snapshot().loadout, key, parseList(value))
-      },
     })
   }
 }
@@ -451,22 +296,10 @@ function cloneSheet(port: ReturnType<DebuggerBinds['ship']['snapshot']>): SheetC
       precision: { ...port.stats.precision },
       energy: { ...port.stats.energy },
     },
-    status: { flickering: port.status.flickering, dashing: port.status.dashing },
-    loadout: {
-      equippedWeapon: port.loadout.equippedWeapon,
-      weapons: [...port.loadout.weapons],
-      equippedBomb: port.loadout.equippedBomb,
-      bombs: [...port.loadout.bombs],
-      equippedWings: port.loadout.equippedWings,
-      wings: [...port.loadout.wings],
-      equippedShield: port.loadout.equippedShield,
-      shields: [...port.loadout.shields],
-      equippedArmor: port.loadout.equippedArmor,
-      armors: [...port.loadout.armors],
-      equippedEnergyCollector: port.loadout.equippedEnergyCollector,
-      energyCollectors: [...port.loadout.energyCollectors],
-      equippedEnergyConverter: port.loadout.equippedEnergyConverter,
-      energyConverters: [...port.loadout.energyConverters],
+    status: {
+      flickering: port.status.flickering,
+      dashing: port.status.dashing,
+      shooting: port.status.shooting,
     },
   }
 }
@@ -493,33 +326,4 @@ function clampByte(value: number, cap: number): number {
 
 function formatNum(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
-}
-
-function parseList(raw: string): string[] {
-  return raw
-    .split(/[,\s]+/)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0)
-}
-
-function replaceList(
-  loadout: { [key: string]: unknown },
-  key: ListKey,
-  values: readonly string[],
-): void {
-  const current = loadout[key]
-  if (Array.isArray(current) && !Object.isFrozen(current)) {
-    current.length = 0
-    current.push(...values)
-    return
-  }
-  loadout[key] = [...values]
-}
-
-function writeLoadoutField(
-  loadout: { [key: string]: unknown },
-  key: EquippedKey,
-  value: string | null,
-): void {
-  loadout[key] = value
 }

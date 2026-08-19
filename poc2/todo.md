@@ -44,7 +44,7 @@ POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real r
 - [x] Pooled laser bolt from the ship nose; decay 100→75→50→25 on opacity **and** damage · `SDD-D01` · [weapon-shot.spec.ts](../.docs/specs/weapon-shot.spec.ts) · **port**
 - [x] Tune cadence / speed / energy from `BALANCE` only (no literals in fire code) · `SDD-A01` / `SDD-D02`
 - [x] Energy pool gates every shot; regen; fire blocks at 0 · `SDD-D03` · [energy-manager.spec.ts](../.docs/specs/energy-manager.spec.ts) · **port**
-- [x] Weapon device + Laser + L1–L10 (`totalShots = level`) + registry seam · `SDD-D02` · [weapon.spec.ts](../.docs/specs/weapon.spec.ts) · **port**
+- [x] Weapon device + Laser + L1–L12 (`totalShots = level`) + registry seam · `SDD-D02` · [weapon.spec.ts](../.docs/specs/weapon.spec.ts) · **port**
 - [x] Space or RT fires; `F` or LB switches weapon · `SDD-E07` · [firing-manager.spec.ts](../.docs/specs/firing-manager.spec.ts) · **port** (+ `D18`)
 - [x] Shot manager owns pools by origin · `SDD-E04` · [shot-manager.spec.ts](../.docs/specs/shot-manager.spec.ts) · **new**
 - [ ] Collision by layers (matrix is data; no friendly fire) · `SDD-F01` · [collision-manager.spec.ts](../.docs/specs/collision-manager.spec.ts) · **port**
@@ -52,7 +52,8 @@ POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real r
 - [ ] Laser hitbox on layer `PlayerShot` · `SDD-D01` / `SDD-F01`
 - [x] Force Field absorbs first; Integrity only after shield is 0 · `SDD-C03` · [ship-health.spec.ts](../.docs/specs/ship-health.spec.ts) · **new**
 - [x] Slow shield regen after `regenDelayMs` with no hits · `SDD-C03`
-- [ ] Wire C03/D03 combat onto C01 0–255 pools (G08 sheet is the source of truth) · `SDD-C01` / `SDD-C03` / `SDD-D03`
+- [x] Wire D03 combat onto C01 energy pool (regen only while recovering; G08 slider is live energy) · `SDD-D03` / `SDD-C01`
+- [ ] Wire C03 combat onto C01 0–255 integrity/shield pools · `SDD-C01` / `SDD-C03`
 - [ ] DamageResolver is the only `applyDamage` caller · `SDD-F04` · [damage-resolver.spec.ts](../.docs/specs/damage-resolver.spec.ts) · **new**
 - [ ] Hit feedback: flash, shake cap, shield-hit vs hull-hit, dual-rumble presets (sfx later) · `SDD-F05` · [vfx-manager.spec.ts](../.docs/specs/vfx-manager.spec.ts) · **new** (+ `D18`)
 
@@ -209,8 +210,8 @@ POC-1 listed a shop. GDD meta is Bounty Board + cosmetics, not a mid-run power s
 
 ## Fase 14 — Fechamento / Itch.io
 
-- [x] Debugger: **Ship tab** (pose, 0–255 pools, statuses, loadout) two-way ~15 Hz, Reset · `SDD-G08` · [debugger.spec.ts](../.docs/specs/debugger.spec.ts) · **port**
-- [ ] Debugger remaining tabs: Cam / LimitBox / Parallax / Weapons / Energy / Shots / Collision · `SDD-G08`
+- [x] Debugger: **Ship** (pose, 0–255 pools, statuses) + **Equips** (loadout + weapon level 1–12) two-way ~15 Hz, Reset · `SDD-G08` · [debugger.spec.ts](../.docs/specs/debugger.spec.ts) · **port**
+- [ ] Debugger remaining tabs: Cam / LimitBox / Parallax / Weapons catalog / Energy / Shots / Collision · `SDD-G08`
 - [ ] Ship XYZ label, letterbox-safe · `SDD-G07`
 - [ ] All gameplay numbers still only in `BALANCE` · `SDD-A01` (`RUL-12`)
 - [x] Web package: `index.html` relative paths, responsive canvas · `SDD-G09` (`RUL-08`)

@@ -5,6 +5,7 @@
 import { defaultModifiers } from '../gameobjects/weapon/registry'
 import type { BehaviourCtx, WeaponModifiers } from '../gameobjects/weapon/registry'
 import type { WeaponId } from '../gameobjects/weapon/catalog'
+import { LASER_LEVELS } from '../gameobjects/weapon/laser-levels'
 import type { InputPort } from '../core/input'
 
 export interface EnergyPort {
@@ -20,15 +21,8 @@ export interface MuzzlePort {
   readonly position: { x: number; y: number; z: number }
 }
 
-export interface WeaponPort {
-  readonly id: WeaponId
-  readonly config: { readonly muzzleOffset: { x: number; y: number; z: number } }
-  update(ctx: BehaviourCtx): void
-  dispose(): void
-}
-
-export interface WeaponRegistryPort {
-  create(id: WeaponId): WeaponPort
+export interface ShootingPort {
+  setShooting(value: boolean): void
 }
 
 export interface FiringManagerOptions {
@@ -38,6 +32,19 @@ export interface FiringManagerOptions {
   readonly health: FireRateMulPort
   readonly registry: WeaponRegistryPort
   readonly loadout: readonly WeaponId[]
+  readonly shooting?: ShootingPort
+}
+
+export interface WeaponPort {
+  readonly id: WeaponId
+  readonly config: { readonly muzzleOffset: { x: number; y: number; z: number } }
+  applyLevel(level: number): void
+  update(ctx: BehaviourCtx): void
+  dispose(): void
+}
+
+export interface WeaponRegistryPort {
+  create(id: WeaponId): WeaponPort
 }
 
 export class FiringManager {
@@ -49,9 +56,11 @@ export class FiringManager {
   private readonly _health: FireRateMulPort
   private readonly _registry: WeaponRegistryPort
   private readonly _loadout: readonly WeaponId[]
+  private readonly _shooting: ShootingPort | undefined
   private readonly _muzzle = { x: 0, y: 0, z: 0 }
   private _index = 0
   private _weapon: WeaponPort
+  private _weaponLevel = 1
   private _switchWasDown = false
 
   constructor(options: FiringManagerOptions) {
@@ -61,11 +70,12 @@ export class FiringManager {
     this._health = options.health
     this._registry = options.registry
     this._loadout = options.loadout
+    this._shooting = options.shooting
     const first = options.loadout[0]
     if (!first) {
       throw new Error('FiringManager loadout is empty')
     }
-    this._weapon = options.registry.create(first)
+    this._weapon = this._create(first)
   }
 
   activeId(): WeaponId {
@@ -76,13 +86,24 @@ export class FiringManager {
     return this._weapon
   }
 
+  weaponLevel(): number {
+    return this._weaponLevel
+  }
+
+  setWeaponLevel(level: number): void {
+    const max = LASER_LEVELS.length
+    const next = Math.round(level)
+    this._weaponLevel = Math.min(max, Math.max(1, next))
+    this._weapon.applyLevel(this._weaponLevel)
+  }
+
   setActive(id: WeaponId): void {
     if (!this._loadout.includes(id) || id === this._weapon.id) {
       return
     }
     this._weapon.dispose()
     this._index = this._loadout.indexOf(id)
-    this._weapon = this._registry.create(id)
+    this._weapon = this._create(id)
   }
 
   cycleWeapon(): void {
@@ -110,9 +131,14 @@ export class FiringManager {
     this._muzzle.y = this._ship.position.y + offset.y
     this._muzzle.z = this._ship.position.z + offset.z
 
+    const holding = this._input.isPressed('fire')
+    if (holding) {
+      this._shooting?.setShooting(true)
+    }
+
     this._weapon.update({
       dt,
-      holding: this._input.isPressed('fire'),
+      holding,
       muzzle: this._muzzle,
       services: { energy: this._energy },
       mods: this.mods,
@@ -121,5 +147,11 @@ export class FiringManager {
 
   dispose(): void {
     this._weapon.dispose()
+  }
+
+  private _create(id: WeaponId): WeaponPort {
+    const weapon = this._registry.create(id)
+    weapon.applyLevel(this._weaponLevel)
+    return weapon
   }
 }

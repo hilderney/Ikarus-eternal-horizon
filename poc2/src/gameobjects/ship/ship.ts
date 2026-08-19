@@ -73,6 +73,7 @@ export interface ShipStats {
 export interface ShipStatus {
   flickering: boolean
   dashing: boolean
+  shooting: boolean
   recovering: boolean
 }
 
@@ -131,7 +132,7 @@ class ShipStatusState implements ShipStatus {
   shooting = false
 
   get recovering(): boolean {
-    return !this.shooting && !this.flickering
+    return !this.shooting && !this.dashing && !this.flickering
   }
 }
 
@@ -243,7 +244,9 @@ export class Ship extends Group {
   private readonly _hull: Mesh
   private readonly _accent: Mesh
   private _flickerTime = 0
-  private _statusFlickerRemainMs = 0
+  private _flickerRemainMs = 0
+  private _dashRemainMs = 0
+  private _shootRemainMs = 0
   private _disposed = false
 
   constructor(options: ShipOptions) {
@@ -407,16 +410,15 @@ export class Ship extends Group {
   }
 
   setDashing(value: boolean): void {
-    this._status.dashing = value
+    this._pulse('dashing', value, BALANCE.ship.stats.dashingMs)
   }
 
   setShooting(value: boolean): void {
-    this._status.shooting = value
+    this._pulse('shooting', value, BALANCE.ship.stats.shootingMs)
   }
 
   setFlickering(value: boolean): void {
-    this._status.flickering = value
-    this._statusFlickerRemainMs = value ? BALANCE.ship.stats.flickerMs : 0
+    this._pulse('flickering', value, BALANCE.ship.stats.flickerMs)
   }
 
   debugSnapshot(): ShipDebugPort {
@@ -426,13 +428,10 @@ export class Ship extends Group {
 
   update(dt: number): void {
     this._flickerTime += dt
-    if (this._statusFlickerRemainMs > 0) {
-      this._statusFlickerRemainMs -= dt * 1000
-      if (this._statusFlickerRemainMs <= 0) {
-        this._statusFlickerRemainMs = 0
-        this._status.flickering = false
-      }
-    }
+    const dtMs = dt * 1000
+    this._flickerRemainMs = this._tickFlag('flickering', this._flickerRemainMs, dtMs)
+    this._dashRemainMs = this._tickFlag('dashing', this._dashRemainMs, dtMs)
+    this._shootRemainMs = this._tickFlag('shooting', this._shootRemainMs, dtMs)
   }
 
   syncRender(): void {
@@ -469,5 +468,43 @@ export class Ship extends Group {
   private _refreshLoadout(): void {
     this._loadout.equippedWeapon = this._hardpoints[0]?.equipped ?? null
     this._loadout.equippedBomb = this._ordnance[0]?.equipped ?? null
+  }
+
+  private _pulse(flag: 'flickering' | 'dashing' | 'shooting', on: boolean, durationMs: number): void {
+    if (!on) {
+      this._status[flag] = false
+      if (flag === 'flickering') {
+        this._flickerRemainMs = 0
+      } else if (flag === 'dashing') {
+        this._dashRemainMs = 0
+      } else {
+        this._shootRemainMs = 0
+      }
+      return
+    }
+    this._status[flag] = true
+    if (flag === 'flickering') {
+      this._flickerRemainMs = durationMs
+    } else if (flag === 'dashing') {
+      this._dashRemainMs = durationMs
+    } else {
+      this._shootRemainMs = durationMs
+    }
+  }
+
+  private _tickFlag(
+    flag: 'flickering' | 'dashing' | 'shooting',
+    remainMs: number,
+    dtMs: number,
+  ): number {
+    if (remainMs <= 0) {
+      return 0
+    }
+    const next = remainMs - dtMs
+    if (next <= 0) {
+      this._status[flag] = false
+      return 0
+    }
+    return next
   }
 }

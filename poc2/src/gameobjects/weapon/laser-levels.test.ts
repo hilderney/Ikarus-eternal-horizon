@@ -2,10 +2,26 @@ import { describe, expect, it } from 'vitest'
 import { copyWeaponConfig, WEAPONS } from './catalog'
 import { applyLaserLevel, LASER_LEVELS } from './laser-levels'
 
+const ENERGY = [1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.1, 2.2] as const
+const VOLLEY = [
+  [1, 0],
+  [2, 0],
+  [3, 0],
+  [4, 0],
+  [3, 1],
+  [4, 1],
+  [3, 2],
+  [4, 2],
+  [3, 3],
+  [4, 3],
+  [3, 4],
+  [4, 4],
+] as const
+
 describe('LASER_LEVELS', () => {
-  it('has 10 rows, levels 1..10', () => {
-    expect(LASER_LEVELS).toHaveLength(10)
-    expect(LASER_LEVELS.map((row) => row.level)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+  it('has 12 rows, levels 1..12', () => {
+    expect(LASER_LEVELS).toHaveLength(12)
+    expect(LASER_LEVELS.map((row) => row.level)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
   })
 
   it('every row satisfies forward + 2*diagPerSide === level', () => {
@@ -21,23 +37,31 @@ describe('LASER_LEVELS', () => {
     }
   })
 
-  it('L1 / L4 / L5 / L10 match the forward/side counts 1 / 4 / 3+1 / 4+3', () => {
-    expect(LASER_LEVELS[0]).toMatchObject({ forwardShots: 1, diagonalShotsPerSide: 0 })
-    expect(LASER_LEVELS[3]).toMatchObject({ forwardShots: 4, diagonalShotsPerSide: 0 })
-    expect(LASER_LEVELS[4]).toMatchObject({ forwardShots: 3, diagonalShotsPerSide: 1 })
-    expect(LASER_LEVELS[9]).toMatchObject({ forwardShots: 4, diagonalShotsPerSide: 3 })
+  it('volley is front + equal diagonals per the L1–L12 table', () => {
+    expect(LASER_LEVELS.map((row) => [row.forwardShots, row.diagonalShotsPerSide, row.energyPerShot])).toEqual(
+      VOLLEY.map((shape, i) => [shape[0], shape[1], ENERGY[i]]),
+    )
   })
 
-  it('applyLaserLevel(cfg, 5) writes damage 1.8, rate 10, energy 0.36, radius 0.14', () => {
+  it('applyLaserLevel(cfg, 5) writes damage 1.8, rate 10, energy 1.5, radius 0.14', () => {
     const cfg = copyWeaponConfig(WEAPONS.laser)
     applyLaserLevel(cfg, 5)
     expect(cfg.damage).toBe(1.8)
     expect(cfg.rate).toBe(10)
-    expect(cfg.energyPerShot).toBe(0.36)
+    expect(cfg.energyPerShot).toBe(1.5)
     expect(cfg.projectile?.radius).toBe(0.14)
     expect(cfg.laser?.forwardShots).toBe(3)
     expect(cfg.laser?.diagonalShotsPerSide).toBe(1)
     expect(cfg.laser?.totalShots).toBe(5)
+  })
+
+  it('applyLaserLevel(cfg, 12) writes 4 forward + 4 per side and energy 2.2', () => {
+    const cfg = copyWeaponConfig(WEAPONS.laser)
+    applyLaserLevel(cfg, 12)
+    expect(cfg.energyPerShot).toBe(2.2)
+    expect(cfg.laser?.forwardShots).toBe(4)
+    expect(cfg.laser?.diagonalShotsPerSide).toBe(4)
+    expect(cfg.laser?.totalShots).toBe(12)
   })
 
   it('applyLaserLevel(cfg, 99) is a no-op', () => {

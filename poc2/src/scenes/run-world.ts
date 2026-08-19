@@ -23,6 +23,7 @@ import { FiringManager } from '../systems/firing-manager'
 import { ShotManager } from '../systems/shot-manager'
 import type { MutableTouchSource, TouchControls } from '../ui/touch-controls/touch-controls'
 import { Debugger, type DebuggerBinds } from '../ui/debugger/debugger'
+import { EquipsTab } from '../ui/debugger/equips-tab'
 import { ShipTab } from '../ui/debugger/ship-tab'
 import type {
   CameraHandle,
@@ -105,7 +106,11 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
     scene.add(ship)
 
     const health = new ShipHealth({ config: BALANCE.ship.health })
-    const energy = new EnergyManager({ config: BALANCE.gameplay.energy })
+    const energy = new EnergyManager({
+      config: BALANCE.gameplay.energy,
+      pool: ship.stats.energy,
+      canRegen: () => ship.status.recovering,
+    })
     const weaponCapacity = Math.max(
       ...BALANCE.weapons.loadout.map((id) => BALANCE.weapons.catalog[id].poolSize),
     )
@@ -142,6 +147,9 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       tilt: BALANCE.controls.tilt,
       keys: BALANCE.controls.shipKeys,
       modifiers: health.modifiers,
+      onDash: () => {
+        ship.setDashing(true)
+      },
     })
     const camCtl = new CameraController({
       input,
@@ -150,10 +158,11 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
     })
     const firing = new FiringManager({
       input,
-      ship,
+      ship: { position: ship.transform.position },
       energy,
       health,
       loadout: BALANCE.weapons.loadout,
+      shooting: ship,
       registry: {
         create(id) {
           return new Weapon({ id, shots: shots.asAcquirePort() })
@@ -375,11 +384,17 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
             ship.equipBomb(0, id as BombId, 1)
           },
         },
+        weapons: {
+          level: () => world.firing.weaponLevel(),
+          setLevel: (level) => {
+            world.firing.setWeaponLevel(level)
+          },
+        },
       }
       const panel = new Debugger({
         host: debuggerHost,
         binds,
-        tabs: [new ShipTab(binds)],
+        tabs: [new ShipTab(binds), new EquipsTab(binds)],
         enabled: true,
       })
       return {
