@@ -125,7 +125,6 @@ export interface MotionConfig {
 export interface DashConfig {
   readonly speedMul: number
   readonly durationMs: number
-  readonly cooldownMs: number
 }
 
 export interface TiltConfig {
@@ -193,6 +192,7 @@ export interface PlayerControllerOptions {
   readonly modifiers: MotionModifiers
   readonly onDash?: () => void
   readonly energy?: DashEnergyPort
+  readonly isDashing?: () => boolean
 }
 
 export interface CameraControllerOptions {
@@ -229,8 +229,7 @@ export declare class CameraController {
  *   vx, vz           | number (m/s)     | ship velocity per axis; cap at maxSpeed*speedMul
  *                       (during dash the cap is maxSpeed*speedMul*dash.speedMul)
  *   tiltCur          | number (deg)     | current bank; target = dirX * maxDeg * sign
- *   dashMs           | number           | remaining dash duration; 0 = idle
- *   dashCdMs         | number           | remaining cooldown; consumePress ignored while > 0
+ *   dashMs           | number           | remaining dash travel; 0 = idle
  *   transform        | ShipTransform    | written each update: position.x/z, rotation.z
  *   modifiers        | MotionModifiers  | read every frame; never interpreted
  *
@@ -248,16 +247,17 @@ export declare class CameraController {
  *   brake/decel are NOT multiplied (hub: maxSpeed/accel only).
  *   Tilt: rise rate = maxDeg/(riseMs/1000), fall rate = maxDeg/(fallMs/1000).
  *   axis 'z' writes transform.rotation.z (POC-1 default).
- *   Dash: on consumePress('dash') and dashCdMs===0, if energy is injected it
- *         must canAfford(DASH_LEVELS[level].energyCost) or the snap is skipped
- *         (press still consumed). On snap: spend, set dashMs = durationMs,
- *         dashCdMs = cooldownMs, snap (vx,vz) along the current dir
- *         (if dir==0, along current velocity; if still, no-op). While dashMs>0
- *         the speed cap is effective maxSpeed * DASH_LEVELS[level].speedMul
+ *   Dash: on consumePress('dash'), skip if isDashing() (C01 status.dashing).
+ *         If energy is injected it must canAfford(DASH_LEVELS[level].energyCost)
+ *         or the snap is skipped (press still consumed). On snap: spend, set
+ *         dashMs = durationMs (= ship.cooldowns.dashingMs), snap (vx,vz) along
+ *         the current dir (if dir==0, along current velocity; if still, no-op).
+ *         While dashMs>0 the speed cap is effective maxSpeed * DASH_LEVELS[level].speedMul
  *         (L1 equals BALANCE.controls.dash.speedMul). If |dashDirX| > 0, start
  *         a 360° barrel roll on the tilt axis in the travel direction over
  *         durationMs (midpoint ±180°, finish upright). Forward/back-only
- *         (|dashDirX|≈0) does not roll.
+ *         (|dashDirX|≈0) does not roll. There is no controller-owned cooldown —
+ *         the lockout is status.dashing for ship.cooldowns.dashingMs.
  *
  * Non-obvious — CameraController:
  *   Translation: pose.position += dir * moveSpeed * dt on x/y/z.
@@ -289,10 +289,11 @@ export declare class CameraController {
  *   R11. Motion dirs come from axis(), not from isDown(shipKeys). Stick,
  *        keyboard, and virtual nipple already coexist inside A02. |dir| scales
  *        accel.
- *   R12. Dash starts only on consumePress('dash') while cooldown is 0.
- *        A held dash button does not retrigger. Cooldown starts at dash start.
- *        A successful snap calls optional onDash (C01 status.dashing pulse).
- *        If energy is injected, canAfford must pass or the snap is skipped.
+ *   R12. Dash starts only on consumePress('dash') while isDashing() is not true
+ *        (C01 status.dashing). A held dash button does not retrigger. The
+ *        lockout is ship.cooldowns.dashingMs via the status pulse, not a
+ *        second timer on the controller. Energy canAfford must pass or the
+ *        snap is skipped. A successful snap calls optional onDash.
  *        Unknown setDashLevel values are ignored (stay on the current row).
  *   R13. Lateral dash barrel-rolls 360° on the tilt axis over durationMs,
  *        sign(dirX)*tilt.sign. Midpoint is ±180°; the craft finishes upright.
@@ -355,11 +356,9 @@ export declare class CameraController {
  * Dash L1 matches BALANCE.controls.dash; L2–L12 live in dash-levels.ts
  * (same band-of-4 step as laser energy, ×10 for cost; distance via speedMul):
  *   BALANCE.controls.dash.speedMul    = DASH_LEVELS[0].speedMul (L1)
- *   BALANCE.controls.dash.durationMs  = 200
- *   BALANCE.controls.dash.cooldownMs  = 800
- *   DASH_LEVELS energyCost / speedMul: 12 rows, band-of-4 (step doubles each
- *   band, same shape as laser energy). L1 cost and travel are the floor;
- *   L12 is the longest / dearest dash.
+ *   BALANCE.controls.dash.durationMs  = ship.cooldowns.dashingMs
+ *   BALANCE.ship.cooldowns            = { flickeringMs: 2000, shootingMs: 500,
+ *                                         dashingMs: 500, recoveringMs: 500 }
  *
  * Camera debug rig (unchanged):
  *   BALANCE.controls.camera.moveSpeed = 12
@@ -379,8 +378,9 @@ export declare class CameraController {
  *            framing, not combat. Keyboard + pad + mouse + touch must feel like
  *            the same ship.
  * Leveling:  hull levels scale maxSpeed/accel via injected multipliers (C03).
- *            Dash L1–L12 scale cost and travel (speedMul); duration/cooldown
- *            stay on BALANCE.controls.dash.
+ *            Dash L1–L12 scale cost and travel (speedMul); duration equals
+ *            ship.cooldowns.dashingMs. Re-dash is allowed when energy remains
+ *            and status.dashing is false.
  * Graphics:  N/A — tilt is presented by C01; touch chrome is G12.
  * Pillars:   playable pillar fragment "move on X/Y". D19 four schemes.
  */
@@ -419,7 +419,7 @@ export declare class CameraController {
  *   it('dash spends energy and skips when the pool cannot afford')                 // R12, D03
  *   it('dash spends the L1 energy cost on a successful snap')                      // R12, D03
  *   it('dash L12 travels farther than L1')                                         // R12
- *   it('dash is ignored while cooldown is active')                                 // R12
+ *   it('dash is ignored while status.dashing is true and allowed when it clears')  // R12
  *   it('update(dt) allocates no objects')                                          // R9
  *
  * describe('CameraController')

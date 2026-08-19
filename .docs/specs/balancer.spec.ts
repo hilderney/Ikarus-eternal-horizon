@@ -81,11 +81,15 @@ export interface BytePoolConfig {
   readonly max: number
 }
 
-export interface ShipStatsConfig {
-  readonly byteCap: number
-  readonly flickerMs: number
+export interface ShipCooldowns {
+  readonly flickeringMs: number
   readonly shootingMs: number
   readonly dashingMs: number
+  readonly recoveringMs: number
+}
+
+export interface ShipStatsConfig {
+  readonly byteCap: number
   readonly agility: BytePoolConfig
   readonly deflection: BytePoolConfig
   readonly integrity: BytePoolConfig
@@ -182,6 +186,7 @@ export interface Balance {
     readonly gamepad: GamepadConfig
   }
   readonly ship: {
+    readonly cooldowns: ShipCooldowns
     readonly stats: ShipStatsConfig
     readonly health: ShipHealthConfig
   }
@@ -247,7 +252,7 @@ export declare const BALANCE: Balance
  *   gameplay.switchBombKey      = 'KeyQ'
  *   gameplay.dashKey            = 'ControlLeft'
  *   controls.motion             = { maxSpeed: 12, accel: 60, decel: 60, brake: 120 }
- *   controls.dash               = { speedMul: 2.2, durationMs: 140, cooldownMs: 750 }
+ *   controls.dash               = { speedMul: DASH_LEVELS[0], durationMs: ship.cooldowns.dashingMs }
  *   controls.tilt               = { axis: 'z', sign: -1, maxDeg: 22, riseMs: 150, fallMs: 200 }
  *   controls.gamepad            = { deadzone: 0.18, triggerThreshold: 0.35, invertMoveZ: false,
  *                                   axes { moveX: 0, moveZ: 1 },
@@ -258,10 +263,8 @@ export declare const BALANCE: Balance
  *   ship.follow                 = { halfX: 6, halfZ: 8, bounce.timeMs: 500, recenter delay 1500 / still 800 / accel 3 / maxSpeed 12 }
  *   ship.visual                 = { size {1.5,1,2}, wireframe 0x22d3ee, accent 0x6d28d9, thruster 0x60c5ff }
  *   ship.inventory.caps         = { metalScrap: 999, prismaticCrystal: 99, denseCore: 49, darkMatter: 9 }
+ *   ship.cooldowns              = { flickeringMs: 2000, shootingMs: 500, dashingMs: 500, recoveringMs: 500 }
  *   ship.stats.byteCap          = 255
- *   ship.stats.flickerMs        = 2000
- *   ship.stats.shootingMs       = 500
- *   ship.stats.dashingMs        = 500
  *   ship.stats.{agility,deflection,integrity,shield,precision,energy} = { current: 100, max: 100 }
  *   debug.syncHz                = 15  // G08 sidecar; same as loop.sidecarHz
  *   weapons.loadout             = ['laser', 'plasma']  // WPN-03; catalog holds all four

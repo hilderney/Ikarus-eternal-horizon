@@ -117,8 +117,8 @@ export declare class EnergyManager implements EnergyPort {
  * Non-obvious:
  *   canAfford does not spend. Behaviours must check then spend (no rollback).
  *   spend of more than current floors at 0 (no negative energy).
- *   spend does not start a delay — regen is gated by canRegen (recovering),
- *   not by a post-spend timer (unlike C03 shield).
+ *   spend starts a recoveringMs delay (BALANCE.ship.cooldowns.recoveringMs).
+ *   Regen runs only when that delay is 0 and canRegen() is true (recovering).
  *   Fire-blocked-at-0 is a canAfford(cost) false when current < cost, which
  *   at current === 0 is true for any cost > 0. This class does not know about
  *   weapons; E07/D02 ask the port.
@@ -131,7 +131,8 @@ export declare class EnergyManager implements EnergyPort {
  *   R3. canAfford(cost) is current >= cost. Never throws.
  *   R4. spend subtracts cost and clamps to [0, +∞) from below only.
  *   R5. update regenerates regenPerSec * dt, clamped to max, only when
- *       canRegen() is true (default always; run binds ship.status.recovering).
+ *       the recoveringMs delay is 0 and canRegen() is true (default always;
+ *       run binds ship.status.recovering). spend starts that delay.
  *   R6. current never exceeds max and never goes below 0.
  *   R7. At current === 0, canAfford(any positive cost) is false — fire blocks.
  *   R8. Memory: no GPU. Per-frame allocation: none.
@@ -195,6 +196,7 @@ export declare class EnergyManager implements EnergyPort {
  *   it('update/spend allocate no objects')                                         // R8
  *   it('module does not import three')                                             // R9
  *   it('spend and regen write through the bound C01 energy pool')                  // R10
+ *   it('spend starts recoveringMs delay before regen')                             // R5, C01 cooldowns
  *   it('update skips regen when canRegen is false')                                // R5
  *
  * Manual:

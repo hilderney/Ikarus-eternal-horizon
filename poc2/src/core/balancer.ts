@@ -110,7 +110,6 @@ export interface TouchControlConfig {
 export interface DashConfig {
   readonly speedMul: number
   readonly durationMs: number
-  readonly cooldownMs: number
 }
 
 export interface HapticPreset {
@@ -194,11 +193,15 @@ export interface BytePoolConfig {
   readonly max: number
 }
 
-export interface ShipStatsConfig {
-  readonly byteCap: number
-  readonly flickerMs: number
+export interface ShipCooldowns {
+  readonly flickeringMs: number
   readonly shootingMs: number
   readonly dashingMs: number
+  readonly recoveringMs: number
+}
+
+export interface ShipStatsConfig {
+  readonly byteCap: number
   readonly agility: BytePoolConfig
   readonly deflection: BytePoolConfig
   readonly integrity: BytePoolConfig
@@ -326,6 +329,7 @@ export interface Balance {
     readonly followBox: FollowBoxConfig
     readonly visual: ShipVisualConfig
     readonly inventory: ShipInventoryConfig
+    readonly cooldowns: ShipCooldowns
     readonly stats: ShipStatsConfig
     readonly health: ShipHealthConfig
   }
@@ -344,6 +348,13 @@ export interface Balance {
 }
 
 const PARALLAX_GAIN_UNIT = 0.015
+
+const SHIP_COOLDOWNS: ShipCooldowns = {
+  flickeringMs: 2000,
+  shootingMs: 500,
+  dashingMs: 500,
+  recoveringMs: 500,
+}
 
 const BALANCE_DATA: Balance = {
   layout: {
@@ -388,8 +399,7 @@ const BALANCE_DATA: Balance = {
     },
     dash: {
       speedMul: DASH_LEVELS[0]?.speedMul ?? 2.05,
-      durationMs: 500,
-      cooldownMs: 800,
+      durationMs: SHIP_COOLDOWNS.dashingMs,
     },
     tilt: {
       axis: 'z',
@@ -488,11 +498,9 @@ const BALANCE_DATA: Balance = {
         darkMatter: 9,
       },
     },
+    cooldowns: SHIP_COOLDOWNS,
     stats: {
       byteCap: 255,
-      flickerMs: 2000,
-      shootingMs: 500,
-      dashingMs: 500,
       agility: { current: 100, max: 100 },
       deflection: { current: 100, max: 100 },
       integrity: { current: 100, max: 100 },

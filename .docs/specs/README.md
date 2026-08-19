@@ -50,13 +50,13 @@ POC-1 is frozen. These specs describe **`poc2/` only**.
 | G11 | [pause-scene.spec.ts](./pause-scene.spec.ts) | `poc2/src/scenes/pause-scene.test.ts` |
 | G12 | [touch-controls.spec.ts](./touch-controls.spec.ts) | `poc2/src/ui/touch-controls/touch-controls.test.ts` |
 
-Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B, C01–C03, D01–D03, G06, G08 (Ship + Equips), G09, G03 and G12 are **done**. D04 + E04 + a thin E07 are **implemented**. D05/D06 stay catalog-only until G2. Fase 0 is playable; Space/RT fires laser, F/LB switches to plasma (no splash until F01). Laser range is from the fire point (not a world plane). The debugger-area shows Ship and Equips in DEV. D03 energy is the same pool as `ship.stats.energy` (Ship tab slider). Regen runs only while `recovering`. Equips weapon level 1–12 is `FiringManager.setWeaponLevel`. Equips dash level 1–12 is `PlayerController.setDashLevel`; lateral dash barrel-rolls 360° (180° at midpoint).
+Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B, C01–C03, D01–D03, G06, G08 (Ship + Equips), G09, G03 and G12 are **done**. D04 + E04 + a thin E07 are **implemented**. D05/D06 stay catalog-only until G2. Fase 0 is playable; Space/RT fires laser, F/LB switches to plasma (no splash until F01). Laser range is from the fire point (not a world plane). The debugger-area shows Ship and Equips in DEV. D03 energy is the same pool as `ship.stats.energy` (Ship tab slider). Regen waits `ship.cooldowns.recoveringMs` after spend and only while `recovering`. Equips weapon level 1–12 is `FiringManager.setWeaponLevel`. Equips dash level 1–12 is `PlayerController.setDashLevel`; dash lockout is `status.dashing` (`ship.cooldowns.dashingMs`).
 
 ## Next steps (playable order)
 
 1. **G08 remaining tabs** after Ship / Equips: Camera · LimitBox · Parallax · Weapons catalog · Energy · Shots · Collision.
 2. **Wire C03 combat onto the byte pools.** Integrity/shield become the same 0–255 pools the Ship tab shows. Energy is already bound (D03).
-3. **Statuses.** `flickering` 2000ms after spawn; `shooting` 500ms after fire; `dashing` 500ms after dash; `recovering` only when those three are false (energy regen).
+3. **Statuses.** `flickering` / `shooting` / `dashing` / `recovering` timers live in `BALANCE.ship.cooldowns`. Dash is allowed when energy remains and `status.dashing` is false. Energy regen waits `recoveringMs` after spend and only while `recovering`.
 4. **F01 Collision** — Player / PlayerShot hitboxes, plasma splash. Then F04 / F05 / G07 HUD bars.
 5. **G11 Pause** inventory / restart / quit (scheme picker is live). D05/D06 stay G2.
 

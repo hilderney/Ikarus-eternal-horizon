@@ -289,11 +289,12 @@ describe('PlayerController', () => {
     const input = new FakeInput()
     const transform = makeTransform()
     const controller = makePlayer(input, transform)
+    const half = BALANCE.controls.dash.durationMs / 2000
     input.moveX = 1
     input.queueDash()
-    controller.update(0.1)
+    controller.update(half)
     expect(transform.rotation.z).toBeCloseTo(-180, 5)
-    controller.update(0.1)
+    controller.update(half)
     expect(transform.rotation.z).toBeCloseTo(0, 5)
     controller.dispose()
   })
@@ -324,11 +325,12 @@ describe('PlayerController', () => {
     const input = new FakeInput()
     const transform = makeTransform()
     const controller = makePlayer(input, transform)
+    const half = BALANCE.controls.dash.durationMs / 2000
     input.moveX = -1
     input.queueDash()
-    controller.update(0.1)
+    controller.update(half)
     expect(transform.rotation.z).toBeCloseTo(180, 5)
-    controller.update(0.1)
+    controller.update(half)
     expect(transform.rotation.z).toBeCloseTo(0, 5)
     controller.dispose()
   })
@@ -428,18 +430,41 @@ describe('PlayerController', () => {
     controller.dispose()
   })
 
-  it('dash is ignored while cooldown is active', () => {
+  it('dash is ignored while status.dashing is true and allowed when it clears', () => {
     const input = new FakeInput()
     const transform = makeTransform()
-    const controller = makePlayer(input, transform)
+    let dashing = false
+    const spent: number[] = []
+    const controller = new PlayerController({
+      input,
+      transform,
+      motion: BALANCE.controls.motion,
+      dash: BALANCE.controls.dash,
+      tilt: BALANCE.controls.tilt,
+      keys: BALANCE.controls.shipKeys,
+      modifiers: { speedMul: 1, accelMul: 1 },
+      isDashing: () => dashing,
+      energy: {
+        canAfford: () => true,
+        spend(cost: number) {
+          spent.push(cost)
+        },
+      },
+      onDash: () => {
+        dashing = true
+      },
+    })
     input.moveX = 1
     input.queueDash()
     controller.update(0.05)
-    step(controller, 0.2)
-    const x = transform.position.x
+    expect(spent).toHaveLength(1)
     input.queueDash()
     controller.update(0.05)
-    expect(transform.position.x - x).toBeCloseTo(12 * 0.05, 5)
+    expect(spent).toHaveLength(1)
+    dashing = false
+    input.queueDash()
+    controller.update(0.05)
+    expect(spent).toHaveLength(2)
     controller.dispose()
   })
 

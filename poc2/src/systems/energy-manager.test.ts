@@ -99,8 +99,21 @@ describe('EnergyManager', () => {
     energy.spend(10)
     expect(pool.current).toBe(40)
     expect(energy.current).toBe(40)
+    energy.update(BALANCE.ship.cooldowns.recoveringMs / 1000)
+    expect(pool.current).toBe(40)
     energy.update(1)
     expect(pool.current).toBe(48)
+    energy.dispose()
+  })
+
+  it('spend starts recoveringMs delay before regen', () => {
+    const delay = BALANCE.ship.cooldowns.recoveringMs
+    const energy = makeEnergy({ start: 50, max: 100, regenPerSec: 8 })
+    energy.spend(10)
+    energy.update((delay - 1) / 1000)
+    expect(energy.current).toBe(40)
+    energy.update(0.002)
+    expect(energy.current).toBeCloseTo(40 + 8 * 0.001, 5)
     energy.dispose()
   })
 

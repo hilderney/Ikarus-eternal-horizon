@@ -410,15 +410,15 @@ export class Ship extends Group {
   }
 
   setDashing(value: boolean): void {
-    this._pulse('dashing', value, BALANCE.ship.stats.dashingMs)
+    this._pulse('dashing', value, BALANCE.ship.cooldowns.dashingMs)
   }
 
   setShooting(value: boolean): void {
-    this._pulse('shooting', value, BALANCE.ship.stats.shootingMs)
+    this._pulse('shooting', value, BALANCE.ship.cooldowns.shootingMs)
   }
 
   setFlickering(value: boolean): void {
-    this._pulse('flickering', value, BALANCE.ship.stats.flickerMs)
+    this._pulse('flickering', value, BALANCE.ship.cooldowns.flickeringMs)
   }
 
   debugSnapshot(): ShipDebugPort {

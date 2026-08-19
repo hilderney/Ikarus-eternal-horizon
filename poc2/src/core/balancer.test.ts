@@ -84,8 +84,7 @@ describe('BALANCE', () => {
     expect(BALANCE.gameplay.dashKey).toBe('ControlLeft')
     expect(BALANCE.controls.dash).toEqual({
       speedMul: DASH_LEVELS[0]?.speedMul,
-      durationMs: 200,
-      cooldownMs: 800,
+      durationMs: BALANCE.ship.cooldowns.dashingMs,
     })
     expect(BALANCE.controls.mouse).toEqual({
       fireButton: 0,
@@ -130,9 +129,12 @@ describe('BALANCE', () => {
 
   it('exposes ship.stats byteCap 255 and spawn pools 100/100', () => {
     expect(BALANCE.ship.stats.byteCap).toBe(255)
-    expect(BALANCE.ship.stats.flickerMs).toBe(2000)
-    expect(BALANCE.ship.stats.shootingMs).toBe(500)
-    expect(BALANCE.ship.stats.dashingMs).toBe(500)
+    expect(BALANCE.ship.cooldowns).toEqual({
+      flickeringMs: 2000,
+      shootingMs: 500,
+      dashingMs: 500,
+      recoveringMs: 500,
+    })
     for (const key of ['agility', 'deflection', 'integrity', 'shield', 'precision', 'energy'] as const) {
       expect(BALANCE.ship.stats[key]).toEqual({ current: 100, max: 100 })
     }

@@ -374,7 +374,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-C01` Ship
 - **Folder:** `src/gameobjects/ship/` · spec [ship.spec.ts](../specs/ship.spec.ts)
-- **Scope:** `class Ship extends THREE.Group`. Modular mounts + **ship sheet** for G08: pose, **byte stats 0–255** (agility, deflection, integrity, shield, precision, energy — spawn `current=max=100`, cap 255), statuses (`flickering` 2000ms spawn, `shooting` 500ms, `dashing` 500ms, `recovering` only if those three are false), loadout (equipped + owned lists: weapons, bombs, wings, shield fits, armor, energy collector, energy converter). `debugSnapshot(): ShipDebugPort`. D03 writes `stats.energy`. Hull combat still uses C03 until that card consumes integrity/shield.
+- **Scope:** `class Ship extends THREE.Group`. Modular mounts + **ship sheet** for G08: pose, **byte stats 0–255** (agility, deflection, integrity, shield, precision, energy — spawn `current=max=100`, cap 255), statuses (`flickering` / `shooting` / `dashing` / `recovering` from `BALANCE.ship.cooldowns`), loadout (equipped + owned lists: weapons, bombs, wings, shield fits, armor, energy collector, energy converter). `debugSnapshot(): ShipDebugPort`. D03 writes `stats.energy`. Hull combat still uses C03 until that card consumes integrity/shield.
 - **Requires:** A01, A03.
 - **Lib:** **Three.js** (`Group`, `Mesh`, `BoxGeometry`, `ConeGeometry`, `SphereGeometry`, `MeshBasicMaterial`)
 - **View:** neon wireframe hull + accent box + thruster cone (additive) + equipment tip sphere.
@@ -386,7 +386,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 - **Scope:** `class PlayerController` maps **device-blind** inputs to ship commands — axis-based force motion (`accel`/`decel`/`brake`, `maxSpeed`), tilt/bank (`rotation.z`, `maxDeg`, `riseMs`/`fallMs`), kinematic **dash** (`consumePress('dash')`, L1–L12 cost/distance, optional D03 `EnergyPort`). Lateral dash barrel-rolls 360° on the tilt axis (180° at midpoint); forward/back-only does not roll. Analog dirs come from `InputPort.axis('moveX'|'moveZ')` which already merged WASD / left stick / nipple (`D19`). `class CameraController` stays keyboard (IJKL/UO + Shift) — debug rig, not a pad/touch/mouse camera. Never imports nipplejs, never listens to pointer events. Fire / bomb / switch / pause are **not** consumed here (E07 / G11).
 - **Requires:** A01, A02, A03, B01, C01.
 - **Lib:** — (no dependency — input→force mapping; Three.js vectors for integration)
-- **Rules:** ship control is continuous force; tilt ramps in `riseMs`, settles in `fallMs`; **effective `maxSpeed`/`accel` read the degradation multiplier from `C03`** — the controller never knows why it is slower. Dash is a bounded impulse + cooldown; it spends the shared D03 pool (L1–L12). Dedicated jet reserve is `SHIP-08`.
+- **Rules:** ship control is continuous force; tilt ramps in `riseMs`, settles in `fallMs`; **effective `maxSpeed`/`accel` read the degradation multiplier from `C03`** — the controller never knows why it is slower. Dash is a bounded impulse; re-dash requires energy and `!status.dashing` (`ship.cooldowns.dashingMs`). Dedicated jet reserve is `SHIP-08`.
 - **Maps:** `SHIP-01`, `SHIP-13` (POC2 play), `SHIP-04` (`D19`), `SHIP-08` (dash spend on shared pool). **Acceptance:** the tuned feel of POC-1 (inertia + bank) is preserved on keyboard; left stick, WASD+mouse, and the nipple produce the same force curve after deadzone.
 
 #### `SDD-C03` ShipHealth (Force Field · Integrity · degradation)
@@ -423,7 +423,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-D03` EnergyManager
 - **Folder:** `src/systems/energy-manager.ts`
-- **Scope:** `class EnergyManager implements EnergyPort` — shared pool `{ current, max, regenPerSec }`; `canAfford(cost)`, `spend(cost)`, `update(dt)` (regen). Optional `pool` is C01 `stats.energy` so G08 is combat energy. Regen only while `canRegen()` (run binds `ship.status.recovering`). All fire (and future jets/craft) draw from it.
+- **Scope:** `class EnergyManager implements EnergyPort` — shared pool `{ current, max, regenPerSec }`; `canAfford(cost)`, `spend(cost)`, `update(dt)` (regen). Optional `pool` is C01 `stats.energy` so G08 is combat energy. Regen only while `canRegen()` (run binds `ship.status.recovering`) **and** `ship.cooldowns.recoveringMs` after last spend. All fire (and future jets/craft) draw from it.
 - **Requires:** A01.
 - **Lib:** — (no dependency — pool arithmetic only)
 - **Maps:** `SHIP-09`, `WPN-05`, `SHIP-08` (seam). **Acceptance:** laser drains visibly; at 0 fire blocks with a low-energy state.

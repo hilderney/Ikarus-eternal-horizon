@@ -150,6 +150,7 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       onDash: () => {
         ship.setDashing(true)
       },
+      isDashing: () => ship.status.dashing,
       energy,
     })
     const camCtl = new CameraController({

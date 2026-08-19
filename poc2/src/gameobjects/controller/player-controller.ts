@@ -20,7 +20,6 @@ export interface MotionConfig {
 export interface DashConfig {
   readonly speedMul: number
   readonly durationMs: number
-  readonly cooldownMs: number
 }
 
 export interface TiltConfig {
@@ -59,6 +58,8 @@ export interface PlayerControllerOptions {
   readonly modifiers: MotionModifiers
   readonly onDash?: () => void
   readonly energy?: DashEnergyPort
+  /** C01 status.dashing. When true, consumePress('dash') is ignored. */
+  readonly isDashing?: () => boolean
 }
 
 function pushVelocity(
@@ -123,13 +124,13 @@ export class PlayerController {
   private readonly _modifiers: MotionModifiers
   private readonly _onDash: (() => void) | undefined
   private readonly _energy: DashEnergyPort | undefined
+  private readonly _isDashing: (() => boolean) | undefined
   private _vx = 0
   private _vz = 0
   private _tiltCur = 0
   private _dashMs = 0
-  private _dashCdMs = 0
   private _dashLevel = 1
-  private _dashSpeedMul = DASH_LEVELS[0]?.speedMul ?? 2.2
+  private _dashSpeedMul = DASH_LEVELS[0]?.speedMul ?? 1.55
   private _dashEnergy = DASH_LEVELS[0]?.energyCost ?? 3
   private _rollMs = 0
   private _rollDurMs = 0
@@ -146,6 +147,7 @@ export class PlayerController {
     this._modifiers = options.modifiers
     this._onDash = options.onDash
     this._energy = options.energy
+    this._isDashing = options.isDashing
     void options.keys
     this.setDashLevel(1)
   }
@@ -176,14 +178,12 @@ export class PlayerController {
     const accel = this._motion.accel * accelMul
     let maxSpeed = this._motion.maxSpeed * speedMul
 
-    if (this._dashCdMs > 0) {
-      this._dashCdMs = Math.max(0, this._dashCdMs - dt * 1000)
-    }
     if (this._dashMs > 0) {
       this._dashMs = Math.max(0, this._dashMs - dt * 1000)
     }
 
-    if (this._input.consumePress('dash') && this._dashCdMs === 0) {
+    const dashing = this._isDashing?.() === true
+    if (this._input.consumePress('dash') && !dashing) {
       const blocked = this._energy !== undefined && !this._energy.canAfford(this._dashEnergy)
       if (!blocked && this._snapDash(dirX, dirZ, maxSpeed)) {
         this._energy?.spend(this._dashEnergy)
@@ -243,7 +243,6 @@ export class PlayerController {
     this._vx = dx * cap
     this._vz = dz * cap
     this._dashMs = this._dash.durationMs
-    this._dashCdMs = this._dash.cooldownMs
     if (Math.abs(dx) > 0.001) {
       this._rollFrom = this._tiltCur
       this._rollDelta = 360 * Math.sign(dx) * this._tilt.sign
@@ -255,7 +254,7 @@ export class PlayerController {
 
   private _updateBank(dirX: number, dt: number): void {
     if (this._rollDurMs > 0) {
-      this._rollMs += dt * 2000
+      this._rollMs += dt * 1000
       const t = Math.min(1, this._rollMs / this._rollDurMs)
       this._tiltCur = this._rollFrom + this._rollDelta * t
       if (t >= 1) {

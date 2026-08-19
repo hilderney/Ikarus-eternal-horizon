@@ -265,7 +265,7 @@ export declare class Ship extends THREE.Group {
  *   R4. setEquippedWeapon(color, radius) sets tip material colour and
  *       scale = max(0.03, radius). It does not construct a Weapon.
  *   R5. update(dt) accumulates thruster flicker time and counts down status
- *       timers (flickerMs / shootingMs / dashingMs). Thruster scale is applied in
+ *       timers (ship.cooldowns flickeringMs / shootingMs / dashingMs). Thruster scale is applied in
  *       syncRender: scale.y = 0.72 + 0.28 * sin(t*42) * sin(t*13 + 1.3)
  *       (POC-1 port). X/Z scale stay 1.
  *   R6. Memory: geometries and materials created once. dispose() must reach
@@ -278,11 +278,12 @@ export declare class Ship extends THREE.Group {
  *        current = max = 100 (agility, deflection, integrity, shield, precision,
  *        energy). current and max never exceed byteCap. Integrity 0 is still
  *        death — C03 reports it once wired to this sheet.
- *   R11. status.flickering is true after spawn for flickerMs (2000) and after a
+ *   R11. status.flickering is true after spawn for flickeringMs (2000) and after a
  *        hit (F04/C03 will call setFlickering). status.shooting pulses shootingMs
  *        (500) from E07 while fire is held. status.dashing pulses dashingMs (500)
- *        from C02 onDash. status.recovering is true only when shooting, dashing
- *        and flickering are all false — that is the gate for energy gain (D03).
+ *        from C02 onDash — that flag is the dash lockout. status.recovering is
+ *        true only when shooting, dashing and flickering are all false — that
+ *        is the gate for energy gain (D03), after recoveringMs post-spend delay.
  *   R12. Loadout lists are owned gear. Equipped* is the active slot. Starting
  *        weapons list = BALANCE.weapons.loadout; bombs/wings/shields/armors/
  *        collectors/converters start empty until §7. Shield *fit* (ShieldFitId)
@@ -328,11 +329,14 @@ export declare class Ship extends THREE.Group {
  *
  * Byte sheet (G08 Ship tab — A01 BALANCE.ship.stats):
  *   byteCap     = 255
- *   flickerMs   = 2000  // spawn i-frames
- *   shootingMs  = 500   // status_shooting pulse after fire
- *   dashingMs   = 500   // status_dashing pulse after dash
  *   agility, deflection, integrity, shield, precision, energy
  *               = { current: 100, max: 100 } at spawn
+ *
+ * Ship cooldowns (BALANCE.ship.cooldowns — single source for status timers):
+ *   flickeringMs  = 2000  // spawn i-frames
+ *   shootingMs    = 500   // status_shooting pulse after fire
+ *   dashingMs     = 500   // status_dashing pulse; dash lockout; dash duration
+ *   recoveringMs  = 500   // D03 post-spend delay before energy regen
  *
  *   agility     — acceleration to move (C02 later)
  *   deflection  — chance to take less damage (F04 later)
