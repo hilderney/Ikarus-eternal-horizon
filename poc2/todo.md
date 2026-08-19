@@ -164,7 +164,8 @@ Out of POC2 scope (hub §7, `EQP-`, `SHIP-10`).
 
 ## Fase 10 — Pausa com inventário
 
-- [ ] Esc or Start pauses the field without disposing the Run (no dt catch-up on resume) · `SDD-G11` · [pause-scene.spec.ts](../.docs/specs/pause-scene.spec.ts) · **new** (+ `D18`)
+- [x] Esc pauses; **control scheme picker** (Keyboard / Mix / Gamepad / Touch, default keyboard) · `SDD-G11` / `SDD-A02` · [pause-scene.spec.ts](../.docs/specs/pause-scene.spec.ts) · **new** (`D19`)
+- [ ] Esc or Start pauses without disposing the Run (inventory / restart / quit still pending) · `SDD-G11`
 - [ ] Inventory: resources collected this run (read-only) · `SDD-G11` / `SDD-C01`
 - [ ] Equipped weapon + hull/shield state on the overlay · `SDD-G11`
 - [ ] Resume / Restart / Quit to title · `SDD-G11` / `SDD-G01` / `SDD-G10`
@@ -208,7 +209,8 @@ POC-1 listed a shop. GDD meta is Bounty Board + cosmetics, not a mid-run power s
 
 ## Fase 14 — Fechamento / Itch.io
 
-- [ ] Debugger: one tab per subject; **Ship first** (pose, 0–255 pools, statuses, loadout) then Cam / LimitBox / Parallax / Weapons / Energy / Shots / Collision · `SDD-G08` · [debugger.spec.ts](../.docs/specs/debugger.spec.ts) · **port**
+- [x] Debugger: **Ship tab** (pose, 0–255 pools, statuses, loadout) two-way ~15 Hz, Reset · `SDD-G08` · [debugger.spec.ts](../.docs/specs/debugger.spec.ts) · **port**
+- [ ] Debugger remaining tabs: Cam / LimitBox / Parallax / Weapons / Energy / Shots / Collision · `SDD-G08`
 - [ ] Ship XYZ label, letterbox-safe · `SDD-G07`
 - [ ] All gameplay numbers still only in `BALANCE` · `SDD-A01` (`RUL-12`)
 - [x] Web package: `index.html` relative paths, responsive canvas · `SDD-G09` (`RUL-08`)

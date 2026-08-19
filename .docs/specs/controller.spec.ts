@@ -23,7 +23,7 @@
  *            CameraController: IJKL/UO translation and Shift+IJKL/UO rotation
  *            (keyboard debug rig — not a pad / touch / mouse camera).
  *
- * Accepts four coexisting control schemes (D19) **only through InputPort**.
+ * Accepts four exclusive control schemes (D19) **only through InputPort**.
  * This class never imports nipplejs, never listens to pointer events, never
  * polls getGamepads(). A02 merges the schemes; G12 owns the touch overlay.
  *

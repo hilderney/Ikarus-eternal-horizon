@@ -12,7 +12,7 @@ import { PlayerController } from '../gameobjects/controller/player-controller'
 import { Gizmos } from '../gameobjects/gizmos/gizmos'
 import { LimitBox } from '../gameobjects/limit-box/limit-box'
 import { ParallaxField } from '../gameobjects/parallax/parallax-field'
-import { Ship } from '../gameobjects/ship/ship'
+import { Ship, type BombId, type WeaponId } from '../gameobjects/ship/ship'
 import { ShipHealth } from '../gameobjects/ship/ship-health'
 import { WeaponShot } from '../gameobjects/shot/weapon-shot'
 import { Weapon } from '../gameobjects/weapon/weapon'
@@ -21,8 +21,9 @@ import '../gameobjects/weapon/behaviours/plasma'
 import { EnergyManager } from '../systems/energy-manager'
 import { FiringManager } from '../systems/firing-manager'
 import { ShotManager } from '../systems/shot-manager'
-import type { MutableTouchSource } from '../ui/touch-controls/touch-controls'
-import { TouchControls } from '../ui/touch-controls/touch-controls'
+import type { MutableTouchSource, TouchControls } from '../ui/touch-controls/touch-controls'
+import { Debugger, type DebuggerBinds } from '../ui/debugger/debugger'
+import { ShipTab } from '../ui/debugger/ship-tab'
 import type {
   CameraHandle,
   Disposable,
@@ -37,7 +38,9 @@ export interface RunWorldOptions {
   readonly scene: Scene
   readonly input: InputPort
   readonly touch: MutableTouchSource
+  readonly touchOverlay: TouchControls
   readonly host: HTMLElement
+  readonly debuggerHost: HTMLElement
   readonly gameCamera: GameCamera
   readonly cameraConfig: {
     fov: number
@@ -78,7 +81,7 @@ function wrap(
 }
 
 export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
-  const { scene, input, touch, host, gameCamera, cameraConfig } = options
+  const { scene, input, touchOverlay, debuggerHost, gameCamera, cameraConfig } = options
   let bag: ReturnType<typeof build> | null = null
 
   function current(): ReturnType<typeof build> {
@@ -331,19 +334,67 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       return current().idleRun
     },
     debugger() {
-      return null
-    },
-    touchControls() {
-      const controls = new TouchControls({
-        host,
-        source: touch,
-        enabled: BALANCE.controls.touch.enabled,
-        stickSize: BALANCE.controls.touch.stickSize,
-        stickColor: BALANCE.controls.touch.stickColor,
+      if (!import.meta.env.DEV) {
+        return null
+      }
+      const world = current()
+      const { ship } = world
+      const binds: DebuggerBinds = {
+        ship: {
+          snapshot: () => {
+            const port = ship.debugSnapshot()
+            port.loadout.equippedWeapon = world.firing.activeId()
+            return port
+          },
+          applyTransform: () => {
+            ship.applyTransform(ship.transform)
+          },
+          setFlickering: (value) => {
+            ship.setFlickering(value)
+          },
+          setDashing: (value) => {
+            ship.setDashing(value)
+          },
+          setShooting: (value) => {
+            ship.setShooting(value)
+          },
+          equipWeapon: (id) => {
+            if (id === null) {
+              ship.unequipWeapon(0)
+              return
+            }
+            const weaponId = id as WeaponId
+            ship.equipWeapon(0, weaponId)
+            world.firing.setActive(weaponId)
+          },
+          equipBomb: (id) => {
+            if (id === null) {
+              ship.unequipBomb(0)
+              return
+            }
+            ship.equipBomb(0, id as BombId, 1)
+          },
+        },
+      }
+      const panel = new Debugger({
+        host: debuggerHost,
+        binds,
+        tabs: [new ShipTab(binds)],
+        enabled: true,
       })
       return {
+        update(dt: number) {
+          panel.update(dt)
+        },
         dispose() {
-          controls.dispose()
+          panel.dispose()
+        },
+      }
+    },
+    touchControls() {
+      return {
+        dispose() {
+          touchOverlay.dispose()
         },
       }
     },
@@ -362,7 +413,7 @@ export function createInputMap(): {
     'Shift+IJKL camera rot',
     'Space fire / RT   F / LB switch',
     'F wpn   Q bomb×',
-    'Ctrl dash   Esc pause',
+    'Esc pause / scheme',
     'Pad: stick · RT fire · A bomb',
     'LT dash · LB/RB switch · Start',
   ].join('\n')

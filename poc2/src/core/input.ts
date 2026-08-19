@@ -5,7 +5,10 @@
 
 import { BALANCE } from './balancer'
 
-/** Logical actions. Keyboard, pad, mouse and touch all resolve here (D19). */
+/** Exclusive control schemes. Pause (G11) is the picker. Default: keyboard. */
+export type ControlScheme = 'keyboard' | 'mix' | 'gamepad' | 'touch'
+
+/** Logical actions. The active scheme resolves these (D19). */
 export type InputAction =
   | 'fire'
   | 'bomb'
@@ -33,6 +36,8 @@ export interface InputPort {
   isPressed(action: InputAction): boolean
   consumePress(action: InputAction): boolean
   rumble(preset: RumblePreset): void
+  readonly scheme: ControlScheme
+  setScheme(scheme: ControlScheme): void
   readonly connectedPadCount: number
   dispose(): void
 }
@@ -79,6 +84,7 @@ export interface InputStateOptions {
   readonly preventDefaultCodes: readonly string[]
   readonly gamepads?: GamepadSource
   readonly touch?: TouchSource
+  readonly scheme?: ControlScheme
   /** Defaults to BALANCE.haptics.enabled. Tests may override. */
   readonly hapticsEnabled?: boolean
 }
@@ -159,6 +165,7 @@ export class InputState implements InputPort {
   private readonly _touch: TouchSource
   private readonly _preventDefaultCodes: ReadonlySet<string>
   private readonly _hapticsEnabled: boolean
+  private _scheme: ControlScheme
   private _pad: GamepadSnap | null = null
   private _padAxisX = 0
   private _padAxisZ = 0
@@ -218,12 +225,18 @@ export class InputState implements InputPort {
   }
 
   private readonly _onWheel = (event: Event): void => {
+    if (this._scheme !== 'mix') {
+      return
+    }
     const e = event as WheelEvent
     e.preventDefault()
     this._edgeBits |= SWITCH_WEAPON_BIT
   }
 
   private readonly _onContextMenu = (event: Event): void => {
+    if (this._scheme !== 'mix') {
+      return
+    }
     event.preventDefault()
   }
 
@@ -241,6 +254,7 @@ export class InputState implements InputPort {
     this._gamepads = options.gamepads ?? defaultGamepadSource()
     this._touch = options.touch ?? ZERO_TOUCH
     this._hapticsEnabled = options.hapticsEnabled ?? BALANCE.haptics.enabled
+    this._scheme = options.scheme ?? 'keyboard'
 
     this._target.addEventListener('keydown', this._onKeyDown)
     this._target.addEventListener('keyup', this._onKeyUp)
@@ -299,17 +313,15 @@ export class InputState implements InputPort {
   }
 
   axis(id: AxisId): number {
-    const pad = id === 'moveX' ? this._padAxisX : this._padAxisZ
-    if (pad !== 0) {
-      return pad
+    if (this._scheme === 'gamepad') {
+      return id === 'moveX' ? this._padAxisX : this._padAxisZ
     }
 
-    const dz = BALANCE.controls.touch.deadzone
-    const touch = id === 'moveX'
-      ? applyDeadzone(this._touch.axisX, dz)
-      : applyDeadzone(this._touch.axisZ, dz)
-    if (touch !== 0) {
-      return touch
+    if (this._scheme === 'touch') {
+      const dz = BALANCE.controls.touch.deadzone
+      return id === 'moveX'
+        ? applyDeadzone(this._touch.axisX, dz)
+        : applyDeadzone(this._touch.axisZ, dz)
     }
 
     const keys = BALANCE.controls.shipKeys
@@ -335,55 +347,77 @@ export class InputState implements InputPort {
   }
 
   isPressed(action: InputAction): boolean {
+    if (action === 'pause' && this._keys.has(BALANCE.gameplay.pauseKey)) {
+      return true
+    }
+
     const gp = BALANCE.controls.gamepad
     const gameplay = BALANCE.gameplay
     const mouse = BALANCE.controls.mouse
+    const keys = this._usesKeys()
+    const mouseOn = this._scheme === 'mix'
+    const padOn = this._scheme === 'gamepad'
+    const touchOn = this._scheme === 'touch'
 
-    let held = this._touch.isPressed(action)
+    let held = touchOn && this._touch.isPressed(action)
 
     switch (action) {
       case 'fire':
         held =
           held ||
-          this._keys.has(gameplay.fireKey) ||
-          this._isPadButtonPressed(gp.buttons.fire) ||
-          this._isMouseDown(mouse.fireButton)
+          (keys && this._keys.has(gameplay.fireKey)) ||
+          (padOn && this._isPadButtonPressed(gp.buttons.fire)) ||
+          (mouseOn && this._isMouseDown(mouse.fireButton))
         break
       case 'bomb':
         held =
           held ||
-          this._keys.has(gameplay.bombKey) ||
-          this._isPadButtonPressed(gp.buttons.bomb) ||
-          this._isMouseDown(mouse.bombButton)
+          (keys && this._keys.has(gameplay.bombKey)) ||
+          (padOn && this._isPadButtonPressed(gp.buttons.bomb)) ||
+          (mouseOn && this._isMouseDown(mouse.bombButton))
         break
       case 'switchWeapon':
         held =
           held ||
-          this._keys.has(gameplay.switchKey) ||
-          this._isPadButtonPressed(gp.buttons.switchWeapon)
+          (keys && this._keys.has(gameplay.switchKey)) ||
+          (padOn && this._isPadButtonPressed(gp.buttons.switchWeapon))
         break
       case 'switchBomb':
         held =
           held ||
-          this._keys.has(gameplay.switchBombKey) ||
-          this._isPadButtonPressed(gp.buttons.switchBomb) ||
-          this._isMouseDown(mouse.switchBombButton)
+          (keys && this._keys.has(gameplay.switchBombKey)) ||
+          (padOn && this._isPadButtonPressed(gp.buttons.switchBomb)) ||
+          (mouseOn && this._isMouseDown(mouse.switchBombButton))
         break
       case 'dash':
         held =
           held ||
-          this._keys.has(gameplay.dashKey) ||
-          this._isPadButtonPressed(gp.buttons.dash)
+          (keys && this._keys.has(gameplay.dashKey)) ||
+          (padOn && this._isPadButtonPressed(gp.buttons.dash))
         break
       case 'pause':
         held =
           held ||
-          this._keys.has(gameplay.pauseKey) ||
-          this._isPadButtonPressed(gp.buttons.pause)
+          (padOn && this._isPadButtonPressed(gp.buttons.pause))
         break
     }
 
     return held
+  }
+
+  get scheme(): ControlScheme {
+    return this._scheme
+  }
+
+  setScheme(scheme: ControlScheme): void {
+    if (scheme === this._scheme) {
+      return
+    }
+    this._scheme = scheme
+    this._mouseButtons = 0
+    this._prevBits = 0
+    this._edgeBits = 0
+    this._latchHeld()
   }
 
   consumePress(action: InputAction): boolean {
@@ -461,6 +495,10 @@ export class InputState implements InputPort {
     }
     this._edgeBits |= bits & ~this._prevBits
     this._prevBits = bits
+  }
+
+  private _usesKeys(): boolean {
+    return this._scheme === 'keyboard' || this._scheme === 'mix'
   }
 
   private _isMouseDown(button: number): boolean {

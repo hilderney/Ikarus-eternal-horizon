@@ -57,7 +57,7 @@
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: done (mesh + sheet) · G08 Ship tab next
+ * Status: done (Ship tab) · later tabs pending
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

@@ -18,10 +18,11 @@
  * Owns:      The Esc **or Start** pause overlay on top of Run. Full-screen HTML/CSS,
  *            no canvas work. Gates `GameLoop.step` through A04 while keeping
  *            the Run canvas mounted. Shows a read-only inventory (resources
- *            collected this run, from C01), the equipped weapon, and hull /
- *            shield state. Actions: Resume, Restart, Quit-to-Title, routed
- *            through G01 / G10. CraftSlot surface is declared here and filled
- *            in §7 — it must not function in POC2.
+ *            collected this run, from C01), the equipped weapon, hull / shield
+ *            state, and a **control scheme** picker (Keyboard / Mix / Gamepad /
+ *            Touch — one active). Actions: Resume, Restart, Quit-to-Title,
+ *            routed through G01 / G10. CraftSlot surface is declared here and
+ *            filled in §7 — it must not function in POC2.
  * Does not own: ending the run's scoring (G10.end), reconstructing Run
  *            (G01.next), the rAF clock reset on unpause (A04), mutating
  *            inventory (C01 / F02).
@@ -160,7 +161,9 @@ export declare class PauseScene implements SceneOverlayPort {
  *       ends with cause 'quit' then next(Title).
  *   R8. Memory: overlay DOM on mount, removed on dispose/resume/restart/quit.
  *       No GPU, no THREE. Per-frame allocation: none (event-driven).
- *   R9. CraftSlot is present in the DOM and disabled. Clicking it does nothing.
+ *   R10. Control scheme radios (keyboard / mix / gamepad / touch) call
+ *        `input.setScheme`. Exactly one is selected. Default radio is keyboard.
+ *        Switching does not resume the run.
  */
 
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
@@ -233,6 +236,7 @@ export declare class PauseScene implements SceneOverlayPort {
  *   it('while open, fire key is consumed and does not reach Run')           // R6
  *   it('Restart calls runState.restart with a fresh Run factory')           // R7
  *   it('Quit ends the run with cause quit then next(title)')                // R7
+ *   it('scheme radios call setScheme and keep a single selection')           // R10
  *   it('CraftSlot is in the DOM and click does not throw or navigate')      // R9
  *   it('dispose removes overlay listeners and DOM but not the canvas')      // R8
  *

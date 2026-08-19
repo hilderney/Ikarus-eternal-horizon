@@ -1,0 +1,280 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { DebuggerBinds, DebuggerShipBind } from './debugger'
+import { Debugger } from './debugger'
+import { ShipTab } from './ship-tab'
+import shipTabSource from './ship-tab.ts?raw'
+
+interface LiveSheet {
+  position: { x: number; y: number; z: number }
+  rotation: { x: number; y: number; z: number }
+  stats: {
+    agility: { current: number; max: number }
+    deflection: { current: number; max: number }
+    integrity: { current: number; max: number }
+    shield: { current: number; max: number }
+    precision: { current: number; max: number }
+    energy: { current: number; max: number }
+  }
+  status: { flickering: boolean; dashing: boolean; recovering: boolean }
+  loadout: {
+    equippedWeapon: string | null
+    weapons: string[]
+    equippedBomb: string | null
+    bombs: string[]
+    equippedWings: string | null
+    wings: string[]
+    equippedShield: string | null
+    shields: string[]
+    equippedArmor: string | null
+    armors: string[]
+    equippedEnergyCollector: string | null
+    energyCollectors: string[]
+    equippedEnergyConverter: string | null
+    energyConverters: string[]
+  }
+}
+
+function pool(): { current: number; max: number } {
+  return { current: 100, max: 100 }
+}
+
+function makeSheet(): LiveSheet {
+  return {
+    position: { x: 1, y: 2, z: 3 },
+    rotation: { x: 0, y: 12, z: -8 },
+    stats: {
+      agility: pool(),
+      deflection: pool(),
+      integrity: pool(),
+      shield: pool(),
+      precision: pool(),
+      energy: pool(),
+    },
+    status: { flickering: false, dashing: false, recovering: true },
+    loadout: {
+      equippedWeapon: 'laser',
+      weapons: ['laser', 'plasma'],
+      equippedBomb: null,
+      bombs: [],
+      equippedWings: null,
+      wings: [],
+      equippedShield: null,
+      shields: [],
+      equippedArmor: null,
+      armors: [],
+      equippedEnergyCollector: null,
+      energyCollectors: [],
+      equippedEnergyConverter: null,
+      energyConverters: [],
+    },
+  }
+}
+
+function makeBinds(sheet: LiveSheet): DebuggerBinds {
+  let shooting = false
+  const refreshRecovering = (): void => {
+    sheet.status.recovering = !shooting && !sheet.status.flickering
+  }
+  const ship: DebuggerShipBind = {
+    snapshot: () => sheet,
+    applyTransform: vi.fn(),
+    setFlickering(value) {
+      sheet.status.flickering = value
+      refreshRecovering()
+    },
+    setDashing(value) {
+      sheet.status.dashing = value
+    },
+    setShooting(value) {
+      shooting = value
+      refreshRecovering()
+    },
+    equipWeapon(id) {
+      sheet.loadout.equippedWeapon = id
+    },
+    equipBomb(id) {
+      sheet.loadout.equippedBomb = id
+    },
+  }
+  return { ship }
+}
+
+function bind(host: HTMLElement, path: string, kind: string = 'range'): HTMLInputElement {
+  const el = host.querySelector<HTMLInputElement>(`input[type="${kind}"][data-bind="${path}"]`)
+  if (!el) {
+    throw new Error(`missing ${kind} for ${path}`)
+  }
+  return el
+}
+
+function selectBind(host: HTMLElement, path: string): HTMLSelectElement {
+  const el = host.querySelector<HTMLSelectElement>(`select[data-bind="${path}"]`)
+  if (!el) {
+    throw new Error(`missing select for ${path}`)
+  }
+  return el
+}
+
+afterEach(() => {
+  document.body.replaceChildren()
+})
+
+describe('Debugger', () => {
+  it('mounts the Ship tab first (id ship)', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new ShipTab(binds)],
+      enabled: true,
+    })
+    const panel = host.querySelector('.debug-tabpanel')
+    expect(panel?.getAttribute('data-tab')).toBe('ship')
+    expect(host.querySelector('.debug-tabs label')?.textContent).toBe('Ship')
+    expect(host.querySelector('.debug-panel')).not.toBeNull()
+    dbg.dispose()
+  })
+
+  it('enabled:false mounts nothing and no-ops sync/reset', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new ShipTab(binds)],
+      enabled: false,
+    })
+    expect(host.childElementCount).toBe(0)
+    expect(() => {
+      dbg.sync()
+      dbg.reset()
+    }).not.toThrow()
+    dbg.dispose()
+    expect(host.childElementCount).toBe(0)
+  })
+
+  it('dispose removes the panel from the host', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new ShipTab(binds)],
+      enabled: true,
+    })
+    expect(host.querySelector('.debug-panel')).not.toBeNull()
+    dbg.dispose()
+    expect(host.querySelector('.debug-panel')).toBeNull()
+    expect(host.childElementCount).toBe(0)
+  })
+})
+
+describe('ShipTab', () => {
+  function mountTab(sheet = makeSheet()): {
+    host: HTMLElement
+    sheet: LiveSheet
+    binds: DebuggerBinds
+    tab: ShipTab
+  } {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(sheet)
+    const tab = new ShipTab(binds)
+    tab.mount(host)
+    return { host, sheet, binds, tab }
+  }
+
+  it('shows position and rotation from ShipDebugPort', () => {
+    const { host, sheet } = mountTab()
+    expect(bind(host, 'position.x', 'number').value).toBe(String(sheet.position.x))
+    expect(bind(host, 'position.y', 'number').value).toBe(String(sheet.position.y))
+    expect(bind(host, 'position.z', 'number').value).toBe(String(sheet.position.z))
+    expect(bind(host, 'rotation.x', 'number').value).toBe(String(sheet.rotation.x))
+    expect(bind(host, 'rotation.y', 'number').value).toBe(String(sheet.rotation.y))
+    expect(bind(host, 'rotation.z', 'number').value).toBe(String(sheet.rotation.z))
+  })
+
+  it('shows agility/deflection/integrity/shield/precision/energy 0–255', () => {
+    const { host } = mountTab()
+    for (const name of ['agility', 'deflection', 'integrity', 'shield', 'precision', 'energy']) {
+      const current = bind(host, `stats.${name}.current`)
+      const max = bind(host, `stats.${name}.max`)
+      expect(current.min).toBe('0')
+      expect(current.max).toBe('255')
+      expect(current.value).toBe('100')
+      expect(max.value).toBe('100')
+    }
+  })
+
+  it('shows flickering, dashing, recovering flags', () => {
+    const { host, sheet } = mountTab()
+    expect(bind(host, 'status.flickering', 'checkbox').checked).toBe(sheet.status.flickering)
+    expect(bind(host, 'status.dashing', 'checkbox').checked).toBe(sheet.status.dashing)
+    expect(bind(host, 'status.recovering', 'checkbox').checked).toBe(sheet.status.recovering)
+  })
+
+  it('shows equippedWeapon and the weapons list', () => {
+    const { host, sheet } = mountTab()
+    expect(selectBind(host, 'loadout.equippedWeapon').value).toBe('laser')
+    expect(bind(host, 'loadout.weapons', 'text').value).toBe(sheet.loadout.weapons.join(', '))
+  })
+
+  it('shows bomb/wings/shield-fit/armor/collector/converter equipped+list', () => {
+    const { host } = mountTab()
+    expect(selectBind(host, 'loadout.equippedBomb').value).toBe('')
+    expect(bind(host, 'loadout.bombs', 'text').value).toBe('')
+    expect(selectBind(host, 'loadout.equippedWings').value).toBe('')
+    expect(bind(host, 'loadout.wings', 'text').value).toBe('')
+    expect(selectBind(host, 'loadout.equippedShield').value).toBe('')
+    expect(bind(host, 'loadout.shields', 'text').value).toBe('')
+    expect(selectBind(host, 'loadout.equippedArmor').value).toBe('')
+    expect(bind(host, 'loadout.armors', 'text').value).toBe('')
+    expect(selectBind(host, 'loadout.equippedEnergyCollector').value).toBe('')
+    expect(bind(host, 'loadout.energyCollectors', 'text').value).toBe('')
+    expect(selectBind(host, 'loadout.equippedEnergyConverter').value).toBe('')
+    expect(bind(host, 'loadout.energyConverters', 'text').value).toBe('')
+  })
+
+  it('writes a slider change into the bound stats pool immediately', () => {
+    const { host, sheet } = mountTab()
+    const slider = bind(host, 'stats.integrity.current')
+    slider.value = '40'
+    slider.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(sheet.stats.integrity.current).toBe(40)
+  })
+
+  it('sync skips the focused slider', () => {
+    const { host, sheet, tab } = mountTab()
+    const slider = bind(host, 'stats.integrity.current')
+    slider.focus()
+    slider.value = '33'
+    sheet.stats.integrity.current = 10
+    tab.sync()
+    expect(slider.value).toBe('33')
+    slider.blur()
+    tab.sync()
+    expect(slider.value).toBe('10')
+  })
+
+  it('reset restores mount-time ship sheet defaults', () => {
+    const { host, sheet, tab } = mountTab()
+    sheet.stats.integrity.current = 12
+    sheet.position.x = 9
+    const slider = bind(host, 'stats.integrity.current')
+    slider.value = '12'
+    tab.reset()
+    expect(sheet.stats.integrity.current).toBe(100)
+    expect(sheet.position.x).toBe(1)
+    expect(slider.value).toBe('100')
+  })
+
+  it('does not import CamTab or invent a second number table', () => {
+    expect(shipTabSource).not.toMatch(/CamTab|cam-tab/)
+    expect(shipTabSource).toMatch(/snapshot\(\)/)
+  })
+})

@@ -18,7 +18,7 @@
 **Supersedes:** hub v4.2.0.
 
 **What changed in 4.3.0:**
-- **Four control schemes** ship as `D19` (closes Q07 as: mouse **buttons/wheel** in; **pointer-steer** still deferred). Keyboard (POC-1) · Gamepad API (`D18`) · WASD + mouse · touch overlay with **nipplejs** (`G12`). No mode toggle. `C02` stays device-blind; `A02` merges sources.
+- **Four exclusive control schemes** (`D19`): Keyboard · Mix (keyboard + mouse) · Gamepad · Touch. **One active at a time.** Default keyboard. Player switches on pause (`G11`). Pointer-steer still deferred. Closes Q07. `C02` stays device-blind; `A02` gates sources.
 - Combat vocabulary: move, fire, bomb, switch weapon, switch bomb, dash, pause. Dash input is G0; Energy drain stays `SHIP-08`.
 - `BALANCE.controls.mouse` / `.touch` / `.dash` and extra gameplay keys added to A01.
 
@@ -300,12 +300,12 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-A02` Core / Input
 - **Folder:** `src/core/input.ts`
-- **Scope:** central input state for **four coexisting schemes (`D19`)**: keyboard, Gamepad API, WASD + mouse buttons/wheel, and an injected `TouchSource` (G12 / nipplejs — this class never imports nipplejs). Keyboard: controlled `preventDefault` list; `blur` clears; Shift combos synthesize `Shift+KeyX`. Gamepad: poll `navigator.getGamepads()` once per `update(dt)` (W3C **standard** mapping). Mouse: buttons + wheel only — **no mousemove axis** (pointer-steer deferred). **Haptics:** `rumble(preset)` → `playEffect('dual-rumble')`. Persistent remap stays G3 (`SHIP-13`).
-- **Class:** `InputState implements InputPort` — `{ update(dt); isDown(code); axis(id); isPressed(action); consumePress(action); rumble(preset); connectedPadCount; dispose() }`. Gamepad, haptic actuator and TouchSource injected for tests.
-- **Requires:** A01 (gamepad + mouse + touch + haptics numbers). G12 produces TouchSource; A02 D19 follow-up can land with a zeroed stub first.
+- **Scope:** central input state for **four exclusive schemes (`D19`)**: (1) keyboard, (2) mix = keyboard + mouse buttons/wheel, (3) Gamepad API, (4) touch overlay (`G12`). **One scheme active at a time.** Default **keyboard**. Player picks the scheme on the pause overlay (`G11`). Keyboard: `preventDefault` list; `blur` clears; Shift combos. Gamepad: poll `getGamepads()` while scheme is gamepad. Mouse buttons/wheel only in mix — **no mousemove axis**. Touch overlay only while scheme is touch. Escape always opens pause so the picker is reachable. **Haptics:** `rumble(preset)`. Persistent remap stays G3.
+- **Class:** `InputState implements InputPort` — `{ update(dt); isDown(code); axis(id); isPressed(action); consumePress(action); rumble(preset); scheme; setScheme(s); connectedPadCount; dispose() }`.
+- **Requires:** A01 (gamepad + mouse + touch + haptics numbers). G12 produces TouchSource.
 - **Lib:** — (browser **Gamepad API** + Pointer Events; no third-party pad library; no nipplejs)
-- **Rules:** all four schemes coexist (no mode toggle); combos never shadow the base key; rumble no-ops when no actuator; no per-frame allocation. Axis priority: pad stick → touch stick → keyboard digital.
-- **Maps:** `SHIP-01`, `SHIP-13` (POC2 play slice), `SHIP-04` (`D19`). **Acceptance:** WASD + IJKL + Shift+IJKL co-exist; left stick moves the ship; RT **or** left-click fires; a shield-hit preset rumbles when an actuator is present.
+- **Rules:** **exactly one scheme active**; default keyboard; combos never shadow the base key; rumble no-ops when no actuator; no per-frame allocation. Axis comes only from the active scheme.
+- **Maps:** `SHIP-01`, `SHIP-13` (POC2 play slice), `SHIP-04` (`D19`). **Acceptance:** boot is keyboard-only (mouse click does not fire); pause can switch to Mix / Gamepad / Touch; IJKL debug camera still works from the keyboard.
 
 #### `SDD-A03` Core / Math
 - **Folder:** `src/core/math.ts`
@@ -628,7 +628,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-G11` PauseScene + Inventory
 - **Folder:** `src/scenes/pause-scene.ts`
-- **Scope:** `class PauseScene` — Esc **or Start** (`isPressed('pause')`) opens a full-screen HTML/CSS overlay **on top of the Run**, gating `GameLoop.step` through `A04` while keeping the canvas mounted. Shows the read-only inventory (resources collected this run, from `C01`), the equipped weapon and the hull/shield state; Resume, Restart and Quit-to-Title actions routed through `G01`/`G10`. The CraftSlot surface is declared here and filled in §7.
+- **Scope:** `class PauseScene` — Esc **or Start** (`consumePress('pause')`) opens a full-screen HTML/CSS overlay **on top of the Run**, gating `GameLoop.step` through `A04` while keeping the canvas mounted. **Control scheme picker** (Keyboard / Mix / Gamepad / Touch, one active; default keyboard). Inventory / Restart / Quit follow in the rest of G11.
 - **Requires:** A02, A04, C01, G01, G06, G10.
 - **Lib:** **HTML/CSS** (overlay) — no canvas work
 - **Rules:** pause never disposes the Run scene; unpausing resumes the exact same frame state (no dt catch-up burst); the overlay owns keyboard focus while open.
@@ -762,8 +762,8 @@ Declared for naming/traceability; detailed cards arrive in later phases:
 | **D15** | Folder name is **`limit-box/`**; the POC-1 `followBox`/`followCamera` names are retired and merged into one `LimitBox` class. *(closes Q05)* | `B03`, tree |
 | **D16** | **Survivor v1 = craft 100% off**, no repair path: base hull and shield, Laser only, no inherited inventory, no contracts. *(closes Q06)* | §7 survivor |
 | **D17** | **SDD + TDD, multi-agent.** Spec before code; TDD writes failing tests before Programming implements. Four agents (Orchestrator, Programming/Three.js, Game Design, TDD) own disjoint spec sections (§6.3). POC-1 is never a workstream. | specs, tests, all cards |
-| **D18** | **Gamepad API + dual-rumble haptics in POC2.** `InputState` polls `navigator.getGamepads()` (W3C standard mapping) and plays `GamepadHapticActuator.playEffect('dual-rumble')`. Keyboard and pad coexist; no mode toggle. Persistent remap / Steam Input stay G3 (`SHIP-13`). | `A02`, `C02`, `E07`, `F05`, `G11`, A01 BALANCE |
-| **D19** | **Four control schemes coexist (no mode toggle).** (1) Keyboard POC-1+ · (2) Gamepad API (`D18`) · (3) WASD + mouse buttons/wheel — cursor does **not** steer · (4) touch overlay + nipplejs (`G12`). `A02` merges into `axis` + named actions; `C02`/`E07`/`G11` never branch on device. Pointer-steer "mouse moves the ship" stays deferred (`SHIP-04` remainder). Closes Q07. | `A01`, `A02`, `C02`, `E07`, `G11`, `G12` |
+| **D18** | **Gamepad API + dual-rumble haptics in POC2.** `InputState` polls `navigator.getGamepads()` (W3C standard mapping) and plays `GamepadHapticActuator.playEffect('dual-rumble')` while the **gamepad** scheme is active. Persistent remap / Steam Input stay G3 (`SHIP-13`). | `A02`, `C02`, `E07`, `F05`, `G11`, A01 BALANCE |
+| **D19** | **Four exclusive control schemes (one at a time).** (1) Keyboard · (2) Mix = keyboard + mouse buttons/wheel — cursor does **not** steer · (3) Gamepad API (`D18`) · (4) touch overlay + nipplejs (`G12`). Default **keyboard**. Switch on **pause** (`G11`). `A02` gates sources; `C02`/`E07` stay device-blind. Escape always pauses so the picker is reachable. Pointer-steer stays deferred (`SHIP-04` remainder). Closes Q07. | `A01`, `A02`, `C02`, `E07`, `G11`, `G12` |
 
 ### Open questions
 | # | Question | Owner | Blocks |

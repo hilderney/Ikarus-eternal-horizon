@@ -49,11 +49,11 @@
  * Orchestrator : hub-v4.3 / 2026-08-18  one tab per subject; Ship first
  * Programming  : hub-v4.3 / 2026-08-18  ShipTab binds ShipDebugPort
  * Game Design  : hub-v4.3 / 2026-08-18  byte stats 0–255, statuses, loadout lists
- * TDD          : hub-v4.3 / 2026-08-18  Ship tab cases named; tests not yet written
+ * TDD          : hub-v4.3 / 2026-08-18  debugger.test.ts (Ship tab)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: spec-complete (Ship tab next to implement)
+ * Status: done (Ship tab) · later tabs pending
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -83,52 +83,60 @@ export interface DebuggerTab {
 }
 
 /** Shared objects the tabs write through. Production passes live BALANCE slices. */
-export interface DebuggerBinds {
-  readonly ship: {
-    snapshot(): {
-      readonly position: { x: number; y: number; z: number }
-      readonly rotation: { x: number; y: number; z: number }
-      readonly stats: {
-        agility: { current: number; max: number }
-        deflection: { current: number; max: number }
-        integrity: { current: number; max: number }
-        shield: { current: number; max: number }
-        precision: { current: number; max: number }
-        energy: { current: number; max: number }
-      }
-      readonly status: {
-        flickering: boolean
-        dashing: boolean
-        recovering: boolean
-      }
-      readonly loadout: {
-        equippedWeapon: string | null
-        weapons: readonly string[]
-        equippedBomb: string | null
-        bombs: readonly string[]
-        equippedWings: string | null
-        wings: readonly string[]
-        equippedShield: string | null
-        shields: readonly string[]
-        equippedArmor: string | null
-        armors: readonly string[]
-        equippedEnergyCollector: string | null
-        energyCollectors: readonly string[]
-        equippedEnergyConverter: string | null
-        energyConverters: readonly string[]
-      }
+/** Live C01 sheet plus the setters the form needs. Later tabs add optional binds. */
+export interface DebuggerShipBind {
+  snapshot(): {
+    readonly position: { x: number; y: number; z: number }
+    readonly rotation: { x: number; y: number; z: number }
+    readonly stats: {
+      agility: { current: number; max: number }
+      deflection: { current: number; max: number }
+      integrity: { current: number; max: number }
+      shield: { current: number; max: number }
+      precision: { current: number; max: number }
+      energy: { current: number; max: number }
     }
-    applyTransform(): void
+    readonly status: {
+      flickering: boolean
+      dashing: boolean
+      recovering: boolean
+    }
+    readonly loadout: {
+      equippedWeapon: string | null
+      weapons: readonly string[]
+      equippedBomb: string | null
+      bombs: readonly string[]
+      equippedWings: string | null
+      wings: readonly string[]
+      equippedShield: string | null
+      shields: readonly string[]
+      equippedArmor: string | null
+      armors: readonly string[]
+      equippedEnergyCollector: string | null
+      energyCollectors: readonly string[]
+      equippedEnergyConverter: string | null
+      energyConverters: readonly string[]
+    }
   }
-  readonly camera: object
-  readonly cameraApply: () => void
-  readonly parallax: object
-  readonly parallaxApply: () => void
-  readonly limitBox: object
-  readonly follow: object
-  readonly recenterPoint: object
-  readonly controls: object
-  readonly weapons: {
+  applyTransform(): void
+  setFlickering(value: boolean): void
+  setDashing(value: boolean): void
+  setShooting(value: boolean): void
+  equipWeapon(id: string | null): void
+  equipBomb(id: string | null): void
+}
+
+export interface DebuggerBinds {
+  readonly ship: DebuggerShipBind
+  readonly camera?: object
+  readonly cameraApply?: () => void
+  readonly parallax?: object
+  readonly parallaxApply?: () => void
+  readonly limitBox?: object
+  readonly follow?: object
+  readonly recenterPoint?: object
+  readonly controls?: object
+  readonly weapons?: {
     readonly catalog: object
     readonly loadout: readonly string[]
     activeId(): string

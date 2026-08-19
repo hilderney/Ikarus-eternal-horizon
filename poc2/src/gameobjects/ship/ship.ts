@@ -269,19 +269,19 @@ export class Ship extends Group {
     this._status = new ShipStatusState()
     this._loadout = {
       equippedWeapon: null,
-      weapons: Object.freeze([...BALANCE.weapons.loadout]),
+      weapons: [...BALANCE.weapons.loadout],
       equippedBomb: null,
-      bombs: Object.freeze([]),
+      bombs: [],
       equippedWings: null,
-      wings: Object.freeze([]),
+      wings: [],
       equippedShield: null,
-      shields: Object.freeze([]),
+      shields: [],
       equippedArmor: null,
-      armors: Object.freeze([]),
+      armors: [],
       equippedEnergyCollector: null,
-      energyCollectors: Object.freeze([]),
+      energyCollectors: [],
       equippedEnergyConverter: null,
-      energyConverters: Object.freeze([]),
+      energyConverters: [],
     }
     this._debugPort = {
       position: this.transform.position,

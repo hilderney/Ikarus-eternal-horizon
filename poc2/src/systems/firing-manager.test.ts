@@ -29,6 +29,8 @@ function inputStub(pressed: Partial<Record<'fire' | 'switchWeapon', boolean>> = 
       return false
     },
     rumble() {},
+    scheme: 'keyboard',
+    setScheme() {},
     connectedPadCount: 0,
     dispose() {},
   }

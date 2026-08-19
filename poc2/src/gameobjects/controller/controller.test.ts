@@ -39,6 +39,12 @@ class FakeInput implements InputPort {
     /* unused */
   }
 
+  scheme: InputPort['scheme'] = 'keyboard'
+
+  setScheme(scheme: InputPort['scheme']): void {
+    this.scheme = scheme
+  }
+
   update(): void {
     /* unused */
   }

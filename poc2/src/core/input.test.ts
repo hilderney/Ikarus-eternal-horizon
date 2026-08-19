@@ -208,6 +208,7 @@ describe('InputState gamepad', () => {
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [full] },
     })
+    inputFull.setScheme('gamepad')
     inputFull.update(0.016)
     expect(inputFull.axis('moveX')).toBeCloseTo(1, 5)
     inputInside.dispose()
@@ -221,6 +222,7 @@ describe('InputState gamepad', () => {
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [pad] },
     })
+    input.setScheme('gamepad')
     input.update(0.016)
     expect(input.axis('moveZ')).toBeLessThan(0)
     input.dispose()
@@ -237,6 +239,7 @@ describe('InputState gamepad', () => {
   it('stick wins the axis when |stick| > 0 after deadzone', () => {
     const pad = makePad({ axes: [1, 0] })
     const { input, target } = createTestInput({ getGamepads: () => [pad] })
+    input.setScheme('gamepad')
     input.update(0.016)
     dispatchKey(target, 'keydown', 'KeyA')
     expect(input.axis('moveX')).toBe(1)
@@ -252,6 +255,7 @@ describe('InputState gamepad', () => {
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [makePad({ buttons })] },
     })
+    input.setScheme('gamepad')
     input.update(0.016)
     expect(input.isPressed('fire')).toBe(true)
     input.dispose()
@@ -273,6 +277,7 @@ describe('InputState gamepad', () => {
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [makePad({ buttons })] },
     })
+    input.setScheme('gamepad')
     input.update(0.016)
     expect(input.isPressed('switchWeapon')).toBe(true)
     input.dispose()
@@ -286,6 +291,7 @@ describe('InputState gamepad', () => {
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [makePad({ buttons })] },
     })
+    input.setScheme('gamepad')
     input.update(0.016)
     expect(input.isPressed('pause')).toBe(true)
     input.dispose()
@@ -393,6 +399,7 @@ describe('InputState rumble', () => {
 describe('InputState D19 mouse + touch', () => {
   it('left mouse button holds fire; right button consumePress bomb once', () => {
     const { input, target } = createTestInput()
+    input.setScheme('mix')
     target.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true, cancelable: true }))
     expect(input.isPressed('fire')).toBe(true)
     target.dispatchEvent(new PointerEvent('pointerdown', { button: 2, bubbles: true, cancelable: true }))
@@ -405,6 +412,7 @@ describe('InputState D19 mouse + touch', () => {
 
   it('prevents contextmenu when bomb is bound to button 2', () => {
     const { input, target } = createTestInput()
+    input.setScheme('mix')
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
     target.dispatchEvent(event)
     expect(event.defaultPrevented).toBe(true)
@@ -413,6 +421,7 @@ describe('InputState D19 mouse + touch', () => {
 
   it('wheel notch consumePress switchWeapon once per delta', () => {
     const { input, target } = createTestInput()
+    input.setScheme('mix')
     target.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }))
     expect(input.consumePress('switchWeapon')).toBe(true)
     expect(input.consumePress('switchWeapon')).toBe(false)
@@ -421,7 +430,7 @@ describe('InputState D19 mouse + touch', () => {
     input.dispose()
   })
 
-  it('touch stick fills axis when pad stick is at rest', () => {
+  it('touch stick fills axis on the touch scheme', () => {
     const touch = {
       axisX: 1,
       axisZ: 0,
@@ -433,12 +442,13 @@ describe('InputState D19 mouse + touch', () => {
       gamepads: { getGamepads: () => [makePad({ axes: [0, 0] })] },
       touch,
     })
+    input.setScheme('touch')
     input.update(0.016)
     expect(input.axis('moveX')).toBeCloseTo(1, 5)
     input.dispose()
   })
 
-  it('pad stick wins over touch stick', () => {
+  it('gamepad stick is ignored on the touch scheme', () => {
     const touch = {
       axisX: -1,
       axisZ: 0,
@@ -450,8 +460,9 @@ describe('InputState D19 mouse + touch', () => {
       gamepads: { getGamepads: () => [makePad({ axes: [1, 0] })] },
       touch,
     })
+    input.setScheme('touch')
     input.update(0.016)
-    expect(input.axis('moveX')).toBeCloseTo(1, 5)
+    expect(input.axis('moveX')).toBeCloseTo(-1, 5)
     input.dispose()
   })
 
@@ -469,10 +480,79 @@ describe('InputState D19 mouse + touch', () => {
       preventDefaultCodes: [],
       gamepads: { getGamepads: () => [makePad({ buttons })] },
     })
+    padInput.setScheme('gamepad')
     padInput.update(0.016)
     expect(padInput.consumePress('dash')).toBe(true)
     padInput.update(0.016)
     expect(padInput.consumePress('dash')).toBe(false)
     padInput.dispose()
+  })
+})
+
+describe('InputState scheme', () => {
+  it('defaults to keyboard', () => {
+    const { input } = createTestInput()
+    expect(input.scheme).toBe('keyboard')
+    input.dispose()
+  })
+
+  it('keyboard scheme ignores mouse fire', () => {
+    const { input, target } = createTestInput()
+    target.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true, cancelable: true }))
+    expect(input.isPressed('fire')).toBe(false)
+    input.dispose()
+  })
+
+  it('mix scheme lets WASD move and left-click fire', () => {
+    const { input, target } = createTestInput()
+    input.setScheme('mix')
+    dispatchKey(target, 'keydown', 'KeyD')
+    expect(input.axis('moveX')).toBe(1)
+    target.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true, cancelable: true }))
+    expect(input.isPressed('fire')).toBe(true)
+    input.dispose()
+  })
+
+  it('gamepad scheme ignores Space fire and uses RT', () => {
+    const buttons = makeButtons(10)
+    const { input, target } = createTestInput({ getGamepads: () => [makePad({ buttons })] })
+    input.setScheme('gamepad')
+    input.update(0.016)
+    dispatchKey(target, 'keydown', 'Space')
+    expect(input.isPressed('fire')).toBe(false)
+    const threshold = BALANCE.controls.gamepad.triggerThreshold
+    buttons[7] = { value: threshold, pressed: false }
+    input.update(0.016)
+    expect(input.isPressed('fire')).toBe(true)
+    input.dispose()
+  })
+
+  it('touch scheme uses TouchSource axis and ignores WASD', () => {
+    const touch = {
+      axisX: 0.9,
+      axisZ: 0,
+      isPressed: () => false,
+    }
+    const target = makeTarget()
+    const input = new InputState({
+      target,
+      preventDefaultCodes: buildPreventDefaultCodes(),
+      touch,
+    })
+    input.setScheme('touch')
+    dispatchKey(target, 'keydown', 'KeyD')
+    input.update(0.016)
+    const dz = BALANCE.controls.touch.deadzone
+    expect(input.axis('moveX')).toBeCloseTo((0.9 - dz) / (1 - dz), 5)
+    input.dispose()
+  })
+
+  it('Escape still latches pause on a non-keyboard scheme', () => {
+    const { input, target } = createTestInput()
+    input.setScheme('gamepad')
+    dispatchKey(target, 'keydown', 'Escape')
+    expect(input.isPressed('pause')).toBe(true)
+    expect(input.consumePress('pause')).toBe(true)
+    input.dispose()
   })
 })

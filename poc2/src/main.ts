@@ -4,10 +4,11 @@ import { InputState, buildPreventDefaultCodes } from './core/input'
 import { GameLoop } from './core/loop'
 import { GameCamera } from './gameobjects/camera/game-camera'
 import { GameRenderer } from './render/renderer'
+import { PauseScene } from './scenes/pause-scene'
 import { RunScene } from './scenes/run-scene'
 import { createInputMap, createRunWorld } from './scenes/run-world'
 import { UiAreas } from './ui/areas'
-import { createTouchPad } from './ui/touch-controls/touch-controls'
+import { TouchControls, createTouchPad } from './ui/touch-controls/touch-controls'
 
 const playfield = BALANCE.layout.playfield
 const cameraConfig = {
@@ -26,6 +27,13 @@ const input = new InputState({
   preventDefaultCodes: buildPreventDefaultCodes(),
   touch,
 })
+const touchOverlay = new TouchControls({
+  host: areas.game,
+  source: touch,
+  enabled: false,
+  stickSize: BALANCE.controls.touch.stickSize,
+  stickColor: BALANCE.controls.touch.stickColor,
+})
 
 const run = new RunScene({
   areas,
@@ -39,7 +47,9 @@ const run = new RunScene({
     scene: renderer.scene,
     input,
     touch,
+    touchOverlay,
     host: areas.game,
+    debuggerHost: areas.debugger,
     gameCamera,
     cameraConfig,
   }),
@@ -64,10 +74,35 @@ const run = new RunScene({
 
 run.mount()
 
+const runtime: { loop: GameLoop | null } = { loop: null }
+
+const pause = new PauseScene({
+  host: areas.stage,
+  loop: {
+    setPaused(paused) {
+      runtime.loop?.setPaused(paused)
+    },
+  },
+  input,
+  onSchemeChange(scheme) {
+    touchOverlay.setVisible(scheme === 'touch')
+  },
+})
+
 const loop = new GameLoop({
   step(dt) {
     run.update(dt)
+    if (input.consumePress('pause')) {
+      pause.mount()
+    }
     run.syncRender()
   },
+  sidecar() {
+    if (loop.paused) {
+      pause.poll()
+    }
+  },
 })
+runtime.loop = loop
+
 loop.start()

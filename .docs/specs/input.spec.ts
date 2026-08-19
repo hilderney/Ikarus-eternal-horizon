@@ -16,21 +16,25 @@
 
 // ─── 1. Scope ────────────────────────────────────────────────────────────────
 /**
- * Owns:      The input state machine for **four coexisting schemes (D19)**:
- *            (1) keyboard, (2) Gamepad API, (3) WASD + mouse buttons/wheel,
- *            (4) virtual stick + buttons via an injected `TouchSource` (G12 /
- *            nipplejs — this class never imports nipplejs). `class InputState`
- *            listens on an injected EventTarget (default `window`), tracks
- *            which codes are down, synthesizes `Shift+KeyX` combos,
- *            `preventDefault`s the BALANCE-declared control codes, and clears
- *            on `blur`. Once per `update(dt)` it polls `getGamepads()`, reads
- *            the touch source, applies deadzone / trigger threshold, and
- *            exposes analog axes + named actions. `rumble(preset)` plays
- *            `dual-rumble` on the active pad's `vibrationActuator`.
+ * Owns:      The input state machine for **four exclusive schemes (D19)**:
+ *            (1) keyboard, (2) mix = keyboard + mouse buttons/wheel,
+ *            (3) Gamepad API, (4) virtual stick + buttons via `TouchSource`
+ *            (G12 / nipplejs — this class never imports nipplejs).
+ *            **Exactly one scheme is active.** Default is **keyboard**.
+ *            `setScheme` is how G11 pause switches devices. Escape always
+ *            reports `pause` so the picker stays reachable.
+ *            `class InputState` listens on an injected EventTarget (default
+ *            `window`), tracks which codes are down, synthesizes `Shift+KeyX`
+ *            combos, `preventDefault`s the BALANCE-declared control codes, and
+ *            clears on `blur`. Once per `update(dt)` it polls `getGamepads()`
+ *            (when scheme is gamepad), reads the touch source (when scheme is
+ *            touch), applies deadzone / trigger threshold, and exposes analog
+ *            axes + named actions. `rumble(preset)` plays `dual-rumble` on the
+ *            active pad's `vibrationActuator`.
  * Does not own: mapping axes to ship/camera motion (SDD-C02), fire/bomb/switch
- *            consumption (SDD-E07), pause overlay focus (SDD-G11), the touch
- *            overlay DOM (SDD-G12), pointer-steer "mouse moves the ship"
- *            (SHIP-04 remainder), or persistent remap / Steam Input (SHIP-13 G3).
+ *            consumption (SDD-E07), pause overlay chrome (SDD-G11 — this class
+ *            only exposes scheme + pause), the touch overlay DOM (SDD-G12),
+ *            pointer-steer (SHIP-04 remainder), or persistent remap (SHIP-13 G3).
  * Player-facing: sticky keys after alt-tab, swallowed WASD, Shift combos
  *            fighting IJKL, a dead stick, RT that never fires, a right-click
  *            that opens the browser menu instead of bombing, or rumble that
@@ -54,10 +58,10 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.3 / 2026-08-18  D19 four schemes; D18 slice still green
- * Programming  : hub-v4.3 / 2026-08-18  mouse + TouchSource + consumePress
- * Game Design  : hub-v4.3 / 2026-08-18  scheme table, mouse buttons, dash/bomb keys
- * TDD          : hub-v4.3 / 2026-08-18  D18 + D19 cases green
+ * Orchestrator : hub-v4.3 / 2026-08-19  exclusive schemes; default keyboard; G11 picker
+ * Programming  : hub-v4.3 / 2026-08-19  setScheme gates pad / mouse / touch / keys
+ * Game Design  : hub-v4.3 / 2026-08-19  one device at a time; Escape always pauses
+ * TDD          : hub-v4.3 / 2026-08-19  scheme isolation cases
  * Status: done
  */
 
@@ -65,7 +69,8 @@
 // AGENT: Programming / Three.js
 // ═════════════════════════════════════════════════════════════════════════════
 
-/** Logical actions. Keyboard, pad, mouse and touch all resolve here (D19). */
+/** Exclusive control schemes. Pause (G11) is the picker. Default: keyboard. */
+export type ControlScheme = 'keyboard' | 'mix' | 'gamepad' | 'touch'
 export type InputAction =
   | 'fire'
   | 'bomb'
@@ -95,16 +100,17 @@ export interface InputPort {
   isDown(code: string): boolean
   /**
    * −1..1 after deadzone (and invertMoveZ on moveZ).
-   * Priority: pad stick if |stick|>0, else touch stick if |stick|>0, else keyboard digital.
-   * Mouse never writes axes.
+   * Only the **active scheme** writes axes. Mouse never writes axes.
    */
   axis(id: AxisId): number
-  /** True while the action is held (any scheme). Fire uses this (hold-to-fire). */
+  /** True while the action is held on the active scheme. Fire uses this (hold-to-fire). */
   isPressed(action: InputAction): boolean
   /** Rising edge, consumed by this call. Bomb / switch / dash / pause use this. */
   consumePress(action: InputAction): boolean
   /** Fire-and-forget dual-rumble. No-ops without an actuator. Never throws. */
   rumble(preset: RumblePreset): void
+  readonly scheme: ControlScheme
+  setScheme(scheme: ControlScheme): void
   readonly connectedPadCount: number
   dispose(): void
 }
@@ -173,6 +179,8 @@ export declare class InputState implements InputPort {
   isPressed(action: InputAction): boolean
   consumePress(action: InputAction): boolean
   rumble(preset: RumblePreset): void
+  readonly scheme: ControlScheme
+  setScheme(scheme: ControlScheme): void
   readonly connectedPadCount: number
   dispose(): void
 }
@@ -248,15 +256,15 @@ export declare class InputState implements InputPort {
  *       update do not allocate. The down-set is mutated in event handlers only.
  *       Pad/touch poll writes scalars. rumble may allocate the effect params
  *       object once per call (not per frame).
- *   R9. All four schemes coexist. No mode toggle. Axis priority: pad stick,
- *       then touch stick, then keyboard digital. |stick| is after deadzone.
+ *   R9. Exactly one scheme is active (`keyboard` | `mix` | `gamepad` | `touch`).
+ *        Default `keyboard`. Mix = keyboard + mouse buttons/wheel. Mouse never
+ *        writes axes. Inactive schemes do not write axis or combat actions.
+ *        Escape always latches pause so G11 can open from any scheme.
  *   R10. |axis| < deadzone becomes 0; remaining range is rescaled to [−1, 1].
- *   R11. isPressed('fire') is true for fireKey OR RT OR Mouse0 OR touch Fire.
- *        consumePress('switchWeapon') for switchKey OR LB OR wheel notch OR touch.
- *        consumePress('bomb') for bombKey OR South/A OR Mouse2 OR touch.
- *        consumePress('switchBomb') for switchBombKey OR RB OR Mouse1 OR touch.
- *        consumePress('dash') for dashKey OR LT OR touch Dash.
- *        consumePress('pause') for pauseKey OR Start OR touch Pause.
+ *   R11. isPressed('fire') follows the active scheme: Space (keyboard/mix),
+ *        Mouse0 (mix only), RT (gamepad), touch Fire (touch). Same split for
+ *        bomb / switch / dash. consumePress('pause') is pauseKey (always) or
+ *        Start (gamepad) or touch Pause (touch).
  *   R12. rumble() no-ops when haptics.enabled is false, connectedPadCount is 0,
  *        or vibrationActuator is null. It never throws.
  *   R13. rumble() calls playEffect('dual-rumble', { startDelay: 0, duration,
@@ -265,8 +273,9 @@ export declare class InputState implements InputPort {
  *   R14. update(dt) must be called by G03 each step. GameLoop does not poll pads.
  *   R15. connectedPadCount is the number of non-null snapshots from getGamepads().
  *   R16. consumePress returns true at most once per rising edge. A held button
- *        does not retrigger. Wheel: one edge per notch (deltaY sign ignored —
- *        every notch cycles forward).
+ *        does not retrigger. Wheel: mix scheme only; one edge per notch.
+ *   R17. setScheme replaces the active scheme, clears mouse buttons and edges,
+ *        and does not allocate on the hot path.
  */
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
 /**
@@ -334,13 +343,10 @@ export declare class InputState implements InputPort {
  *   fireLaser    { durationMs: 16,  strongMagnitude: 0.00, weakMagnitude: 0.08 }
  *                // Q13: E07 skips this for Laser; preset exists for later weapons
  *
- * Feel:      simultaneous ship (WASD or left stick or nipple) and camera
- *            (IJKL/UO) with Shift-rotate on the camera cluster. No mode toggle.
- *            Alt-tab must not leave a stuck Shift, WASD, or mouse button.
- *            Stick-up is forward like W. RT / left-click / touch Fire are
- *            hold-to-fire like Space. Deadzone 0.18 kills idle drift without
- *            eating fine aim. Matches POC-1 keyboard; pad + mouse + touch are
- *            additive (D18 + D19).
+ * Feel:      one device at a time. Boot is keyboard (Space fires, click does
+ *            not). Mix adds mouse buttons/wheel on top of WASD. Gamepad is the
+ *            pad alone. Touch is the overlay alone. Escape always opens pause
+ *            so the player can switch. IJKL remains a keyboard debug rig.
  * Leveling:  N/A — input does not scale. Hull slowdown is C02/E07 reading C03.
  * Graphics:  N/A (overlay chrome is G12).
  * Pillars:   1 (instant decision — the ship answers the same frame)
@@ -379,8 +385,8 @@ export declare class InputState implements InputPort {
  *   it('axis moveX is 0 inside the deadzone and rescales outside')           // R10
  *   it('stick-up (axis 1 = -1) yields axis moveZ < 0 when invertMoveZ is false') // R9, Q12
  *   it('keyboard fills axis when the stick is at rest')                      // R9
- *   it('stick wins the axis when |stick| > 0 after deadzone')                // R9
- *   it('isPressed fire is true when RT value >= triggerThreshold')           // R11
+ *   it('stick wins the axis when |stick| > 0 after deadzone')                // gamepad scheme
+ *   it('isPressed fire is true when RT value >= triggerThreshold')           // gamepad
  *   it('isPressed fire is true when Space is down with no pad')              // R11
  *   it('isPressed switchWeapon is true when LB is pressed')                  // R11
  *   it('isPressed pause is true when Start is pressed')                      // R11
@@ -393,23 +399,31 @@ export declare class InputState implements InputPort {
  *   it('rumble calls playEffect dual-rumble with the shieldHit preset')      // R13
  *   it('a second rumble may preempt the first (playEffect called twice)')    // R13
  *
+ * describe('InputState scheme')
+ *   it('defaults to keyboard')                                              // R9
+ *   it('keyboard scheme ignores mouse fire')                                // R9, R11
+ *   it('mix scheme lets WASD move and left-click fire')                     // R9, R11
+ *   it('gamepad scheme ignores Space fire and uses RT')                     // R9, R11
+ *   it('touch scheme uses TouchSource axis and ignores WASD')                // R9
+ *   it('Escape still latches pause on a non-keyboard scheme')                // R11
+ *
  * describe('InputState D19 mouse + touch')
- *   it('left mouse button holds fire; right button consumePress bomb once')  // R6, R11, R16
- *   it('prevents contextmenu when bomb is bound to button 2')                // R6
- *   it('wheel notch consumePress switchWeapon once per delta')               // R16
- *   it('touch stick fills axis when pad stick is at rest')                   // R9
- *   it('pad stick wins over touch stick')                                    // R9
+ *   it('left mouse button holds fire; right button consumePress bomb once')  // mix
+ *   it('prevents contextmenu when bomb is bound to button 2')                // mix
+ *   it('wheel notch consumePress switchWeapon once per delta')               // mix
+ *   it('touch stick fills axis on the touch scheme')                         // R9
+ *   it('gamepad stick is ignored on the touch scheme')                       // R9
  *   it('consumePress dash is true for ControlLeft and for LT')               // R11
  *
  * Manual:
  *   A-manual-1. [manual] alt-tab away mid-hold; return; ship must not keep
  *               drifting (blur clear).
- *   A-manual-2. [manual] Xbox/DualShock: left stick flies, RT fires, LB
- *               switches, Start pauses; WASD still works with the pad plugged.
+ *   A-manual-2. [manual] with Gamepad selected: left stick flies, RT fires;
+ *               WASD and left-click do nothing until Mix / Keyboard is picked.
  *   A-manual-3. [manual] shield-hit buzzes; keyboard-only never throws.
- *   A-manual-4. [manual] WASD + left-click fires; right-click bombs; wheel
- *               switches weapon; cursor does not drag the ship.
+ *   A-manual-4. [manual] Mix: WASD + left-click fires; right-click bombs;
+ *               wheel switches; cursor does not drag the ship.
+ *   A-manual-5. [manual] pause overlay radios switch the active scheme.
  *
- * Coverage: R1–R16 + card Acceptance (WASD+IJKL coexist; stick moves; RT fires;
- * rumble when actuator present) + D18 + D19.
+ * Coverage: R1–R17 + exclusive schemes + D18 + D19.
  */
