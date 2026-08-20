@@ -7,6 +7,8 @@
 import { DASH_LEVELS } from '../gameobjects/controller/dash-levels'
 import { WEAPONS } from '../gameobjects/weapon/catalog'
 import type { WeaponConfig, WeaponId, WeaponProfile } from '../gameobjects/weapon/catalog'
+import { WARRIOR } from '../gameobjects/enemy/warrior'
+import type { WarriorSheet } from '../gameobjects/enemy/warrior'
 
 export type { WeaponConfig, WeaponId, WeaponProfile }
 export type WeaponCatalogEntry = WeaponConfig
@@ -196,6 +198,21 @@ export interface EnemyGenericConfig {
   readonly contactDamage: number
 }
 
+/** Staging volume behind front spawn; enemies rush here before chasing the ship. */
+export interface EnemyGateConfig {
+  readonly offset: Vec3Params
+  readonly size: Vec3Params
+  readonly visible: boolean
+  readonly color: number
+  readonly opacity: number
+  /** Distance to gate centre that triggers chase phase. */
+  readonly arriveRadius: number
+  /** Target speed multiplier while in reachGate (e.g. 3). */
+  readonly reachSpeedMul: number
+  /** Exponential damp λ for currentSpeed → targetSpeed. */
+  readonly agilityLambda: number
+}
+
 export interface EnemyDespawnConfig {
   readonly zNear: number
   readonly zFar: number
@@ -206,9 +223,14 @@ export interface EnemyConfig {
   readonly spawnLeft: EnemySpawnConfig
   readonly spawnRight: EnemySpawnConfig
   readonly spawnFront: EnemySpawnConfig
+  readonly gate: EnemyGateConfig
+  /** @deprecated Prefer warrior sheet; kept as combat fallback snapshot. */
   readonly generic: EnemyGenericConfig
+  readonly warrior: WarriorSheet
   readonly despawn: EnemyDespawnConfig
   readonly poolSize: number
+  /** EnemyShot pool capacity (E03/E04). */
+  readonly shotPoolSize: number
 }
 
 /** Active play volume relative to the ship. Outside ⇒ pool-release (enemies/meteors). */
@@ -746,7 +768,7 @@ const BALANCE_DATA: Balance = {
   },
   enemy: {
     spawnLeft: {
-      offset: { x: -140, y: 0, z: -140 },
+      offset: { x: -160, y: 50, z: -140 },
       size: { x: 10, y: 2, z: 10 },
       visible: true,
       color: 0xff2222,
@@ -756,7 +778,7 @@ const BALANCE_DATA: Balance = {
       maxActive: 1,
     },
     spawnRight: {
-      offset: { x: 140, y: 0, z: -140 },
+      offset: { x: 160, y: 50, z: -140 },
       size: { x: 10, y: 2, z: 10 },
       visible: true,
       color: 0xff2222,
@@ -766,7 +788,7 @@ const BALANCE_DATA: Balance = {
       maxActive: 1,
     },
     spawnFront: {
-      offset: { x: 0, y: 0, z: -140 },
+      offset: { x: 0, y: 100, z: -140 },
       size: { x: 10, y: 2, z: 10 },
       visible: true,
       color: 0xff2222,
@@ -775,15 +797,27 @@ const BALANCE_DATA: Balance = {
       lanesX: [-4, -2, 0, 2, 4],
       maxActive: 1,
     },
-    generic: {
-      hp: 3,
-      radius: 0.55,
-      color: 0xf43f5e,
-      maxSpeed: 4,
-      contactDamage: 8,
+    gate: {
+      offset: { x: 0, y: 0, z: -90 },
+      size: { x: 60, y: 2, z: 8 },
+      visible: true,
+      color: 0xf59e0b,
+      opacity: 0.28,
+      arriveRadius: 8,
+      reachSpeedMul: 3,
+      agilityLambda: 3.5,
     },
+    generic: {
+      hp: WARRIOR.hp,
+      radius: WARRIOR.radius,
+      color: WARRIOR.color,
+      maxSpeed: WARRIOR.maxSpeed,
+      contactDamage: WARRIOR.contactDamage,
+    },
+    warrior: WARRIOR,
     despawn: { zNear: 30, zFar: -160, halfX: 240 },
     poolSize: 32,
+    shotPoolSize: 64,
   },
   battlefield: {
     offsetX: { min: -240, max: 240 },

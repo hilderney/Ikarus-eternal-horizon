@@ -13,6 +13,7 @@ import { PlayerController } from '../gameobjects/controller/player-controller'
 import { Gizmos } from '../gameobjects/gizmos/gizmos'
 import { LimitBox } from '../gameobjects/limit-box/limit-box'
 import { BattleField } from '../gameobjects/battle-field/battle-field'
+import { EnemyGate } from '../gameobjects/enemy-gate/enemy-gate'
 import { SpawnArea } from '../gameobjects/spawn-area/spawn-area'
 import { ParallaxField } from '../gameobjects/parallax/parallax-field'
 import {
@@ -27,6 +28,7 @@ import {
 } from '../gameobjects/ship/ship'
 import { ShipHealth } from '../gameobjects/ship/ship-health'
 import { WeaponShot } from '../gameobjects/shot/weapon-shot'
+import { EnemyShot } from '../gameobjects/shot/enemy-shot'
 import {
   patchWeaponStat,
   weaponLevelSnapshot,
@@ -142,6 +144,8 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       scene,
       weaponFactory: () => new WeaponShot({ color: BALANCE.weapons.catalog.laser.color }),
       weaponCapacity,
+      enemyFactory: () => new EnemyShot({ color: BALANCE.enemy.warrior.weapon.color }),
+      enemyCapacity: BALANCE.enemy.shotPoolSize,
       despawn: BALANCE.shot.despawn,
     })
     const limitBox = new LimitBox({
@@ -178,6 +182,10 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       name: 'spawnAreaFront',
     })
     scene.add(spawnFront.group)
+
+    const enemyGate = new EnemyGate({ config: BALANCE.enemy.gate })
+    scene.add(enemyGate.group)
+    const gateAim = { x: 0, z: 0 }
 
     const battleField = new BattleField({ config: BALANCE.battlefield })
     scene.add(battleField.group)
@@ -217,10 +225,13 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
     const enemies = new EnemyManager({
       scene,
       seekTarget: ship.transform.position,
+      gateTarget: gateAim,
       spawnLeft,
       spawnRight,
       spawnFront,
+      enemyGate,
       battleField,
+      shots: shots.asEnemyAcquirePort(),
     })
 
     const idleHud: HudPort = {
@@ -251,6 +262,7 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       spawnLeft,
       spawnRight,
       spawnFront,
+      enemyGate,
       battleField,
       player,
       camCtl,
@@ -332,11 +344,13 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
           world.spawnLeft.update(ship)
           world.spawnRight.update(ship)
           world.spawnFront.update(ship)
+          world.enemyGate.update(ship)
         },
         () => {
           world.spawnLeft.syncRender()
           world.spawnRight.syncRender()
           world.spawnFront.syncRender()
+          world.enemyGate.syncRender()
         },
         () => {
           scene.remove(world.spawnLeft.group)
@@ -345,6 +359,8 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
           world.spawnRight.dispose()
           scene.remove(world.spawnFront.group)
           world.spawnFront.dispose()
+          scene.remove(world.enemyGate.group)
+          world.enemyGate.dispose()
         },
       )
     },

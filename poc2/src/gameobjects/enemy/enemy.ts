@@ -1,13 +1,23 @@
 /**
- * SDD-E01 Enemy — pooled hostile mesh. Thin seek (Yuka deferred); F01 hits later.
+ * SDD-E01 Enemy — Warrior gunship (pooled).
+ * Phases follow sheet.targets: reachGate → chase player.
+ * Speed via damp(agility); fixed weapon fires in chase within intel range.
  */
 
 import { Mesh, MeshBasicMaterial } from 'three'
 import type { BoxGeometry } from 'three'
 import { BALANCE } from '../../core/balancer'
-import { clamp, distXZ } from '../../core/math'
+import { clamp, damp, distXZ } from '../../core/math'
+import type { ShotAcquirePort } from '../../systems/shot-manager'
+import type { ShotSpawn } from '../shot/weapon-shot'
+import {
+  warriorAgilityLambda,
+  warriorEngageRange,
+  type WarriorSheet,
+} from './warrior'
 
 export type TeamId = 'player' | 'enemy'
+export type EnemyMovePhase = 'reachGate' | 'chase'
 
 export interface SeekTargetPort {
   readonly x: number
@@ -18,14 +28,14 @@ export interface EnemySpawn {
   readonly x: number
   readonly y: number
   readonly z: number
-  readonly hp?: number
-  readonly radius?: number
-  readonly maxSpeed?: number
+  readonly sheet?: WarriorSheet
 }
 
 export interface EnemyOptions {
   readonly geometry: BoxGeometry
   readonly seekTarget: SeekTargetPort
+  readonly gateTarget: SeekTargetPort
+  readonly shots?: ShotAcquirePort
 }
 
 export class Enemy extends Mesh {
@@ -38,7 +48,7 @@ export class Enemy extends Mesh {
   y = 0
   z = 0
   radius = 0
-  readonly contactDamage: number
+  contactDamage = 0
   readonly vehicle = {
     position: { x: 0, y: 0, z: 0 },
     maxSpeed: 0,
@@ -48,13 +58,24 @@ export class Enemy extends Mesh {
   }
 
   private readonly _seek: SeekTargetPort
+  private readonly _gate: SeekTargetPort
+  private readonly _shots: ShotAcquirePort | null
   private readonly _mat: MeshBasicMaterial
   private _facingY = 0
   private _killed = false
+  private _phase: EnemyMovePhase = 'reachGate'
+  private _cruiseSpeed = 0
+  private _currentSpeed = 0
+  private _arriveRadius = 8
+  private _reachSpeedMul = 3
+  private _agilityLambda = 3.5
+  private _intelligence = 60
+  private _fireAcc = 0
+  private _sheet: WarriorSheet = BALANCE.enemy.warrior
 
   constructor(options: EnemyOptions) {
     const mat = new MeshBasicMaterial({
-      color: BALANCE.enemy.generic.color,
+      color: BALANCE.enemy.warrior.color,
       wireframe: true,
       transparent: true,
       opacity: 1,
@@ -62,16 +83,45 @@ export class Enemy extends Mesh {
     super(options.geometry, mat)
     this._mat = mat
     this._seek = options.seekTarget
-    this.contactDamage = BALANCE.enemy.generic.contactDamage
+    this._gate = options.gateTarget
+    this._shots = options.shots ?? null
+    this.contactDamage = BALANCE.enemy.warrior.contactDamage
     this.visible = false
   }
 
+  phase(): EnemyMovePhase {
+    return this._phase
+  }
+
+  currentSpeed(): number {
+    return this._currentSpeed
+  }
+
+  sheet(): WarriorSheet {
+    return this._sheet
+  }
+
+  archetype(): string {
+    return this._sheet.id
+  }
+
   activate(spawn: EnemySpawn): void {
-    const generic = BALANCE.enemy.generic
-    this.hpMax = spawn.hp ?? generic.hp
+    const sheet = spawn.sheet ?? BALANCE.enemy.warrior
+    const gate = BALANCE.enemy.gate
+    this._sheet = sheet
+    this.hpMax = sheet.hp
     this.hp = this.hpMax
-    this.radius = spawn.radius ?? generic.radius
-    this.vehicle.maxSpeed = spawn.maxSpeed ?? generic.maxSpeed
+    this.radius = sheet.radius
+    this.contactDamage = sheet.contactDamage
+    this._cruiseSpeed = sheet.maxSpeed
+    this.vehicle.maxSpeed = this._cruiseSpeed
+    this._arriveRadius = gate.arriveRadius
+    this._reachSpeedMul = sheet.reachSpeedMul
+    this._agilityLambda = warriorAgilityLambda(sheet.agility)
+    this._intelligence = sheet.intelligence
+    this._phase = sheet.targets[0] === 'enemyGate' ? 'reachGate' : 'chase'
+    this._currentSpeed = this._cruiseSpeed
+    this._fireAcc = 0
     this.x = spawn.x
     this.y = spawn.y
     this.z = spawn.z
@@ -82,7 +132,7 @@ export class Enemy extends Mesh {
     this._killed = false
     this.visible = true
     this._mat.opacity = 1
-    this._mat.color.setHex(generic.color)
+    this._mat.color.setHex(sheet.color)
     this.scale.setScalar(this.radius * 2)
   }
 
@@ -90,18 +140,35 @@ export class Enemy extends Mesh {
     this.active = false
     this.visible = false
     this.hp = 0
+    this._phase = 'reachGate'
+    this._currentSpeed = 0
+    this._fireAcc = 0
   }
 
   update(dt: number): void {
     if (!this.active) {
       return
     }
-    const dx = this._seek.x - this.x
-    const dz = this._seek.z - this.z
-    const dist = distXZ(this.x, this.z, this._seek.x, this._seek.z)
+
+    if (this._phase === 'reachGate') {
+      const gateDist = distXZ(this.x, this.z, this._gate.x, this._gate.z)
+      if (gateDist <= this._arriveRadius) {
+        this._phase = 'chase'
+      }
+    }
+
+    const aim = this._phase === 'reachGate' ? this._gate : this._seek
+    const targetSpeed =
+      this._phase === 'reachGate' ? this._cruiseSpeed * this._reachSpeedMul : this._cruiseSpeed
+    this._currentSpeed = damp(this._currentSpeed, targetSpeed, this._agilityLambda, dt)
+    this.vehicle.maxSpeed = this._currentSpeed
+
+    const dx = aim.x - this.x
+    const dz = aim.z - this.z
+    const dist = distXZ(this.x, this.z, aim.x, aim.z)
     if (dist > 0.001) {
       const inv = 1 / dist
-      const speed = this.vehicle.maxSpeed
+      const speed = this._currentSpeed
       this.x += dx * inv * speed * dt
       this.z += dz * inv * speed * dt
       this._facingY = Math.atan2(dx, dz)
@@ -109,6 +176,8 @@ export class Enemy extends Mesh {
     this.vehicle.position.x = this.x
     this.vehicle.position.y = this.y
     this.vehicle.position.z = this.z
+
+    this._tryFire(dt)
   }
 
   syncRender(): void {
@@ -179,7 +248,6 @@ export class Enemy extends Mesh {
     return Math.abs(this.x) > box.halfX || this.z > box.zNear || this.z < box.zFar
   }
 
-  /** Prefer BattleField.contains via EnemyManager; kept for absolute despawn tests. */
   isOutsideBattleField(bounds: {
     readonly minX: number
     readonly maxX: number
@@ -192,5 +260,54 @@ export class Enemy extends Mesh {
   dispose(): void {
     this.deactivate()
     this._mat.dispose()
+  }
+
+  private _tryFire(dt: number): void {
+    if (this._phase !== 'chase' || !this._shots) {
+      return
+    }
+    const weapon = this._sheet.weapon
+    const engage = warriorEngageRange(this._intelligence, weapon.range)
+    const toPlayer = distXZ(this.x, this.z, this._seek.x, this._seek.z)
+    if (toPlayer > engage) {
+      this._fireAcc = 0
+      return
+    }
+    this._fireAcc += dt
+    const interval = 1 / Math.max(0.05, weapon.rate)
+    while (this._fireAcc >= interval) {
+      this._fireAcc -= interval
+      this._fireBolt(weapon)
+    }
+  }
+
+  private _fireBolt(weapon: WarriorSheet['weapon']): void {
+    if (!this._shots) {
+      return
+    }
+    const shot = this._shots.acquire()
+    if (!shot) {
+      return
+    }
+    const dx = this._seek.x - this.x
+    const dz = this._seek.z - this.z
+    const dist = Math.hypot(dx, dz) || 1
+    const inv = 1 / dist
+    const muzzleZ = weapon.muzzleZ
+    const spawn: ShotSpawn = {
+      x: this.x + dx * inv * muzzleZ,
+      z: this.z + dz * inv * muzzleZ,
+      vx: dx * inv * weapon.speed,
+      vz: dz * inv * weapon.speed,
+      damage: weapon.damage,
+      lifetime: weapon.lifetime,
+      totalLifetime: weapon.lifetime,
+      radius: weapon.radius,
+      aoeRadius: 0,
+      range: weapon.range,
+      decayPerUnit: weapon.decayPerUnit,
+      color: weapon.color,
+    }
+    shot.activate(spawn)
   }
 }

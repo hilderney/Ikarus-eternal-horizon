@@ -33,7 +33,7 @@ npm run verify     # all three — the gate every card must pass (hub §6.1)
 
 Fase 0 is playable (`npm run dev` in this folder). **Done:** Stages A–B, C01–C03, D01–D06 (four weapons, unified L1–12 levels), E01/E05 thin (SpawnArea + BattleField + 1-enemy test stream), E04, E07, G03, G06, G08 Ship + Equips + SpawnArea, G09, G12, G11 scheme picker.
 
-**You can:** fly the modular airplane (WASD / stick / nipple), dash L1–L12, cycle **laser → plasma → beam → mjolnir**, hold fire per weapon profile. Three **red SpawnAreas** (`spawnLeft` / `spawnRight` / `spawnFront` at z −140) sit on the ship flanks and forward edge; each side ticks its own `intervalSec` (cap = sum of `maxActive`). A **blue BattleField** wall (`offset.x` ±240, `offset.z` −160…30 relative to the ship) culls enemies that leave — pool release, no mesh destroy. Pause (Esc/Start) for scheme + remap in `area-inputs`. DEV debugger: Ship, Equips (live weapon stats), **SpawnArea** (left/right/front), **Parallax** (per-layer speed/gain/offset/count/color). Energy is `ship.stats.energy`. Shot→enemy damage waits on F01.
+**You can:** fly the modular airplane (WASD / stick / nipple), dash L1–L12, cycle **laser → plasma → beam → mjolnir**, hold fire per weapon profile. Three **red SpawnAreas** feed **Warrior** gunships (sheet: targets gate→player, agility/intel, fixed warm bolt). Amber **EnemyGate** at z −90 is the first waypoint; then chase + fire. Blue **BattleField** culls leavers via pool release. Pause (Esc/Start) for scheme + remap. DEV debugger: Ship, Equips, SpawnArea, Parallax. Shot→enemy / enemy→ship damage waits on F01.
 
 **Next:** F01 collision, remaining G08 tabs, wire C03 onto integrity/shield bytes, G11 inventory/restart/quit, Yuka seek, G01 Title flow.
 

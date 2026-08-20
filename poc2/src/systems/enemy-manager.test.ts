@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../core/balancer'
 import { BattleField } from '../gameobjects/battle-field/battle-field'
+import { EnemyGate } from '../gameobjects/enemy-gate/enemy-gate'
 import { SpawnArea } from '../gameobjects/spawn-area/spawn-area'
 import { EnemyManager } from './enemy-manager'
 
@@ -25,6 +26,7 @@ function makeManager(capacity = 8): {
   spawnLeft: SpawnArea
   spawnRight: SpawnArea
   spawnFront: SpawnArea
+  enemyGate: EnemyGate
   battleField: BattleField
   manager: EnemyManager
 } {
@@ -32,6 +34,7 @@ function makeManager(capacity = 8): {
   const spawnLeft = new SpawnArea({ config: BALANCE.enemy.spawnLeft, name: 'spawnAreaLeft' })
   const spawnRight = new SpawnArea({ config: BALANCE.enemy.spawnRight, name: 'spawnAreaRight' })
   const spawnFront = new SpawnArea({ config: BALANCE.enemy.spawnFront, name: 'spawnAreaFront' })
+  const enemyGate = new EnemyGate({ config: BALANCE.enemy.gate })
   const battleField = new BattleField({
     config: {
       ...BALANCE.battlefield,
@@ -42,24 +45,30 @@ function makeManager(capacity = 8): {
     area.update({ x: 0, y: 0, z: 0 })
     area.syncRender()
   }
+  enemyGate.update({ x: 0, y: 0, z: 0 })
+  enemyGate.syncRender()
   battleField.update({ x: 0, y: 0, z: 0 })
   battleField.syncRender()
+  const gateAim = { x: 0, z: -90 }
   const manager = new EnemyManager({
     scene,
     seekTarget: { x: 0, z: 0 },
+    gateTarget: gateAim,
     spawnLeft,
     spawnRight,
     spawnFront,
+    enemyGate,
     battleField,
     capacity,
   })
-  return { scene, spawnLeft, spawnRight, spawnFront, battleField, manager }
+  return { scene, spawnLeft, spawnRight, spawnFront, enemyGate, battleField, manager }
 }
 
 function disposeAll(parts: {
   spawnLeft: SpawnArea
   spawnRight: SpawnArea
   spawnFront: SpawnArea
+  enemyGate: EnemyGate
   battleField: BattleField
   manager: EnemyManager
 }): void {
@@ -67,6 +76,7 @@ function disposeAll(parts: {
   parts.spawnLeft.dispose()
   parts.spawnRight.dispose()
   parts.spawnFront.dispose()
+  parts.enemyGate.dispose()
   parts.battleField.dispose()
 }
 
@@ -129,14 +139,11 @@ describe('EnemyManager', () => {
     disposeAll(parts)
   })
 
-  it('spawnOne(front) places the enemy inside the front volume', () => {
+  it('spawnOne creates a Warrior from the sheet', () => {
     const parts = makeManager(2)
     const enemy = parts.manager.spawnOne('front')
-    expect(enemy).not.toBeNull()
-    const center = parts.spawnFront.worldCenter()
-    const size = parts.spawnFront.size()
-    expect(Math.abs((enemy?.x ?? 0) - center.x)).toBeLessThanOrEqual(size.x / 2 + 5)
-    expect(Math.abs((enemy?.z ?? 0) - center.z)).toBeLessThanOrEqual(size.z / 2 + 0.01)
+    expect(enemy?.archetype()).toBe('warrior')
+    expect(enemy?.sheet().targets).toEqual(['enemyGate', 'player'])
     disposeAll(parts)
   })
 
@@ -161,6 +168,7 @@ describe('EnemyManager', () => {
     parts.spawnLeft.dispose()
     parts.spawnRight.dispose()
     parts.spawnFront.dispose()
+    parts.enemyGate.dispose()
     parts.battleField.dispose()
   })
 })

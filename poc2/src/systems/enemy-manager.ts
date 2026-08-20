@@ -1,14 +1,16 @@
 /**
- * SDD-E05 EnemyManager — left / right / front spawn zones + pool.
+ * SDD-E05 EnemyManager — left / right / front spawn + EnemyGate rush + pool.
  * Outside BattleField ⇒ deactivate + pool.release (reuse; no mesh destroy / GC spike).
  */
 
 import { BoxGeometry } from 'three'
 import { BALANCE } from '../core/balancer'
 import type { BattleField } from '../gameobjects/battle-field/battle-field'
+import type { EnemyGate } from '../gameobjects/enemy-gate/enemy-gate'
 import { Enemy, type SeekTargetPort } from '../gameobjects/enemy/enemy'
 import type { SpawnArea } from '../gameobjects/spawn-area/spawn-area'
 import { ObjectPool } from '../pools/object-pool'
+import type { ShotAcquirePort } from './shot-manager'
 
 export type SpawnSide = 'left' | 'right' | 'front'
 
@@ -22,10 +24,13 @@ export interface ScenePort {
 export interface EnemyManagerOptions {
   readonly scene: ScenePort
   readonly seekTarget: SeekTargetPort
+  readonly gateTarget: SeekTargetPort
   readonly spawnLeft: SpawnArea
   readonly spawnRight: SpawnArea
   readonly spawnFront: SpawnArea
+  readonly enemyGate: EnemyGate
   readonly battleField: BattleField
+  readonly shots?: ShotAcquirePort
   /** Defaults to BALANCE.enemy.poolSize. */
   readonly capacity?: number
 }
@@ -33,8 +38,11 @@ export interface EnemyManagerOptions {
 export class EnemyManager {
   private readonly _scene: ScenePort
   private readonly _areas: Record<SpawnSide, SpawnArea>
+  private readonly _enemyGate: EnemyGate
+  private readonly _gateTarget: { x: number; z: number }
   private readonly _battleField: BattleField
   private readonly _seek: SeekTargetPort
+  private readonly _shots: ShotAcquirePort | null
   private readonly _geo: BoxGeometry
   private readonly _pool: ObjectPool<Enemy>
   private readonly _acc: Record<SpawnSide, number> = { left: 0, right: 0, front: 0 }
@@ -48,14 +56,22 @@ export class EnemyManager {
       right: options.spawnRight,
       front: options.spawnFront,
     }
+    this._enemyGate = options.enemyGate
+    this._gateTarget = options.gateTarget as { x: number; z: number }
     this._battleField = options.battleField
     this._seek = options.seekTarget
+    this._shots = options.shots ?? null
     this._geo = new BoxGeometry(1, 1, 1)
     const capacity = options.capacity ?? BALANCE.enemy.poolSize
     this._pool = new ObjectPool<Enemy>({
       capacity,
       factory: () => {
-        const enemy = new Enemy({ geometry: this._geo, seekTarget: this._seek })
+        const enemy = new Enemy({
+          geometry: this._geo,
+          seekTarget: this._seek,
+          gateTarget: this._gateTarget,
+          shots: this._shots ?? undefined,
+        })
         this._scene.add(enemy)
         return enemy
       },
@@ -98,7 +114,7 @@ export class EnemyManager {
       x = center.x + (Math.random() - 0.5) * size.x
     }
     const z = center.z + (Math.random() - 0.5) * size.z
-    enemy.activate({ x, y: center.y, z })
+    enemy.activate({ x, y: center.y, z, sheet: BALANCE.enemy.warrior })
     return enemy
   }
 
@@ -106,6 +122,7 @@ export class EnemyManager {
     if (this._disposed) {
       return
     }
+    this._syncGateAim()
     for (const side of SPAWN_SIDES) {
       this._acc[side] += dt
       const interval = Math.max(0.05, this._areas[side].intervalSec())
@@ -139,6 +156,12 @@ export class EnemyManager {
     this._disposed = true
     this._pool.dispose()
     this._geo.dispose()
+  }
+
+  private _syncGateAim(): void {
+    const center = this._enemyGate.worldCenter()
+    this._gateTarget.x = center.x
+    this._gateTarget.z = center.z
   }
 
   private _maxActiveTotal(): number {

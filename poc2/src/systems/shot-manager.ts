@@ -94,6 +94,12 @@ export class ShotManager {
     return this._acquirePort
   }
 
+  asEnemyAcquirePort(): ShotAcquirePort {
+    return {
+      acquire: () => this.acquire('enemy'),
+    }
+  }
+
   acquire(origin: ShotOrigin): ShotLike | null {
     return this.pool(origin).acquire()
   }
