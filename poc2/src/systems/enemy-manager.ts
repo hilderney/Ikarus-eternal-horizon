@@ -7,7 +7,7 @@ import { BoxGeometry } from 'three'
 import { BALANCE } from '../core/balancer'
 import type { BattleField } from '../gameobjects/battle-field/battle-field'
 import type { EnemyGate, GateEntryBand } from '../gameobjects/enemy-gate/enemy-gate'
-import { Enemy, type SeekTargetPort } from '../gameobjects/enemy/enemy'
+import { Enemy, type EnemyStatusSnapshot, type SeekTargetPort } from '../gameobjects/enemy/enemy'
 import {
   cloneWarriorSheet,
   type EditableWarriorSheet,
@@ -124,6 +124,19 @@ export class EnemyManager {
       ...fresh,
       targets: [...fresh.targets],
       weapon: { ...fresh.weapon },
+      status: { ...fresh.status },
+      strategy: {
+        swapBaseMs: fresh.strategy.swapBaseMs,
+        turnRateDeg: fresh.strategy.turnRateDeg,
+        weights: { ...fresh.strategy.weights },
+        mods: {
+          hitted: { ...fresh.strategy.mods.hitted },
+          hitting: { ...fresh.strategy.mods.hitting },
+          in_range: { ...fresh.strategy.mods.in_range },
+          passed_opponent: { ...fresh.strategy.mods.passed_opponent },
+        },
+        loopAround: { ...fresh.strategy.loopAround },
+      },
     })
     this._applyLiveSheetToActive()
   }
@@ -135,6 +148,16 @@ export class EnemyManager {
 
   forEachActive(fn: (enemy: Enemy) => void): void {
     this._pool.forEachActive(fn)
+  }
+
+  firstActiveStatus(): EnemyStatusSnapshot | null {
+    let snap: EnemyStatusSnapshot | null = null
+    this._pool.forEachActive((enemy) => {
+      if (!snap) {
+        snap = enemy.statusSnapshot()
+      }
+    })
+    return snap
   }
 
   spawnOne(side: SpawnSide = this._pickSide()): Enemy | null {
@@ -170,6 +193,7 @@ export class EnemyManager {
       z,
       sheet: this._liveSheet,
       gateEntryOffsetX,
+      pathSide: side,
     })
     this._colliders?.registerTarget(enemy)
     return enemy

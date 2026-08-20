@@ -676,7 +676,7 @@ const BALANCE_DATA: Balance = {
     followBox: {
       position: { x: 0, y: 0, z: -3 },
       color: 0xf0ab4a,
-      opacity: 0.02,
+      opacity: 0.01,
       centerLine: { color: 0x50e3c2, opacity: 0.02 },
       restLine: {
         color: 0x2d6bff,
@@ -867,7 +867,9 @@ const BALANCE_DATA: Balance = {
     },
   },
   shot: {
-    despawn: { zNear: 16, zFar: -32, halfX: 16 },
+    // Fallback absolute AABB — matches BattleField offsets with ship at origin.
+    // Live cull prefers BattleField.contains (ship-relative) when bound.
+    despawn: { zNear: 30, zFar: -160, halfX: 240 },
   },
   enemy: {
     spawnLeft: {
@@ -902,7 +904,7 @@ const BALANCE_DATA: Balance = {
     },
     gate: {
       offset: { x: 0, y: 0, z: -90 },
-      size: { x: 60, y: 1.2, z: 8 },
+      size: { x: 60, y: 2, z: 8 },
       visible: true,
       color: 0xf59e0b,
       opacity: 0.55,

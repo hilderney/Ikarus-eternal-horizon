@@ -3,11 +3,11 @@
  */
 
 import { BALANCE } from '../../core/balancer'
+import type { EnemyStatusSnapshot } from '../../gameobjects/enemy/enemy'
 import type { EditableWarriorSheet } from '../../gameobjects/enemy/warrior'
 import type { WeaponId } from '../../gameobjects/weapon/catalog'
 import type { ParallaxLayerConfig } from '../../gameobjects/parallax/parallax-layer'
 import type { WeaponLevelSnapshot, WeaponLevelSnapshotField } from '../../gameobjects/weapon/weapon-levels'
-
 export type DebuggerTabId =
   | 'ship'
   | 'equips'
@@ -118,6 +118,8 @@ export interface DebuggerEnemyBind {
   /** Push sheet onto active enemies (pose/rotation of the player ship untouched). */
   applyToActive(): void
   resetSheet(defaults?: EditableWarriorSheet): void
+  /** Snapshot of the first active enemy (statuses / chase strategy). */
+  liveStatus(): EnemyStatusSnapshot | null
 }
 
 export interface DebuggerParallaxBind {
@@ -129,6 +131,36 @@ export interface DebuggerParallaxBind {
   setVisible(index: number, visible: boolean): void
 }
 
+export interface DebuggerCameraBind {
+  fov(): number
+  setFov(value: number): void
+  position(): { x: number; y: number; z: number }
+  setPosition(x: number, y: number, z: number): void
+  rotation(): { x: number; y: number; z: number }
+  setRotation(x: number, y: number, z: number): void
+  near(): number
+  setNear(value: number): void
+  far(): number
+  setFar(value: number): void
+  moveSpeed(): number
+  setMoveSpeed(value: number): void
+  rotSpeed(): number
+  setRotSpeed(value: number): void
+  apply(): void
+}
+
+/** LimitBox rest-line cross — ship auto-recenter target gizmo. */
+export interface DebuggerRecenterPointBind {
+  position(): { x: number; y: number; z: number }
+  setPosition(x: number, y: number, z: number): void
+  width(): number
+  setWidth(value: number): void
+  height(): number
+  setHeight(value: number): void
+  visible(): boolean
+  setVisible(visible: boolean): void
+}
+
 export interface DebuggerBinds {
   readonly ship: DebuggerShipBind
   readonly weapons: DebuggerWeaponsBind
@@ -136,6 +168,8 @@ export interface DebuggerBinds {
   readonly spawnArea: DebuggerSpawnAreaBind
   readonly enemy: DebuggerEnemyBind
   readonly parallax: DebuggerParallaxBind
+  readonly camera: DebuggerCameraBind
+  readonly recenterPoint: DebuggerRecenterPointBind
 }
 
 export interface DebuggerOptions {
@@ -219,7 +253,7 @@ export class Debugger implements DebuggerPort {
       return
     }
     const pose = this._binds.ship.snapshot().position
-    this.updateReadout(pose, { x: 0, y: 0, z: 0 })
+    this.updateReadout(pose, this._binds.camera.position())
     for (const tab of this._tabs) {
       tab.sync()
     }

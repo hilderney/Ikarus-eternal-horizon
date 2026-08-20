@@ -14,6 +14,7 @@ import { Gizmos } from '../gameobjects/gizmos/gizmos'
 import { LimitBox } from '../gameobjects/limit-box/limit-box'
 import { BattleField } from '../gameobjects/battle-field/battle-field'
 import { EnemyGate } from '../gameobjects/enemy-gate/enemy-gate'
+import { warriorMaxSpeed } from '../gameobjects/enemy/warrior'
 import { SpawnArea } from '../gameobjects/spawn-area/spawn-area'
 import { ParallaxField } from '../gameobjects/parallax/parallax-field'
 import {
@@ -52,6 +53,7 @@ import { Layer } from '../systems/layers'
 import { ObjectPool } from '../pools/object-pool'
 import type { MutableTouchSource, TouchControls } from '../ui/touch-controls/touch-controls'
 import { Debugger, type DebuggerBinds } from '../ui/debugger/debugger'
+import { CamTab } from '../ui/debugger/cam-tab'
 import { EquipsTab } from '../ui/debugger/equips-tab'
 import { ShipTab } from '../ui/debugger/ship-tab'
 import { SpawnAreaTab } from '../ui/debugger/spawn-area-tab'
@@ -156,9 +158,18 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       enemyCapacity: BALANCE.enemy.shotPoolSize,
       despawn: BALANCE.shot.despawn,
     })
+    const followBoxVisual = {
+      ...BALANCE.ship.followBox,
+      position: { ...BALANCE.ship.followBox.position },
+      centerLine: { ...BALANCE.ship.followBox.centerLine },
+      restLine: {
+        ...BALANCE.ship.followBox.restLine,
+        position: { ...BALANCE.ship.followBox.restLine.position },
+      },
+    }
     const limitBox = new LimitBox({
       follow: BALANCE.ship.follow,
-      visual: BALANCE.ship.followBox,
+      visual: followBoxVisual,
       cameraConfig,
     })
     scene.add(limitBox.group)
@@ -197,6 +208,7 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
 
     const battleField = new BattleField({ config: BALANCE.battlefield })
     scene.add(battleField.group)
+    shots.setPlayfield(battleField)
 
     const collision = new CollisionManager()
     const damage = new DamageResolver()
@@ -243,10 +255,15 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       isDashing: () => ship.status.dashing,
       energy,
     })
+    const cameraControls = {
+      moveSpeed: BALANCE.controls.camera.moveSpeed,
+      rotSpeed: BALANCE.controls.camera.rotSpeed,
+      keys: BALANCE.controls.camera.keys,
+    }
     const camCtl = new CameraController({
       input,
       pose: { position: cameraConfig.position, rotation: cameraConfig.rotation },
-      config: BALANCE.controls.camera,
+      config: cameraControls,
     })
     const firing = new FiringManager({
       input,
@@ -308,6 +325,8 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       killCounter,
       hitPairs,
       limitBox,
+      followBoxVisual,
+      cameraControls,
       gizmos,
       spawnLeft,
       spawnRight,
@@ -585,6 +604,21 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
           void _dt
           const events = world.damage.resolve(world.hitPairs.current)
           for (const pair of world.hitPairs.current) {
+            // Enemy body contact with player ⇒ hitting status on the Warrior.
+            const enemyBody =
+              pair.aLayer === Layer.Enemy
+                ? pair.a
+                : pair.bLayer === Layer.Enemy
+                  ? pair.b
+                  : null
+            const hitsPlayer =
+              pair.aLayer === Layer.Player || pair.bLayer === Layer.Player
+            if (enemyBody && hitsPlayer) {
+              const notify = (enemyBody as unknown as { notifyHitting?: () => void }).notifyHitting
+              if (typeof notify === 'function') {
+                notify.call(enemyBody)
+              }
+            }
             if (!pair.consumeProjectile) {
               continue
             }
@@ -770,17 +804,27 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
               live.radius = defaults.radius
               live.color = defaults.color
               live.contactDamage = defaults.contactDamage
-              live.maxSpeed = defaults.maxSpeed
+              live.maxSpeed = warriorMaxSpeed(defaults.agility)
               live.agility = defaults.agility
               live.intelligence = defaults.intelligence
               live.reachSpeedMul = defaults.reachSpeedMul
               live.targets = [...defaults.targets]
               Object.assign(live.weapon, defaults.weapon)
+              Object.assign(live.status, defaults.status)
+              live.strategy.swapBaseMs = defaults.strategy.swapBaseMs
+              live.strategy.turnRateDeg = defaults.strategy.turnRateDeg
+              Object.assign(live.strategy.weights, defaults.strategy.weights)
+              Object.assign(live.strategy.mods.hitted, defaults.strategy.mods.hitted)
+              Object.assign(live.strategy.mods.hitting, defaults.strategy.mods.hitting)
+              Object.assign(live.strategy.mods.in_range, defaults.strategy.mods.in_range)
+              Object.assign(live.strategy.mods.passed_opponent, defaults.strategy.mods.passed_opponent)
+              Object.assign(live.strategy.loopAround, defaults.strategy.loopAround)
               world.enemies.applyLiveSheetToActive()
               return
             }
             world.enemies.resetLiveSheet()
           },
+          liveStatus: () => world.enemies.firstActiveStatus(),
         },
         parallax: {
           layerCount: () => world.parallax.layerCount(),
@@ -794,6 +838,63 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
             world.parallax.setVisible(index, visible)
           },
         },
+        camera: {
+          fov: () => cameraConfig.fov,
+          setFov: (value) => {
+            cameraConfig.fov = value
+          },
+          position: () => cameraConfig.position,
+          setPosition: (x, y, z) => {
+            cameraConfig.position.x = x
+            cameraConfig.position.y = y
+            cameraConfig.position.z = z
+          },
+          rotation: () => cameraConfig.rotation,
+          setRotation: (x, y, z) => {
+            cameraConfig.rotation.x = x
+            cameraConfig.rotation.y = y
+            cameraConfig.rotation.z = z
+          },
+          near: () => cameraConfig.near,
+          setNear: (value) => {
+            cameraConfig.near = value
+          },
+          far: () => cameraConfig.far,
+          setFar: (value) => {
+            cameraConfig.far = value
+          },
+          moveSpeed: () => world.cameraControls.moveSpeed,
+          setMoveSpeed: (value) => {
+            world.cameraControls.moveSpeed = value
+          },
+          rotSpeed: () => world.cameraControls.rotSpeed,
+          setRotSpeed: (value) => {
+            world.cameraControls.rotSpeed = value
+          },
+          apply: () => {
+            gameCamera.applyConfig(cameraConfig)
+          },
+        },
+        recenterPoint: {
+          position: () => world.followBoxVisual.restLine.position,
+          setPosition: (x, y, z) => {
+            world.followBoxVisual.restLine.position.x = x
+            world.followBoxVisual.restLine.position.y = y
+            world.followBoxVisual.restLine.position.z = z
+          },
+          width: () => world.followBoxVisual.restLine.width,
+          setWidth: (value) => {
+            world.followBoxVisual.restLine.width = value
+          },
+          height: () => world.followBoxVisual.restLine.height,
+          setHeight: (value) => {
+            world.followBoxVisual.restLine.height = value
+          },
+          visible: () => world.limitBox.restLineVisible(),
+          setVisible: (visible) => {
+            world.limitBox.setRestLineVisible(visible)
+          },
+        },
       }
       const panel = new Debugger({
         host: debuggerHost,
@@ -802,6 +903,7 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
           new ShipTab(binds),
           new EquipsTab(binds),
           new EnemyTab(binds),
+          new CamTab(binds),
           new SpawnAreaTab(binds),
           new ParallaxTab(binds),
         ],

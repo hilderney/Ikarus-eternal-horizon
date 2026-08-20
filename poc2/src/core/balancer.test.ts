@@ -214,8 +214,13 @@ describe('BALANCE', () => {
     expect(BALANCE.gizmos.cameraAxisSize).toBe(2.2)
   })
 
-  it('exposes shot despawn bounds and laser+plasma loadout', () => {
-    expect(BALANCE.shot.despawn).toEqual({ zNear: 16, zFar: -32, halfX: 16 })
+  it('exposes shot despawn bounds matching BattleField and laser+plasma loadout', () => {
+    expect(BALANCE.shot.despawn).toEqual({ zNear: 30, zFar: -160, halfX: 240 })
+    expect(BALANCE.shot.despawn.zNear).toBe(BALANCE.battlefield.offsetZ.max)
+    expect(BALANCE.shot.despawn.zFar).toBe(BALANCE.battlefield.offsetZ.min)
+    expect(BALANCE.shot.despawn.halfX).toBe(
+      Math.max(Math.abs(BALANCE.battlefield.offsetX.min), Math.abs(BALANCE.battlefield.offsetX.max)),
+    )
     expect(BALANCE.weapons.loadout).toEqual(['laser', 'plasma', 'beam', 'mjolnir'])
     expect(BALANCE.weapons.catalog.laser.poolSize).toBe(128)
     expect(BALANCE.weapons.catalog.plasma.poolSize).toBe(32)

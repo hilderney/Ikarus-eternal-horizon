@@ -34,6 +34,11 @@ export interface ShotDespawn {
   readonly halfX: number
 }
 
+/** Ship-relative play volume (BattleField). When set, enemy/bomb bolts cull against it. */
+export interface ShotPlayfield {
+  contains(x: number, z: number): boolean
+}
+
 export interface ScenePort {
   add(object: unknown): void
   remove(object: unknown): void
@@ -43,7 +48,10 @@ export interface ShotManagerOptions {
   readonly scene: ScenePort
   readonly weaponFactory: () => ShotLike
   readonly weaponCapacity: number
+  /** Fallback absolute AABB when no playfield is bound. */
   readonly despawn: ShotDespawn
+  /** Prefer BattleField.contains for enemy/bomb cull (anywhere inside the walls). */
+  readonly playfield?: ShotPlayfield | null
   readonly enemyFactory?: () => ShotLike
   readonly enemyCapacity?: number
   readonly bombFactory?: () => ShotLike
@@ -58,16 +66,28 @@ function isPastRange(shot: ShotLike): boolean {
   return shot.range > 0 && distXZ(shot.x, shot.z, shot.spawnX, shot.spawnZ) >= shot.range
 }
 
-/** Absolute world box — enemy/bomb only. Player bolts use range-from-spawn. */
+/** Absolute world box — enemy/bomb fallback when no BattleField is bound. */
 function isOffField(shot: ShotLike, despawn: ShotDespawn): boolean {
   return (
     Math.abs(shot.x) > despawn.halfX || shot.z > despawn.zNear || shot.z < despawn.zFar
   )
 }
 
+function isOutsidePlay(
+  shot: ShotLike,
+  despawn: ShotDespawn,
+  playfield: ShotPlayfield | null,
+): boolean {
+  if (playfield) {
+    return !playfield.contains(shot.x, shot.z)
+  }
+  return isOffField(shot, despawn)
+}
+
 export class ShotManager {
   private readonly _scene: ScenePort
   private readonly _despawn: ShotDespawn
+  private _playfield: ShotPlayfield | null
   private readonly _weapon: ObjectPool<ShotLike>
   private readonly _enemy: ObjectPool<ShotLike>
   private readonly _bomb: ObjectPool<ShotLike>
@@ -77,6 +97,7 @@ export class ShotManager {
   constructor(options: ShotManagerOptions) {
     this._scene = options.scene
     this._despawn = options.despawn
+    this._playfield = options.playfield ?? null
 
     this._weapon = this.makePool(
       options.weaponCapacity,
@@ -88,6 +109,11 @@ export class ShotManager {
     this._acquirePort = {
       acquire: () => this.acquire('weapon'),
     }
+  }
+
+  /** Bind / replace the live BattleField used to cull enemy/bomb bolts. */
+  setPlayfield(playfield: ShotPlayfield | null): void {
+    this._playfield = playfield
   }
 
   asAcquirePort(): ShotAcquirePort {
@@ -181,7 +207,7 @@ export class ShotManager {
       const expired =
         origin === 'weapon'
           ? shot.lifetime <= 0 || isPastRange(shot)
-          : shot.lifetime <= 0 || isOffField(shot, this._despawn)
+          : shot.lifetime <= 0 || isOutsidePlay(shot, this._despawn, this._playfield)
       if (expired) {
         this.release(origin, shot)
       }

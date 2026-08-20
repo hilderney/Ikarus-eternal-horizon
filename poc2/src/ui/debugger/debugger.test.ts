@@ -8,13 +8,14 @@ import {
 } from '../../gameobjects/weapon/weapon-levels'
 import type { DebuggerBinds, DebuggerShipBind } from './debugger'
 import { Debugger } from './debugger'
+import { CamTab } from './cam-tab'
 import { EquipsTab } from './equips-tab'
 import { EnemyTab } from './enemy-tab'
 import { ShipTab } from './ship-tab'
 import { SpawnAreaTab } from './spawn-area-tab'
 import { ParallaxTab } from './parallax-tab'
 import type { ParallaxLayerConfig } from '../../gameobjects/parallax/parallax-layer'
-import { cloneWarriorSheet, WARRIOR } from '../../gameobjects/enemy/warrior'
+import { cloneWarriorSheet, warriorMaxSpeed, WARRIOR } from '../../gameobjects/enemy/warrior'
 import shipTabSource from './ship-tab.ts?raw'
 import equipsTabSource from './equips-tab.ts?raw'
 
@@ -192,6 +193,22 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
     },
   ]
   const parallaxVisible = [true, true]
+  const cameraLive = {
+    fov: 110,
+    position: { x: 3, y: 14, z: 6 },
+    rotation: { x: -55, y: 24, z: -14 },
+    near: 5,
+    far: 10000,
+    moveSpeed: 12,
+    rotSpeed: 45,
+  }
+  let cameraApplyCount = 0
+  const recenterLive = {
+    position: { x: 0, y: 0, z: -1 },
+    width: 2,
+    height: 4,
+    visible: true,
+  }
   const refreshRecovering = (): void => {
     sheet.status.recovering = !shooting && !sheet.status.dashing && !sheet.status.flickering
   }
@@ -310,12 +327,24 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
         enemySheet.radius = src.radius
         enemySheet.color = src.color
         enemySheet.contactDamage = src.contactDamage
-        enemySheet.maxSpeed = src.maxSpeed
+        enemySheet.maxSpeed = warriorMaxSpeed(src.agility)
         enemySheet.agility = src.agility
         enemySheet.intelligence = src.intelligence
         enemySheet.reachSpeedMul = src.reachSpeedMul
         enemySheet.targets = [...src.targets]
         Object.assign(enemySheet.weapon, src.weapon)
+        Object.assign(enemySheet.status, src.status)
+        enemySheet.strategy.swapBaseMs = src.strategy.swapBaseMs
+        enemySheet.strategy.turnRateDeg = src.strategy.turnRateDeg
+        Object.assign(enemySheet.strategy.weights, src.strategy.weights)
+        Object.assign(enemySheet.strategy.mods.hitted, src.strategy.mods.hitted)
+        Object.assign(enemySheet.strategy.mods.hitting, src.strategy.mods.hitting)
+        Object.assign(enemySheet.strategy.mods.in_range, src.strategy.mods.in_range)
+        Object.assign(enemySheet.strategy.mods.passed_opponent, src.strategy.mods.passed_opponent)
+        Object.assign(enemySheet.strategy.loopAround, src.strategy.loopAround)
+      },
+      liveStatus() {
+        return null
       },
     },
     parallax: {
@@ -348,6 +377,63 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
         if (index >= 0 && index < parallaxVisible.length) {
           parallaxVisible[index] = visible
         }
+      },
+    },
+    camera: {
+      fov: () => cameraLive.fov,
+      setFov: (value) => {
+        cameraLive.fov = value
+      },
+      position: () => cameraLive.position,
+      setPosition: (x, y, z) => {
+        cameraLive.position.x = x
+        cameraLive.position.y = y
+        cameraLive.position.z = z
+      },
+      rotation: () => cameraLive.rotation,
+      setRotation: (x, y, z) => {
+        cameraLive.rotation.x = x
+        cameraLive.rotation.y = y
+        cameraLive.rotation.z = z
+      },
+      near: () => cameraLive.near,
+      setNear: (value) => {
+        cameraLive.near = value
+      },
+      far: () => cameraLive.far,
+      setFar: (value) => {
+        cameraLive.far = value
+      },
+      moveSpeed: () => cameraLive.moveSpeed,
+      setMoveSpeed: (value) => {
+        cameraLive.moveSpeed = value
+      },
+      rotSpeed: () => cameraLive.rotSpeed,
+      setRotSpeed: (value) => {
+        cameraLive.rotSpeed = value
+      },
+      apply() {
+        cameraApplyCount += 1
+      },
+    },
+    recenterPoint: {
+      position: () => recenterLive.position,
+      setPosition: (x, y, z) => {
+        recenterLive.position.x = x
+        recenterLive.position.y = y
+        recenterLive.position.z = z
+      },
+      width: () => recenterLive.width,
+      setWidth: (value) => {
+        recenterLive.width = value
+      },
+      height: () => recenterLive.height,
+      setHeight: (value) => {
+        recenterLive.height = value
+      },
+      visible: () => recenterLive.visible,
+      setVisible: (visible) => {
+        recenterLive.visible = visible
       },
     },
   }
@@ -674,6 +760,59 @@ describe('SpawnAreaTab', () => {
     opacity.dispatchEvent(new Event('input', { bubbles: true }))
     expect(binds.spawnArea.opacity(3)).toBe(0.4)
     dbg.dispose()
+  })
+})
+
+describe('CamTab', () => {
+  it('edits camera fov/position and recenter gizmo live', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new CamTab(binds)],
+      enabled: true,
+    })
+    expect(host.querySelector('[data-tab="cam"]')).not.toBeNull()
+    const fov = bind(host, 'camera.fov', 'number')
+    fov.value = '90'
+    fov.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.camera.fov()).toBe(90)
+    const px = bind(host, 'camera.position.x', 'number')
+    px.value = '8'
+    px.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.camera.position().x).toBe(8)
+    const width = bind(host, 'recenter.width', 'number')
+    width.value = '5'
+    width.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.recenterPoint.width()).toBe(5)
+    const visible = host.querySelector<HTMLInputElement>('input[data-bind="recenter.visible"]')
+    expect(visible).not.toBeNull()
+    if (visible) {
+      visible.checked = false
+      visible.dispatchEvent(new Event('input', { bubbles: true }))
+      expect(binds.recenterPoint.visible()).toBe(false)
+    }
+    dbg.dispose()
+  })
+
+  it('reset restores camera and recenter defaults', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const tab = new CamTab(binds)
+    tab.mount(host)
+    binds.camera.setFov(42)
+    binds.camera.setPosition(1, 2, 3)
+    binds.recenterPoint.setWidth(9)
+    binds.recenterPoint.setVisible(false)
+    tab.reset()
+    expect(binds.camera.fov()).toBe(110)
+    expect(binds.camera.position()).toEqual({ x: 3, y: 14, z: 6 })
+    expect(binds.recenterPoint.width()).toBe(2)
+    expect(binds.recenterPoint.visible()).toBe(true)
+    tab.dispose()
   })
 })
 

@@ -79,13 +79,11 @@ const run = new RunScene({
 
 run.mount()
 
-const runtime: { loop: GameLoop | null } = { loop: null }
-
 const pause = new PauseScene({
   host: areas.stage,
   loop: {
     setPaused(paused) {
-      runtime.loop?.setPaused(paused)
+      loop.setPaused(paused)
     },
   },
   input,
@@ -108,6 +106,5 @@ const loop = new GameLoop({
     }
   },
 })
-runtime.loop = loop
 
 loop.start()

@@ -3,22 +3,31 @@
  * Targets: enemyGate → player. Fixed weapon; spawners instantiate this profile.
  */
 
+import {
+  DEFAULT_STATUS_CONFIG,
+  DEFAULT_STRATEGY_CONFIG,
+  type StrategyWeights,
+  type WarriorStatusConfig,
+  type WarriorStrategyConfig,
+} from '../../systems/enemy-strategy'
+
 export type EnemyTargetId = 'enemyGate' | 'player'
 export type EnemyArchetypeId = 'warrior'
 
 export interface EnemyWeaponSheet {
-  /** Shots per second while allowed to fire. */
   readonly rate: number
   readonly damage: number
-  /** Bolt speed (world units / sec) toward the player. */
+  /** Bolt travel speed along nose (world units / sec). */
   readonly speed: number
   readonly lifetime: number
   readonly range: number
   readonly radius: number
   readonly color: number
-  /** Local Z muzzle offset (negative = toward ship / forward for hostiles). */
+  /** Local forward muzzle offset along nose. */
   readonly muzzleZ: number
   readonly decayPerUnit: number
+  /** Full fire-cone amplitude in degrees (nose ± half). */
+  readonly fireConeDeg: number
 }
 
 export interface WarriorSheet {
@@ -29,14 +38,13 @@ export interface WarriorSheet {
   readonly color: number
   readonly contactDamage: number
   readonly maxSpeed: number
-  /** 0–100. Higher = snappier speed damp (agility curve). */
   readonly agility: number
-  /** 0–100. Higher = opens fire earlier (engagement range fraction). */
   readonly intelligence: number
-  /** Ordered intent: rush gate, then attack player. */
   readonly targets: readonly EnemyTargetId[]
   readonly reachSpeedMul: number
   readonly weapon: EnemyWeaponSheet
+  readonly status: WarriorStatusConfig
+  readonly strategy: WarriorStrategyConfig
 }
 
 /** Mutable debugger / live-spawn copy of a Warrior sheet. */
@@ -62,35 +70,60 @@ export interface EditableWarriorSheet {
     color: number
     muzzleZ: number
     decayPerUnit: number
+    fireConeDeg: number
+  }
+  status: WarriorStatusConfig
+  strategy: WarriorStrategyConfig
+}
+
+function cloneStatus(src: WarriorStatusConfig): WarriorStatusConfig {
+  return { ...src }
+}
+
+function cloneStrategy(src: WarriorStrategyConfig): WarriorStrategyConfig {
+  return {
+    swapBaseMs: src.swapBaseMs,
+    turnRateDeg: src.turnRateDeg,
+    weights: { ...src.weights },
+    mods: {
+      hitted: { ...src.mods.hitted },
+      hitting: { ...src.mods.hitting },
+      in_range: { ...src.mods.in_range },
+      passed_opponent: { ...src.mods.passed_opponent },
+    },
+    loopAround: { ...src.loopAround },
   }
 }
 
-export function cloneWarriorSheet(src: WarriorSheet): EditableWarriorSheet {
+export function cloneWarriorSheet(src: WarriorSheet | EditableWarriorSheet): EditableWarriorSheet {
+  const agility = src.agility
   return {
-    id: src.id,
+    id: 'warrior',
     name: src.name,
     hp: src.hp,
     radius: src.radius,
     color: src.color,
     contactDamage: src.contactDamage,
-    maxSpeed: src.maxSpeed,
-    agility: src.agility,
+    maxSpeed: warriorMaxSpeed(agility),
+    agility,
     intelligence: src.intelligence,
     targets: [...src.targets],
     reachSpeedMul: src.reachSpeedMul,
     weapon: { ...src.weapon },
+    status: cloneStatus(src.status),
+    strategy: cloneStrategy(src.strategy),
   }
 }
 
-/** Map sheet agility (0–100) → damp λ for currentSpeed → targetSpeed. */
+export function warriorMaxSpeed(agility: number): number {
+  return Math.max(0, agility / 10)
+}
+
 export function warriorAgilityLambda(agility: number): number {
   const t = Math.min(1, Math.max(0, agility / 100))
   return 1.2 + t * 5
 }
 
-/**
- * Intelligence scales how far into weapon.range the Warrior opens fire (0.35…1.0).
- */
 export function warriorEngageRange(intelligence: number, weaponRange: number): number {
   const t = Math.min(1, Math.max(0, intelligence / 100))
   return weaponRange * (0.35 + t * 0.65)
@@ -103,7 +136,8 @@ export const WARRIOR: WarriorSheet = {
   radius: 0.55,
   color: 0xf43f5e,
   contactDamage: 8,
-  maxSpeed: 4,
+  /** Derived: agility / 10 (kept on sheet for debugger / balance mirrors). */
+  maxSpeed: warriorMaxSpeed(55),
   agility: 55,
   intelligence: 60,
   targets: ['enemyGate', 'player'],
@@ -118,5 +152,10 @@ export const WARRIOR: WarriorSheet = {
     color: 0xfb923c,
     muzzleZ: 0.6,
     decayPerUnit: 0,
+    fireConeDeg: 30,
   },
+  status: { ...DEFAULT_STATUS_CONFIG },
+  strategy: cloneStrategy(DEFAULT_STRATEGY_CONFIG),
 }
+
+export type { StrategyWeights, WarriorStatusConfig, WarriorStrategyConfig }

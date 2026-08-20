@@ -108,6 +108,9 @@ export class WeaponShot extends Mesh implements WeaponShotPort {
 
   syncRender(): void {
     this.position.set(this.x, 0, this.z)
+    if (Math.hypot(this.vx, this.vz) > 1e-6) {
+      this.rotation.y = Math.atan2(this.vx, this.vz)
+    }
     this._material.opacity = shotDecay(this)
     const width = this.radius * 2
     this.scale.set(width, width, 1)

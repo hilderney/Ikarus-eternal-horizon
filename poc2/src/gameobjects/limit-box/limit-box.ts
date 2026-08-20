@@ -59,6 +59,8 @@ export interface LimitBoxPort {
   update(ship: ShipPosition, dt: number): void
   syncRender(): void
   setVisible(visible: boolean): void
+  restLineVisible(): boolean
+  setRestLineVisible(visible: boolean): void
   dispose(): void
 }
 
@@ -335,6 +337,14 @@ export class LimitBox implements LimitBoxPort {
     this.group.visible = visible
     this._loop.visible = visible
     this._centerLine.visible = visible
+    this._restLine.visible = visible
+  }
+
+  restLineVisible(): boolean {
+    return this._restLine.visible
+  }
+
+  setRestLineVisible(visible: boolean): void {
     this._restLine.visible = visible
   }
 

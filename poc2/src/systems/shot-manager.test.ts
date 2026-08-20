@@ -153,8 +153,9 @@ describe('ShotManager', () => {
     shot.lifetime = 10
     shot.range = 30
     shot.spawnX = 0
-    shot.spawnZ = -20
+    shot.spawnZ = BALANCE.shot.despawn.zFar
     shot.x = 0
+    // Still on the far plane, but within range of its own spawn — AABB must not cull weapons.
     shot.z = BALANCE.shot.despawn.zFar
     manager.update(0)
     expect(manager.pool('weapon').activeCount).toBe(1)
@@ -209,6 +210,30 @@ describe('ShotManager', () => {
     }
     shot.lifetime = 10
     shot.z = BALANCE.shot.despawn.zFar - 1
+    manager.update(0)
+    expect(manager.pool('enemy').activeCount).toBe(0)
+    manager.dispose()
+  })
+
+  it('update keeps an enemy shot alive inside a bound BattleField playfield', () => {
+    const { manager } = makeManager({ weaponCapacity: 0, enemyCapacity: 1 })
+    manager.setPlayfield({
+      contains(x, z) {
+        return Math.abs(x) <= 240 && z >= -160 && z <= 30
+      },
+    })
+    const shot = manager.acquire('enemy')
+    expect(shot).toBeTruthy()
+    if (!shot) {
+      return
+    }
+    shot.lifetime = 10
+    // Outside the old 16×48 box, still inside BattleField.
+    shot.x = 80
+    shot.z = -100
+    manager.update(0)
+    expect(manager.pool('enemy').activeCount).toBe(1)
+    shot.x = 300
     manager.update(0)
     expect(manager.pool('enemy').activeCount).toBe(0)
     manager.dispose()

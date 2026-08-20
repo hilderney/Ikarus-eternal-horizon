@@ -103,6 +103,39 @@ export function decayFactor(elapsed: number): number {
   return 0.25
 }
 
+/** Wrap radians into (−π, π]. */
+export function wrapAngle(angle: number): number {
+  let a = angle
+  while (a > Math.PI) {
+    a -= Math.PI * 2
+  }
+  while (a <= -Math.PI) {
+    a += Math.PI * 2
+  }
+  return a
+}
+
+/** Shortest signed rotation from `from` to `to`. */
+export function angleDelta(from: number, to: number): number {
+  return wrapAngle(to - from)
+}
+
+/**
+ * Exponential damp on a circle: eases along the shortest arc and never
+ * turns faster than `maxRatePerSec`, so heading changes stay continuous.
+ */
+export function dampAngle(
+  current: number,
+  target: number,
+  lambda: number,
+  dt: number,
+  maxRatePerSec = Number.POSITIVE_INFINITY,
+): number {
+  const eased = angleDelta(current, target) * (1 - Math.exp(-lambda * dt))
+  const maxStep = maxRatePerSec * dt
+  return wrapAngle(current + clamp(eased, -maxStep, maxStep))
+}
+
 /** Module-level scratch Vector3s. Created once. Do not retain across frames. */
 export const scratchV3A = new Vector3()
 export const scratchV3B = new Vector3()
