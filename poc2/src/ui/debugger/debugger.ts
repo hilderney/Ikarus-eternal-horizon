@@ -3,6 +3,7 @@
  */
 
 import { BALANCE } from '../../core/balancer'
+import type { EditableWarriorSheet } from '../../gameobjects/enemy/warrior'
 import type { WeaponId } from '../../gameobjects/weapon/catalog'
 import type { ParallaxLayerConfig } from '../../gameobjects/parallax/parallax-layer'
 import type { WeaponLevelSnapshot, WeaponLevelSnapshotField } from '../../gameobjects/weapon/weapon-levels'
@@ -10,6 +11,7 @@ import type { WeaponLevelSnapshot, WeaponLevelSnapshotField } from '../../gameob
 export type DebuggerTabId =
   | 'ship'
   | 'equips'
+  | 'enemy'
   | 'cam'
   | 'limit-box'
   | 'spawn-area'
@@ -109,6 +111,15 @@ export interface DebuggerSpawnAreaBind {
   setOpacity(side: number, value: number): void
 }
 
+export interface DebuggerEnemyBind {
+  archetypeNames(): readonly string[]
+  setArchetype(index: number): void
+  sheet(): EditableWarriorSheet
+  /** Push sheet onto active enemies (pose/rotation of the player ship untouched). */
+  applyToActive(): void
+  resetSheet(defaults?: EditableWarriorSheet): void
+}
+
 export interface DebuggerParallaxBind {
   layerCount(): number
   layerNames(): readonly string[]
@@ -123,6 +134,7 @@ export interface DebuggerBinds {
   readonly weapons: DebuggerWeaponsBind
   readonly dash: DebuggerLevelBind
   readonly spawnArea: DebuggerSpawnAreaBind
+  readonly enemy: DebuggerEnemyBind
   readonly parallax: DebuggerParallaxBind
 }
 
@@ -144,6 +156,7 @@ export interface DebuggerPort {
 const TAB_LABELS: Record<DebuggerTabId, string> = {
   ship: 'Ship',
   equips: 'Equips',
+  enemy: 'Enemy',
   cam: 'Cam',
   'limit-box': 'LimitBox',
   'spawn-area': 'SpawnArea',

@@ -205,6 +205,8 @@ export interface EnemyGateConfig {
   readonly visible: boolean
   readonly color: number
   readonly opacity: number
+  /** Visual radius of each of the 9 entry marker spheres. */
+  readonly markerRadius: number
   /** Distance to gate entry that triggers chase phase. */
   readonly arriveRadius: number
   /** Target speed multiplier while in reachGate (e.g. 3). */
@@ -255,18 +257,22 @@ export interface BattleFieldConfig {
 
 export interface ShipVisualConfig {
   readonly size: { readonly w: number; readonly h: number; readonly d: number }
+  /** XZ collision radius for F01 Player layer. */
+  readonly hitRadius: number
   readonly wireframeColor: number
   readonly accentColor: number
   readonly thrusterColor: number
 }
 
+export type ShipResourceId =
+  | 'metalScrap'
+  | 'prismaticCrystal'
+  | 'denseCore'
+  | 'darkMatter'
+  | 'equipment'
+
 export interface ShipInventoryConfig {
-  readonly caps: {
-    readonly metalScrap: number
-    readonly prismaticCrystal: number
-    readonly denseCore: number
-    readonly darkMatter: number
-  }
+  readonly caps: Readonly<Record<ShipResourceId, number>>
 }
 
 export interface BytePoolConfig {
@@ -386,6 +392,8 @@ export interface DifficultyConfig {
   readonly megaAsteroidAt: number
   readonly bossAt: number
   readonly spawnRateMulPerKill: number
+  readonly patternStepKills: number
+  readonly patterns: readonly ('spread' | 'lane' | 'pincer' | 'rain')[]
 }
 
 export interface ScoreConfig {
@@ -397,9 +405,36 @@ export interface ScoreConfig {
   readonly noDamageStreakMul: number
 }
 
+export type DropResourceId =
+  | 'metalScrap'
+  | 'prismaticCrystal'
+  | 'denseCore'
+  | 'darkMatter'
+  | 'equipment'
+
+export type DropSourceId = 'enemy' | 'meteor' | 'miniBoss' | 'megaAsteroid' | 'boss'
+
+export interface DropTableEntryConfig {
+  readonly id: DropResourceId
+  readonly chance: number
+  readonly min: number
+  readonly max: number
+}
+
 export interface DropsConfig {
   readonly magnetRadius: number
+  readonly magnetSpeed: number
   readonly metalScrapChance: number
+  readonly fragmentRadius: number
+  readonly poolSize: number
+  readonly despawn: {
+    readonly zNear: number
+    readonly zFar: number
+    readonly halfX: number
+  }
+  readonly stockCaps: Readonly<Record<DropResourceId, number>>
+  readonly tables: Readonly<Record<DropSourceId, readonly DropTableEntryConfig[]>>
+  readonly colors: Readonly<Record<DropResourceId, number>>
 }
 
 export interface VfxConfig {
@@ -653,6 +688,7 @@ const BALANCE_DATA: Balance = {
     },
     visual: {
       size: { w: 1.5, h: 1, d: 2 },
+      hitRadius: 0.85,
       wireframeColor: 0x22d3ee,
       accentColor: 0x6d28d9,
       thrusterColor: 0x60c5ff,
@@ -663,6 +699,7 @@ const BALANCE_DATA: Balance = {
         prismaticCrystal: 99,
         denseCore: 49,
         darkMatter: 9,
+        equipment: 4,
       },
     },
     cooldowns: SHIP_COOLDOWNS,
@@ -759,6 +796,8 @@ const BALANCE_DATA: Balance = {
     megaAsteroidAt: 100,
     bossAt: 500,
     spawnRateMulPerKill: 0.002,
+    patternStepKills: 50,
+    patterns: ['spread', 'lane', 'pincer', 'rain'],
   },
   score: {
     enemy: 100,
@@ -770,7 +809,62 @@ const BALANCE_DATA: Balance = {
   },
   drops: {
     magnetRadius: 2.5,
+    magnetSpeed: 8,
     metalScrapChance: 0.4,
+    fragmentRadius: 0.22,
+    poolSize: 64,
+    despawn: { zNear: 12, zFar: -40, halfX: 14 },
+    stockCaps: {
+      metalScrap: 99,
+      prismaticCrystal: 40,
+      denseCore: 20,
+      darkMatter: 8,
+      equipment: 4,
+    },
+    tables: {
+      enemy: [
+        { id: 'metalScrap', chance: 0.4, min: 1, max: 1 },
+        { id: 'prismaticCrystal', chance: 0, min: 0, max: 0 },
+        { id: 'denseCore', chance: 0, min: 0, max: 0 },
+        { id: 'darkMatter', chance: 0, min: 0, max: 0 },
+        { id: 'equipment', chance: 0, min: 0, max: 0 },
+      ],
+      meteor: [
+        { id: 'metalScrap', chance: 1, min: 1, max: 2 },
+        { id: 'prismaticCrystal', chance: 0, min: 0, max: 0 },
+        { id: 'denseCore', chance: 0, min: 0, max: 0 },
+        { id: 'darkMatter', chance: 0, min: 0, max: 0 },
+        { id: 'equipment', chance: 0, min: 0, max: 0 },
+      ],
+      miniBoss: [
+        { id: 'metalScrap', chance: 0, min: 0, max: 0 },
+        { id: 'prismaticCrystal', chance: 0, min: 0, max: 0 },
+        { id: 'denseCore', chance: 0, min: 0, max: 0 },
+        { id: 'darkMatter', chance: 0, min: 0, max: 0 },
+        { id: 'equipment', chance: 0, min: 0, max: 0 },
+      ],
+      megaAsteroid: [
+        { id: 'metalScrap', chance: 0, min: 0, max: 0 },
+        { id: 'prismaticCrystal', chance: 0, min: 0, max: 0 },
+        { id: 'denseCore', chance: 0, min: 0, max: 0 },
+        { id: 'darkMatter', chance: 0, min: 0, max: 0 },
+        { id: 'equipment', chance: 0, min: 0, max: 0 },
+      ],
+      boss: [
+        { id: 'metalScrap', chance: 0, min: 0, max: 0 },
+        { id: 'prismaticCrystal', chance: 0, min: 0, max: 0 },
+        { id: 'denseCore', chance: 0, min: 0, max: 0 },
+        { id: 'darkMatter', chance: 0, min: 0, max: 0 },
+        { id: 'equipment', chance: 0, min: 0, max: 0 },
+      ],
+    },
+    colors: {
+      metalScrap: 0xc4b5a5,
+      prismaticCrystal: 0xc084fc,
+      denseCore: 0xfbbf24,
+      darkMatter: 0x7c3aed,
+      equipment: 0x34d399,
+    },
   },
   shot: {
     despawn: { zNear: 16, zFar: -32, halfX: 16 },
@@ -781,7 +875,7 @@ const BALANCE_DATA: Balance = {
       size: { x: 10, y: 2, z: 10 },
       visible: true,
       color: 0xff2222,
-      opacity: 0.22,
+      opacity: 0.55,
       intervalSec: 3,
       lanesX: [-4, -2, 0, 2, 4],
       maxActive: 1,
@@ -791,7 +885,7 @@ const BALANCE_DATA: Balance = {
       size: { x: 10, y: 2, z: 10 },
       visible: true,
       color: 0xff2222,
-      opacity: 0.22,
+      opacity: 0.55,
       intervalSec: 3,
       lanesX: [-4, -2, 0, 2, 4],
       maxActive: 1,
@@ -801,17 +895,18 @@ const BALANCE_DATA: Balance = {
       size: { x: 10, y: 2, z: 10 },
       visible: true,
       color: 0xff2222,
-      opacity: 0.22,
+      opacity: 0.55,
       intervalSec: 3,
       lanesX: [-4, -2, 0, 2, 4],
       maxActive: 1,
     },
     gate: {
       offset: { x: 0, y: 0, z: -90 },
-      size: { x: 60, y: 2, z: 8 },
+      size: { x: 60, y: 1.2, z: 8 },
       visible: true,
       color: 0xf59e0b,
-      opacity: 0.28,
+      opacity: 0.55,
+      markerRadius: 1.2,
       arriveRadius: 8,
       reachSpeedMul: 3,
       agilityLambda: 3.5,

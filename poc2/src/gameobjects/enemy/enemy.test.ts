@@ -102,20 +102,43 @@ describe('Enemy Warrior', () => {
     geo.dispose()
   })
 
-  it('handoff to chase snaps y to gate.y (play plane)', () => {
+  it('handoff to chase keeps gate-plane Y without a snap teleport', () => {
     const seek = { x: 0, y: 0, z: 0 }
     const gate = { x: 0, y: 0, z: -8 }
     const geo = new BoxGeometry(1, 1, 1)
     const enemy = new Enemy({ geometry: geo, seekTarget: seek, gateTarget: gate })
     enemy.activate({ x: 0, y: 2, z: -8 })
-    for (let i = 0; i < 30; i++) {
+    const yBefore = enemy.y
+    for (let i = 0; i < 80; i++) {
       enemy.update(0.1)
       if (enemy.phase() === 'chase') {
         break
       }
     }
     expect(enemy.phase()).toBe('chase')
-    expect(enemy.y).toBe(gate.y)
+    // Soft handoff: Y stays continuous from the lerp (gate.y), no hard assign jump.
+    expect(Math.abs(enemy.y - gate.y)).toBeLessThan(0.25)
+    expect(Math.abs(enemy.y - yBefore)).toBeLessThan(3)
+    enemy.dispose()
+    geo.dispose()
+  })
+
+  it('chase flyby advances +Z past the player instead of parking on them', () => {
+    const seek = { x: 0, y: 0, z: 0 }
+    const gate = { x: 0, y: 0, z: -8 }
+    const geo = new BoxGeometry(1, 1, 1)
+    const enemy = new Enemy({ geometry: geo, seekTarget: seek, gateTarget: gate })
+    enemy.activate({ x: 0, y: 0, z: -8 })
+    for (let i = 0; i < 40; i++) {
+      enemy.update(0.05)
+    }
+    expect(enemy.phase()).toBe('chase')
+    const zAtPlayer = enemy.z
+    for (let i = 0; i < 20; i++) {
+      enemy.update(0.1)
+    }
+    expect(enemy.z).toBeGreaterThan(zAtPlayer)
+    expect(enemy.z).toBeGreaterThan(0)
     enemy.dispose()
     geo.dispose()
   })

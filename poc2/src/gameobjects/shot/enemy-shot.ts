@@ -9,16 +9,15 @@ import {
   MeshBasicMaterial,
 } from 'three'
 import { clamp, decayFactor, distXZ } from '../../core/math'
+import { Layer } from '../../systems/layers'
 import type { ShotSpawn } from './weapon-shot'
-
-export type Layer = 'Player' | 'PlayerShot' | 'Enemy' | 'EnemyShot' | 'Meteor' | 'Drop'
 
 export interface EnemyShotOptions {
   readonly color: number
 }
 
 export class EnemyShot extends Mesh {
-  readonly layer = 'EnemyShot' as const
+  readonly layer = Layer.EnemyShot
 
   x = 0
   z = 0

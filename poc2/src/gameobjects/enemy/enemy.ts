@@ -11,10 +11,12 @@ import { BALANCE } from '../../core/balancer'
 import { clamp, damp, distXZ } from '../../core/math'
 import type { ShotAcquirePort } from '../../systems/shot-manager'
 import { EnemyMovementManager } from '../../systems/enemy-movement-manager'
+import { Layer } from '../../systems/layers'
 import type { ShotSpawn } from '../shot/weapon-shot'
 import {
   warriorAgilityLambda,
   warriorEngageRange,
+  type EditableWarriorSheet,
   type WarriorSheet,
 } from './warrior'
 
@@ -45,7 +47,7 @@ export interface EnemyOptions {
 
 export class Enemy extends Mesh {
   readonly team: TeamId = 'enemy'
-  readonly layer = 2 as const
+  readonly layer = Layer.Enemy
   active = false
   hp = 0
   hpMax = 0
@@ -107,6 +109,26 @@ export class Enemy extends Mesh {
 
   sheet(): WarriorSheet {
     return this._sheet
+  }
+
+  /** Live-apply sheet combat stats without resetting pose / phase (debugger). */
+  applyLiveSheet(sheet: WarriorSheet | EditableWarriorSheet): void {
+    if (!this.active) {
+      return
+    }
+    const ratio = this.hpMax > 0 ? this.hp / this.hpMax : 1
+    this._sheet = sheet as WarriorSheet
+    this.hpMax = sheet.hp
+    this.hp = Math.max(0, Math.min(sheet.hp, sheet.hp * ratio))
+    this.radius = sheet.radius
+    this.contactDamage = sheet.contactDamage
+    this._cruiseSpeed = sheet.maxSpeed
+    this.vehicle.maxSpeed = this._cruiseSpeed
+    this._reachSpeedMul = sheet.reachSpeedMul
+    this._agilityLambda = warriorAgilityLambda(sheet.agility)
+    this._intelligence = sheet.intelligence
+    this._mat.color.setHex(sheet.color)
+    this.scale.setScalar(this.radius * 2)
   }
 
   archetype(): string {
@@ -206,8 +228,7 @@ export class Enemy extends Mesh {
 
     if (this._phase === 'reachGate' && arrived) {
       this._phase = 'chase'
-      // Play-plane handoff: gate offset.y is 0.
-      this.y = this._gate.y
+      // Soft handoff: keep lerp end pose (already on gate plane); no Y snap.
       this._movement.setStrategy('seekChase')
       this._movement.beginJourney(
         { x: this.x, y: this.y, z: this.z },
@@ -272,7 +293,7 @@ export class Enemy extends Mesh {
         dealtToHull: dealt,
         shieldBroke: false,
         hullLevelChanged: false,
-        destroyed: true,
+        destroyed: false,
         killed: true,
       }
     }

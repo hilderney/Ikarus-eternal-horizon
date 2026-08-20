@@ -68,6 +68,25 @@ export function lerpVec3(
 }
 
 /**
+ * Geometric progression between a and b for t ∈ [0,1].
+ * z(t) = a · (b/a)^t when a,b same sign and non-zero; else linear fallback.
+ * Used on the Z axis of reachGate so the path curves while X/Y stay eased-linear.
+ */
+export function lerpGeometric(a: number, b: number, t: number): number {
+  const u = clamp(t, 0, 1)
+  if (u <= 0) {
+    return a
+  }
+  if (u >= 1) {
+    return b
+  }
+  if (a === 0 || b === 0 || a * b <= 0) {
+    return lerp(a, b, u)
+  }
+  return a * Math.pow(b / a, u)
+}
+
+/**
  * Laser (and shot) damage/opacity factor from normalised elapsed time in [0, 1].
  * Boundaries 0.25 / 0.5 / 0.75 sit on the higher rung.
  */

@@ -48,14 +48,14 @@ POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real r
 - [x] Weapon device + Laser + L1–L12 (`totalShots = level`) + registry seam · `SDD-D02` · [weapon.spec.ts](../.docs/specs/weapon.spec.ts) · **port**
 - [x] Space or RT fires; `F` or LB switches weapon · `SDD-E07` · [firing-manager.spec.ts](../.docs/specs/firing-manager.spec.ts) · **port** (+ `D18`)
 - [x] Shot manager owns pools by origin · `SDD-E04` · [shot-manager.spec.ts](../.docs/specs/shot-manager.spec.ts) · **new**
-- [ ] Collision by layers (matrix is data; no friendly fire) · `SDD-F01` · [collision-manager.spec.ts](../.docs/specs/collision-manager.spec.ts) · **port**
-- [ ] Ship hitbox on layer `Player` · `SDD-C01` / `SDD-F01`
-- [ ] Laser hitbox on layer `PlayerShot` · `SDD-D01` / `SDD-F01`
+- [x] Collision by layers (matrix is data; no friendly fire) · `SDD-F01` · [collision-manager.spec.ts](../.docs/specs/collision-manager.spec.ts) · **port**
+- [x] Ship hitbox on layer `Player` · `SDD-C01` / `SDD-F01`
+- [x] Laser hitbox on layer `PlayerShot` · `SDD-D01` / `SDD-F01`
 - [x] Force Field absorbs first; Integrity only after shield is 0 · `SDD-C03` · [ship-health.spec.ts](../.docs/specs/ship-health.spec.ts) · **new**
 - [x] Slow shield regen after `regenDelayMs` with no hits · `SDD-C03`
 - [x] Wire D03 combat onto C01 energy pool (regen only while recovering; G08 slider is live energy) · `SDD-D03` / `SDD-C01`
 - [ ] Wire C03 combat onto C01 0–255 integrity/shield pools · `SDD-C01` / `SDD-C03`
-- [ ] DamageResolver is the only `applyDamage` caller · `SDD-F04` · [damage-resolver.spec.ts](../.docs/specs/damage-resolver.spec.ts) · **new**
+- [x] DamageResolver is the only `applyDamage` caller · `SDD-F04` · [damage-resolver.spec.ts](../.docs/specs/damage-resolver.spec.ts) · **new**
 - [ ] Hit feedback: flash, shake cap, shield-hit vs hull-hit, dual-rumble presets (sfx later) · `SDD-F05` · [vfx-manager.spec.ts](../.docs/specs/vfx-manager.spec.ts) · **new** (+ `D18`)
 
 **Fase 1 done when:** holding Space drains Energy, bolts fade with range, a hit eats the shield before the hull.
@@ -79,9 +79,9 @@ POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real r
 
 ## Fase 3 — Drop de recursos
 
-- [ ] Drops on meteor (and later enemy) kill: Metal Scrap, Prismatic Crystal, Dense Core · `SDD-F02` · [drop-manager.spec.ts](../.docs/specs/drop-manager.spec.ts) · **new**
-- [ ] Drop game objects, layer `Drop`, magnet radius pull · `SDD-F02`
-- [ ] Collection adds to ship inventory counts · `SDD-C01` / `SDD-F02`
+- [x] Drops on meteor (and later enemy) kill: Metal Scrap, Prismatic Crystal, Dense Core · `SDD-F02` · [drop-manager.spec.ts](../.docs/specs/drop-manager.spec.ts) · **new**
+- [x] Drop game objects, layer `Drop`, magnet radius pull · `SDD-F02`
+- [x] Collection adds to ship inventory counts · `SDD-C01` / `SDD-F02`
 - [ ] Collection feedback (pitch per type; audio §7) · `SDD-G07` / §7 Audio
 
 **Fase 3 done when:** wreckage magnet-pulls in and the inventory count ticks up.
@@ -93,13 +93,13 @@ POC-1 had pooled laser + energy + hit-test against dummies. POC2 adds the real r
 - [ ] Spawn areas: two side lanes ahead of the playfield · `SDD-E05` · [enemy-manager.spec.ts](../.docs/specs/enemy-manager.spec.ts) · **new**
 - [ ] Generic enemy (Warrior stand-in); Tank / Rogue stay §7 · `SDD-E01` · [enemy.spec.ts](../.docs/specs/enemy.spec.ts) · **new** · *install Yuka here*
 - [ ] Drift-toward-player motion · `SDD-E01`
-- [ ] Enemy hitbox on layer `Enemy` · `SDD-F01`
-- [ ] Laser hit removes hp · `SDD-F04`
+- [x] Enemy hitbox on layer `Enemy` · `SDD-F01`
+- [x] Laser hit removes hp · `SDD-F04`
 - [ ] Destroy via pool + `dispose()` · `SDD-E05`
 - [ ] Destruction burst · `SDD-F05`
-- [ ] Contact or enemy shot damages Force Field then Integrity · `SDD-F04` / `SDD-C03`
+- [x] Contact or enemy shot damages Force Field then Integrity · `SDD-F04` / `SDD-C03`
 - [ ] Basic enemy projectile, layer `EnemyShot` · `SDD-E03` · [enemy-shot.spec.ts](../.docs/specs/enemy-shot.spec.ts) · **new**
-- [ ] Resource drop on enemy kill · `SDD-F02`
+- [x] Resource drop on enemy kill · `SDD-F02`
 - [ ] Retire POC-1 `testTarget.ts` once E01/E02 are live
 
 **Fase 4 done when:** enemies enter from the deep field, die to shots, and can hurt the ship.
@@ -203,7 +203,7 @@ POC-1 listed a shop. GDD meta is Bounty Board + cosmetics, not a mid-run power s
 - [ ] Multipliers (no-damage streak, fast clear) · `SDD-G10` (`RUL-11`)
 - [ ] Local best score survives reload · `SDD-G10` (`RUL-07`, Q10)
 - [ ] Local arcade table · `SDD-G05` · [rankings-scene.spec.ts](../.docs/specs/rankings-scene.spec.ts) · **new**
-- [ ] Difficulty ramp by kills; milestones 50 / 100 / 500 · `SDD-F03` · [difficulty-manager.spec.ts](../.docs/specs/difficulty-manager.spec.ts) · **new**
+- [x] Difficulty ramp by kills; milestones 50 / 100 / 500 · `SDD-F03` · [difficulty-manager.spec.ts](../.docs/specs/difficulty-manager.spec.ts) · **new**
 
 **Fase 13 done when:** the HUD score rises, death shows a result, and the best score is still there after F5.
 

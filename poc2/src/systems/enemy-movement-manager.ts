@@ -3,24 +3,18 @@
  *
  * Strategies
  * ----------
- * synchronizedLerp (reachGate)
- *   Capture journey start A and end B (gate). Advance a single progress t ∈ [0,1]
- *   with duration = dist(A,B) / cruiseSpeed. Position = lerp(A, B, easeInOutCubic(t)).
- *   All three axes share the same residual factor (1−u), so they arrive together
- *   (e.g. A=(-100,-50,-50) → B=(0,0,0)). B may update each frame (ship-relative gate);
- *   A stays fixed for the journey. Geometric path is the A–B segment; the “curve”
- *   is temporal (ease-in-out velocity). Arrived when t≥1 or within arriveRadius.
- *   On handoff, Enemy snaps y to gate.y (BALANCE.enemy.gate.offset.y = 0 play plane).
+ * synchronizedLerp (reachGate A→B)
+ *   Single t ∈ [0,1] with easeInOutCubic.
+ *   X/Y: linear lerp(A,B,u) — same as before.
+ *   Z: geometric progression lerpGeometric(Az,Bz,u) so depth advances on a curve
+ *   while lateral/altitude stay eased-linear (path bows in Z).
+ *   B may update each frame (ship-relative gate marker). Arrives only when t≥1.
  *
- * seekChase (chase player)
- *   Planar seek on XZ toward the player at currentSpeed; Y damps to target.y.
- *   Continuous — never reports arrived.
- *
- * Usage: Enemy owns one manager per pooled slot; activate begins synchronizedLerp
- * toward the live gate aim; on arrived switches to seekChase.
+ * seekChase (post-gate flyby)
+ *   Always advances +Z at currentSpeed; X/Y damp to player; facing locked on +Z.
  */
 
-import { damp, distXYZ, easeInOutCubic, lerpVec3 } from '../core/math'
+import { damp, distXYZ, easeInOutCubic, lerp, lerpGeometric } from '../core/math'
 
 export type MoveStrategyId = 'synchronizedLerp' | 'seekChase'
 
@@ -80,7 +74,10 @@ class SynchronizedLerpStrategy implements EnemyMoveStrategy {
     copyVec(ctx.target, this._to)
     this._t = Math.min(1, this._t + ctx.dt / this._duration)
     const u = easeInOutCubic(this._t)
-    lerpVec3(this._from, this._to, u, ctx.position)
+    // X/Y eased-linear; Z geometric → spatial curve into the gate marker.
+    ctx.position.x = lerp(this._from.x, this._to.x, u)
+    ctx.position.y = lerp(this._from.y, this._to.y, u)
+    ctx.position.z = lerpGeometric(this._from.z, this._to.z, u)
 
     const dx = this._to.x - ctx.position.x
     const dz = this._to.z - ctx.position.z
@@ -88,16 +85,7 @@ class SynchronizedLerpStrategy implements EnemyMoveStrategy {
       ctx.facingY.value = Math.atan2(dx, dz)
     }
 
-    const near =
-      distXYZ(
-        ctx.position.x,
-        ctx.position.y,
-        ctx.position.z,
-        this._to.x,
-        this._to.y,
-        this._to.z,
-      ) <= ctx.arriveRadius
-    const arrived = this._t >= 1 || near
+    const arrived = this._t >= 1
     if (arrived) {
       copyVec(this._to, ctx.position)
       this._active = false
@@ -121,17 +109,11 @@ class SeekChaseStrategy implements EnemyMoveStrategy {
   }
 
   update(ctx: MoveContext): { arrived: boolean } {
-    const dx = ctx.target.x - ctx.position.x
-    const dz = ctx.target.z - ctx.position.z
-    const dist = Math.hypot(dx, dz)
-    if (dist > 0.001) {
-      const inv = 1 / dist
-      const step = ctx.currentSpeed * ctx.dt
-      ctx.position.x += dx * inv * step
-      ctx.position.z += dz * inv * step
-      ctx.facingY.value = Math.atan2(dx, dz)
-    }
+    const speed = Math.max(0, ctx.currentSpeed)
+    ctx.position.z += speed * ctx.dt
+    ctx.position.x = damp(ctx.position.x, ctx.target.x, ctx.agilityLambda, ctx.dt)
     ctx.position.y = damp(ctx.position.y, ctx.target.y, ctx.agilityLambda, ctx.dt)
+    ctx.facingY.value = 0
     return { arrived: false }
   }
 

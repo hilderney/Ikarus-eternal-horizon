@@ -21,7 +21,12 @@ import {
   type ShipModuleParts,
 } from './ship-modules'
 
-export type ResourceId = 'metalScrap' | 'prismaticCrystal' | 'denseCore' | 'darkMatter'
+export type ResourceId =
+  | 'metalScrap'
+  | 'prismaticCrystal'
+  | 'denseCore'
+  | 'darkMatter'
+  | 'equipment'
 
 export type WeaponId = 'laser' | 'plasma' | 'beam' | 'mjolnir'
 
@@ -29,6 +34,7 @@ export type BombId = 'pulseNova' | 'swarmTorpedo' | 'starKiller'
 
 export interface ShipVisual {
   readonly size: { readonly w: number; readonly h: number; readonly d: number }
+  readonly hitRadius?: number
   readonly wireframeColor: number
   readonly accentColor: number
   readonly thrusterColor: number
@@ -149,6 +155,7 @@ const RESOURCE_IDS: readonly ResourceId[] = [
   'prismaticCrystal',
   'denseCore',
   'darkMatter',
+  'equipment',
 ]
 
 function disposeMaterial(material: Material | Material[]): void {
@@ -212,6 +219,7 @@ class ShipInventory implements Inventory {
       prismaticCrystal: 0,
       denseCore: 0,
       darkMatter: 0,
+      equipment: 0,
     }
   }
 

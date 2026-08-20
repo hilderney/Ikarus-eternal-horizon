@@ -49,13 +49,41 @@ describe('BALANCE', () => {
     expect(BALANCE.difficulty.miniBossAt).toBe(50)
     expect(BALANCE.difficulty.megaAsteroidAt).toBe(100)
     expect(BALANCE.difficulty.bossAt).toBe(500)
+    expect(BALANCE.difficulty.spawnRateMulPerKill).toBe(0.002)
+    expect(BALANCE.difficulty.patternStepKills).toBe(50)
+    expect(BALANCE.difficulty.patterns).toEqual(['spread', 'lane', 'pincer', 'rain'])
   })
 
   it('exposes score and drops and vfx.shake.maxAmplitude', () => {
     expect(BALANCE.score.enemy).toBe(100)
     expect(BALANCE.score.meteor).toBe(25)
     expect(BALANCE.drops.magnetRadius).toBe(2.5)
+    expect(BALANCE.drops.magnetSpeed).toBe(8)
     expect(BALANCE.drops.metalScrapChance).toBe(0.4)
+    expect(BALANCE.drops.fragmentRadius).toBe(0.22)
+    expect(BALANCE.drops.poolSize).toBe(64)
+    expect(BALANCE.drops.despawn).toEqual({ zNear: 12, zFar: -40, halfX: 14 })
+    expect(BALANCE.drops.stockCaps).toEqual({
+      metalScrap: 99,
+      prismaticCrystal: 40,
+      denseCore: 20,
+      darkMatter: 8,
+      equipment: 4,
+    })
+    expect(BALANCE.drops.tables.enemy[0]).toEqual({
+      id: 'metalScrap',
+      chance: 0.4,
+      min: 1,
+      max: 1,
+    })
+    expect(BALANCE.drops.tables.meteor[0]).toEqual({
+      id: 'metalScrap',
+      chance: 1,
+      min: 1,
+      max: 2,
+    })
+    expect(BALANCE.drops.colors.metalScrap).toBe(0xc4b5a5)
+    expect(BALANCE.drops.colors.equipment).toBe(0x34d399)
     expect(BALANCE.vfx.shake.maxAmplitude).toBe(0.18)
     expect(BALANCE.vfx.hitStopFrames).toBe(3)
   })
@@ -117,12 +145,13 @@ describe('BALANCE', () => {
     expect(BALANCE.loop.sidecarHz).toBe(15)
   })
 
-  it('exposes ship inventory caps 999 / 99 / 49 / 9', () => {
+  it('exposes ship inventory caps 999 / 99 / 49 / 9 / 4', () => {
     expect(BALANCE.ship.inventory.caps).toEqual({
       metalScrap: 999,
       prismaticCrystal: 99,
       denseCore: 49,
       darkMatter: 9,
+      equipment: 4,
     })
   })
 

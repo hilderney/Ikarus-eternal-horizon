@@ -6,11 +6,12 @@ import { SpawnArea } from './spawn-area'
 const CFG = BALANCE.enemy.spawnLeft
 
 describe('SpawnArea', () => {
-  it('builds a named group with a semi-transparent red mesh', () => {
+  it('builds a named group with a wireframe transparent mesh', () => {
     const area = new SpawnArea({ config: CFG, name: 'spawnAreaLeft' })
     expect(area.group.name).toBe('spawnAreaLeft')
     const mesh = area.group.children[0]
     expect(mesh).toBeInstanceOf(Mesh)
+    expect((mesh as Mesh).material).toMatchObject({ wireframe: true, transparent: true })
     expect(area.color()).toBe(CFG.color)
     expect(area.opacity()).toBe(CFG.opacity)
     expect(area.visible()).toBe(true)

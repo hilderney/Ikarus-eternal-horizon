@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { Layer } from '../../systems/layers'
 import { EnemyShot } from './enemy-shot'
 
 describe('EnemyShot', () => {
   it('uses EnemyShot layer and warm activate color', () => {
     const shot = new EnemyShot({ color: 0xfb923c })
-    expect(shot.layer).toBe('EnemyShot')
+    expect(shot.layer).toBe(Layer.EnemyShot)
     shot.activate({
       x: 0,
       z: -4,

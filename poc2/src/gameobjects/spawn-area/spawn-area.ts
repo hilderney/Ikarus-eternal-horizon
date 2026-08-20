@@ -1,6 +1,5 @@
 /**
- * Enemy spawn volume — red semi-transparent box ahead of / beside the ship.
- * Visual + live volume for E05 (EnemyManager reads offset/size/interval/lanes).
+ * Enemy spawn volume — wireframe box (ship-relative) for E05 / debugger.
  */
 
 import {
@@ -63,6 +62,7 @@ export class SpawnArea implements SpawnAreaPort {
     this._geo = new BoxGeometry(1, 1, 1)
     this._mat = new MeshBasicMaterial({
       color: cfg.color,
+      wireframe: true,
       transparent: true,
       opacity: cfg.opacity,
       depthWrite: false,

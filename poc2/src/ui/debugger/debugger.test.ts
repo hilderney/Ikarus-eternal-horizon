@@ -9,10 +9,12 @@ import {
 import type { DebuggerBinds, DebuggerShipBind } from './debugger'
 import { Debugger } from './debugger'
 import { EquipsTab } from './equips-tab'
+import { EnemyTab } from './enemy-tab'
 import { ShipTab } from './ship-tab'
 import { SpawnAreaTab } from './spawn-area-tab'
 import { ParallaxTab } from './parallax-tab'
 import type { ParallaxLayerConfig } from '../../gameobjects/parallax/parallax-layer'
+import { cloneWarriorSheet, WARRIOR } from '../../gameobjects/enemy/warrior'
 import shipTabSource from './ship-tab.ts?raw'
 import equipsTabSource from './equips-tab.ts?raw'
 
@@ -89,6 +91,7 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
   let activeWeapon: WeaponId = (sheet.loadout.equippedWeapon as WeaponId) ?? 'laser'
   let weaponConfig = copyWeaponConfig(WEAPONS[activeWeapon])
   applyWeaponLevel(weaponConfig, weaponLevel)
+  const enemySheet = cloneWarriorSheet(WARRIOR)
   let spawnLeft = {
     offset: { x: -140, y: 0, z: -140 },
     size: { x: 10, y: 2, z: 10 },
@@ -97,7 +100,7 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
     maxActive: 1,
     visible: true,
     color: 0xff2222,
-    opacity: 0.22,
+    opacity: 0.55,
   }
   let spawnRight = {
     offset: { x: 140, y: 0, z: -140 },
@@ -107,7 +110,7 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
     maxActive: 1,
     visible: true,
     color: 0xff2222,
-    opacity: 0.22,
+    opacity: 0.55,
   }
   let spawnFront = {
     offset: { x: 0, y: 0, z: -140 },
@@ -117,7 +120,17 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
     maxActive: 1,
     visible: true,
     color: 0xff2222,
-    opacity: 0.22,
+    opacity: 0.55,
+  }
+  let spawnGate = {
+    offset: { x: 0, y: 0, z: -90 },
+    size: { x: 60, y: 2, z: 8 },
+    intervalSec: 0,
+    lanesX: [] as number[],
+    maxActive: 0,
+    visible: true,
+    color: 0xf59e0b,
+    opacity: 0.55,
   }
   const sideAt = (side: number) => {
     if (side === 1) {
@@ -126,6 +139,9 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
     if (side === 2) {
       return spawnFront
     }
+    if (side === 3) {
+      return spawnGate
+    }
     return spawnLeft
   }
   const setSide = (side: number, next: typeof spawnLeft): void => {
@@ -133,6 +149,8 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
       spawnRight = next
     } else if (side === 2) {
       spawnFront = next
+    } else if (side === 3) {
+      spawnGate = next
     } else {
       spawnLeft = next
     }
@@ -241,7 +259,7 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
       },
     },
     spawnArea: {
-      sideNames: () => ['left', 'right', 'front'],
+      sideNames: () => ['left', 'right', 'front', 'gate'],
       offset: (side) => ({ ...sideAt(side).offset }),
       size: (side) => ({ ...sideAt(side).size }),
       worldCenter: (side) => ({ ...sideAt(side).offset }),
@@ -274,6 +292,30 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
       },
       setOpacity(side, value) {
         setSide(side, { ...sideAt(side), opacity: value })
+      },
+    },
+    enemy: {
+      archetypeNames: () => ['warrior'],
+      setArchetype() {
+        /* only warrior in G0 */
+      },
+      sheet: () => enemySheet,
+      applyToActive() {
+        /* stub — no live enemies in unit host */
+      },
+      resetSheet(defaults) {
+        const src = defaults ?? cloneWarriorSheet(WARRIOR)
+        enemySheet.name = src.name
+        enemySheet.hp = src.hp
+        enemySheet.radius = src.radius
+        enemySheet.color = src.color
+        enemySheet.contactDamage = src.contactDamage
+        enemySheet.maxSpeed = src.maxSpeed
+        enemySheet.agility = src.agility
+        enemySheet.intelligence = src.intelligence
+        enemySheet.reachSpeedMul = src.reachSpeedMul
+        enemySheet.targets = [...src.targets]
+        Object.assign(enemySheet.weapon, src.weapon)
       },
     },
     parallax: {
@@ -608,6 +650,52 @@ describe('SpawnAreaTab', () => {
       visible.dispatchEvent(new Event('input', { bubbles: true }))
       expect(binds.spawnArea.visible(1)).toBe(false)
     }
+    dbg.dispose()
+  })
+
+  it('includes gate side and edits its opacity', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new SpawnAreaTab(binds)],
+      enabled: true,
+    })
+    expect(binds.spawnArea.sideNames()).toContain('gate')
+    const sideSelect = selectBind(host, 'spawn.side')
+    sideSelect.value = '3'
+    sideSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    const cadence = host.querySelector<HTMLElement>('.debug-cadence')
+    expect(cadence?.hidden).toBe(true)
+    const opacity = bind(host, 'opacity', 'number')
+    opacity.value = '0.4'
+    opacity.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.spawnArea.opacity(3)).toBe(0.4)
+    dbg.dispose()
+  })
+})
+
+describe('EnemyTab', () => {
+  it('edits Warrior sheet hp live without touching ship pose', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const sheet = makeSheet()
+    const poseX = sheet.position.x
+    const binds = makeBinds(sheet)
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new EnemyTab(binds)],
+      enabled: true,
+    })
+    expect(host.querySelector('[data-tab="enemy"]')).not.toBeNull()
+    const hp = bind(host, 'hp', 'number')
+    hp.value = '9'
+    hp.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.enemy.sheet().hp).toBe(9)
+    expect(sheet.position.x).toBe(poseX)
     dbg.dispose()
   })
 })

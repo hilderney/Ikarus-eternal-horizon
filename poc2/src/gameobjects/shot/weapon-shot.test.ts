@@ -7,6 +7,7 @@ import {
 } from 'three'
 import { describe, expect, it, vi } from 'vitest'
 import { decayFactor } from '../../core/math'
+import { Layer } from '../../systems/layers'
 import { WeaponShot } from './weapon-shot'
 import type { ShotSpawn } from './weapon-shot'
 
@@ -228,9 +229,9 @@ describe('WeaponShot', () => {
 
   it('layer is PlayerShot', () => {
     const shot = makeShot()
-    expect(shot.layer).toBe('PlayerShot')
+    expect(shot.layer).toBe(Layer.PlayerShot)
     shot.activate(laserSpawn())
-    expect(shot.layer).toBe('PlayerShot')
+    expect(shot.layer).toBe(Layer.PlayerShot)
     shot.dispose()
   })
 

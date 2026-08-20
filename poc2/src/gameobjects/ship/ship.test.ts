@@ -217,6 +217,7 @@ describe('Ship', () => {
       prismaticCrystal: 99,
       denseCore: 49,
       darkMatter: 9,
+      equipment: 4,
     })
     expect(ship.inventory.count('metalScrap')).toBe(0)
     expect(ship.inventory.cap('metalScrap')).toBe(10)
@@ -231,6 +232,7 @@ describe('Ship', () => {
       prismaticCrystal: 99,
       denseCore: 49,
       darkMatter: 9,
+      equipment: 4,
     })
     expect(ship.inventory.tryAdd('metalScrap', 5)).toBe(5)
     expect(ship.inventory.tryAdd('metalScrap', 3)).toBe(0)

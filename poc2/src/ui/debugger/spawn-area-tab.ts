@@ -1,5 +1,5 @@
 /**
- * SDD-G08 SpawnArea tab — left / right flank volumes + cadence.
+ * SDD-G08 SpawnArea tab — left / right / front spawn volumes + EnemyGate.
  */
 
 import type { DebuggerBinds, DebuggerTab } from './debugger'
@@ -42,12 +42,15 @@ interface SpawnClone {
   opacity: number
 }
 
+const GATE_SIDE_NAME = 'gate'
+
 export class SpawnAreaTab implements DebuggerTab {
   readonly id = 'spawn-area' as const
   private readonly _binds: DebuggerBinds
   private readonly _handles: Handle[] = []
   private _defaults: SpawnClone[] | null = null
   private _form: HTMLFormElement | null = null
+  private _cadenceHost: HTMLElement | null = null
   private _sideIndex = 0
 
   constructor(binds: DebuggerBinds) {
@@ -86,14 +89,18 @@ export class SpawnAreaTab implements DebuggerTab {
     this._group(form, 'World centre (read-only)')
     this._readOnlyVec(form, 'world', () => spawn.worldCenter(this._sideIndex))
 
-    this._group(form, 'Spawn cadence (E05)')
-    this._scalar(form, 'intervalSec', 'intervalSec', 0.05, 10, 0.05, () => spawn.intervalSec(this._sideIndex), (value) => {
+    const cadence = document.createElement('div')
+    cadence.className = 'debug-cadence'
+    this._group(cadence, 'Spawn cadence (E05)')
+    this._scalar(cadence, 'intervalSec', 'intervalSec', 0.05, 10, 0.05, () => spawn.intervalSec(this._sideIndex), (value) => {
       spawn.setIntervalSec(this._sideIndex, value)
     })
-    this._scalar(form, 'maxActive', 'maxActive', 1, 32, 1, () => spawn.maxActive(this._sideIndex), (value) => {
+    this._scalar(cadence, 'maxActive', 'maxActive', 1, 32, 1, () => spawn.maxActive(this._sideIndex), (value) => {
       spawn.setMaxActive(this._sideIndex, value)
     })
-    this._lanes(form)
+    this._lanes(cadence)
+    form.append(cadence)
+    this._cadenceHost = cadence
 
     this._group(form, 'Visual')
     this._scalar(form, 'opacity', 'opacity', 0, 1, 0.01, () => spawn.opacity(this._sideIndex), (value) => {
@@ -103,10 +110,12 @@ export class SpawnAreaTab implements DebuggerTab {
 
     panel.append(form)
     this._form = form
+    this._syncCadenceVisibility()
     this.sync()
   }
 
   sync(): void {
+    this._syncCadenceVisibility()
     for (const handle of this._handles) {
       if (handle.kind !== 'readonly' && document.activeElement === handle.el) {
         continue
@@ -148,7 +157,18 @@ export class SpawnAreaTab implements DebuggerTab {
     this._handles.length = 0
     this._form?.remove()
     this._form = null
+    this._cadenceHost = null
     this._defaults = null
+  }
+
+  private _isGateSide(): boolean {
+    return this._binds.spawnArea.sideNames()[this._sideIndex] === GATE_SIDE_NAME
+  }
+
+  private _syncCadenceVisibility(): void {
+    if (this._cadenceHost) {
+      this._cadenceHost.hidden = this._isGateSide()
+    }
   }
 
   private _group(host: HTMLElement, label: string): void {

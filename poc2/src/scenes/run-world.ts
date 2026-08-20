@@ -43,11 +43,19 @@ import { EnergyManager } from '../systems/energy-manager'
 import { EnemyManager } from '../systems/enemy-manager'
 import { FiringManager } from '../systems/firing-manager'
 import { ShotManager } from '../systems/shot-manager'
+import { CollisionManager, type ColliderPort, type HitPair } from '../systems/collision-manager'
+import { DamageResolver } from '../systems/damage-resolver'
+import { DropManager, Drop } from '../systems/drop-manager'
+import { DifficultyManager } from '../systems/difficulty-manager'
+import { ShipCombatProxy } from '../systems/ship-combat-proxy'
+import { Layer } from '../systems/layers'
+import { ObjectPool } from '../pools/object-pool'
 import type { MutableTouchSource, TouchControls } from '../ui/touch-controls/touch-controls'
 import { Debugger, type DebuggerBinds } from '../ui/debugger/debugger'
 import { EquipsTab } from '../ui/debugger/equips-tab'
 import { ShipTab } from '../ui/debugger/ship-tab'
 import { SpawnAreaTab } from '../ui/debugger/spawn-area-tab'
+import { EnemyTab } from '../ui/debugger/enemy-tab'
 import { ParallaxTab } from '../ui/debugger/parallax-tab'
 import { InputMap } from '../ui/input-map/input-map'
 import type {
@@ -190,6 +198,37 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
     const battleField = new BattleField({ config: BALANCE.battlefield })
     scene.add(battleField.group)
 
+    const collision = new CollisionManager()
+    const damage = new DamageResolver()
+    const shipCombat = new ShipCombatProxy(ship, health, BALANCE.ship.visual.hitRadius)
+    collision.registerTarget(shipCombat)
+
+    const killCounter = { kills: 0 }
+    const difficulty = new DifficultyManager({ kills: killCounter })
+
+    const dropPool = new ObjectPool<Drop>({
+      capacity: BALANCE.drops.poolSize,
+      factory: () => {
+        const drop = new Drop()
+        scene.add(drop)
+        return drop
+      },
+      reset: (drop) => {
+        drop.deactivate()
+      },
+      disposeItem: (drop) => {
+        scene.remove(drop)
+        drop.dispose()
+      },
+    })
+    const drops = new DropManager({
+      pool: dropPool,
+      inventory: ship.inventory,
+      magnet: ship.transform.position,
+      colliders: collision,
+      shipRadius: BALANCE.ship.visual.hitRadius,
+    })
+
     const player = new PlayerController({
       input,
       transform: ship.transform,
@@ -232,7 +271,10 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       enemyGate,
       battleField,
       shots: shots.asEnemyAcquirePort(),
+      colliders: collision,
     })
+
+    const hitPairs: { current: readonly HitPair[] } = { current: [] }
 
     const idleHud: HudPort = {
       update() {
@@ -257,6 +299,14 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       shots,
       firing,
       enemies,
+      collision,
+      damage,
+      shipCombat,
+      drops,
+      dropPool,
+      difficulty,
+      killCounter,
+      hitPairs,
       limitBox,
       gizmos,
       spawnLeft,
@@ -472,10 +522,102 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
         },
       }
     },
-    collisionManager: noopStep,
-    dropManager: noopStep,
-    difficultyManager: noopStep,
-    damageResolver: noopStep,
+    collisionManager() {
+      const world = current()
+      return {
+        update(dt: number) {
+          world.hitPairs.current = world.collision.update(
+            dt,
+            world.shots.pools() as unknown as {
+              forEachActive(fn: (s: ColliderPort) => void): void
+            }[],
+          )
+        },
+        syncRender() {
+          /* detect-only */
+        },
+        dispose() {
+          world.collision.clear()
+          world.collision.unregisterTarget(world.shipCombat)
+        },
+      }
+    },
+    dropManager() {
+      const world = current()
+      return {
+        update(dt: number) {
+          world.drops.update(dt)
+          for (const pair of world.hitPairs.current) {
+            if (pair.aLayer === Layer.Drop || pair.bLayer === Layer.Drop) {
+              const drop = (pair.aLayer === Layer.Drop ? pair.a : pair.b) as Drop
+              if (drop.active) {
+                world.drops.collect(drop)
+              }
+            }
+          }
+        },
+        syncRender() {
+          world.drops.syncRender()
+        },
+        dispose() {
+          world.drops.dispose()
+        },
+      }
+    },
+    difficultyManager() {
+      const world = current()
+      return {
+        update(dt: number) {
+          world.difficulty.update(dt)
+        },
+        syncRender() {
+          /* no visual */
+        },
+        dispose() {
+          world.difficulty.reset()
+        },
+      }
+    },
+    damageResolver() {
+      const world = current()
+      return {
+        update(_dt: number) {
+          void _dt
+          const events = world.damage.resolve(world.hitPairs.current)
+          for (const pair of world.hitPairs.current) {
+            if (!pair.consumeProjectile) {
+              continue
+            }
+            const shot =
+              pair.aLayer === Layer.PlayerShot || pair.aLayer === Layer.EnemyShot
+                ? pair.a
+                : pair.bLayer === Layer.PlayerShot || pair.bLayer === Layer.EnemyShot
+                  ? pair.b
+                  : null
+            if (!shot || !('active' in shot) || !(shot as { active: boolean }).active) {
+              continue
+            }
+            const origin =
+              (shot as ColliderPort).layer === Layer.EnemyShot ? 'enemy' : 'weapon'
+            world.shots.release(origin, shot as never)
+          }
+          for (const ev of events) {
+            if (ev.kind !== 'killed') {
+              continue
+            }
+            world.killCounter.kills += 1
+            const sink = ev.sink as { x?: number; z?: number }
+            world.drops.onSourceKilled('enemy', sink.x ?? 0, sink.z ?? 0)
+          }
+        },
+        syncRender() {
+          /* events only */
+        },
+        dispose() {
+          world.damage.resetFrame()
+        },
+      }
+    },
     vfxManager: noopStep,
     hud() {
       return current().idleHud
@@ -498,6 +640,8 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
         }
         return world.spawnLeft
       }
+      const isGateSide = (side: number) => side === 3
+      const volumeAt = (side: number) => (isGateSide(side) ? world.enemyGate : areaAt(side))
       const binds: DebuggerBinds = {
         ship: {
           snapshot: () => {
@@ -568,39 +712,74 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
           },
         },
         spawnArea: {
-          sideNames: () => ['left', 'right', 'front'],
-          offset: (side) => areaAt(side).offset(),
-          size: (side) => areaAt(side).size(),
-          worldCenter: (side) => areaAt(side).worldCenter(),
-          intervalSec: (side) => areaAt(side).intervalSec(),
-          lanesX: (side) => areaAt(side).lanesX(),
-          maxActive: (side) => areaAt(side).maxActive(),
-          visible: (side) => areaAt(side).visible(),
-          color: (side) => areaAt(side).color(),
-          opacity: (side) => areaAt(side).opacity(),
+          sideNames: () => ['left', 'right', 'front', 'gate'],
+          offset: (side) => volumeAt(side).offset(),
+          size: (side) => volumeAt(side).size(),
+          worldCenter: (side) => volumeAt(side).worldCenter(),
+          intervalSec: (side) => (isGateSide(side) ? 0 : areaAt(side).intervalSec()),
+          lanesX: (side) => (isGateSide(side) ? [] : areaAt(side).lanesX()),
+          maxActive: (side) => (isGateSide(side) ? 0 : areaAt(side).maxActive()),
+          visible: (side) => volumeAt(side).visible(),
+          color: (side) => volumeAt(side).color(),
+          opacity: (side) => volumeAt(side).opacity(),
           setOffset: (side, x, y, z) => {
-            areaAt(side).setOffset(x, y, z)
+            volumeAt(side).setOffset(x, y, z)
           },
           setSize: (side, x, y, z) => {
-            areaAt(side).setSize(x, y, z)
+            volumeAt(side).setSize(x, y, z)
           },
           setIntervalSec: (side, value) => {
-            areaAt(side).setIntervalSec(value)
+            if (!isGateSide(side)) {
+              areaAt(side).setIntervalSec(value)
+            }
           },
           setLanesX: (side, lanes) => {
-            areaAt(side).setLanesX(lanes)
+            if (!isGateSide(side)) {
+              areaAt(side).setLanesX(lanes)
+            }
           },
           setMaxActive: (side, value) => {
-            areaAt(side).setMaxActive(value)
+            if (!isGateSide(side)) {
+              areaAt(side).setMaxActive(value)
+            }
           },
           setVisible: (side, visible) => {
-            areaAt(side).setVisible(visible)
+            volumeAt(side).setVisible(visible)
           },
           setColor: (side, hex) => {
-            areaAt(side).setColor(hex)
+            volumeAt(side).setColor(hex)
           },
           setOpacity: (side, value) => {
-            areaAt(side).setOpacity(value)
+            volumeAt(side).setOpacity(value)
+          },
+        },
+        enemy: {
+          archetypeNames: () => ['warrior'],
+          setArchetype: (_index) => {
+            void _index
+          },
+          sheet: () => world.enemies.liveSheet(),
+          applyToActive: () => {
+            world.enemies.applyLiveSheetToActive()
+          },
+          resetSheet: (defaults) => {
+            if (defaults) {
+              const live = world.enemies.liveSheet()
+              live.name = defaults.name
+              live.hp = defaults.hp
+              live.radius = defaults.radius
+              live.color = defaults.color
+              live.contactDamage = defaults.contactDamage
+              live.maxSpeed = defaults.maxSpeed
+              live.agility = defaults.agility
+              live.intelligence = defaults.intelligence
+              live.reachSpeedMul = defaults.reachSpeedMul
+              live.targets = [...defaults.targets]
+              Object.assign(live.weapon, defaults.weapon)
+              world.enemies.applyLiveSheetToActive()
+              return
+            }
+            world.enemies.resetLiveSheet()
           },
         },
         parallax: {
@@ -622,6 +801,7 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
         tabs: [
           new ShipTab(binds),
           new EquipsTab(binds),
+          new EnemyTab(binds),
           new SpawnAreaTab(binds),
           new ParallaxTab(binds),
         ],

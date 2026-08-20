@@ -5,9 +5,9 @@
 
 import type { ShipHealthConfig } from '../../core/balancer'
 import { clamp } from '../../core/math'
+import type { Layer } from '../../systems/layers'
 
-/** Frozen layer set (F01 / D13). Copied so this module is self-contained. */
-export type Layer = 'Player' | 'PlayerShot' | 'Enemy' | 'EnemyShot' | 'Meteor' | 'Drop'
+export type { Layer }
 
 export type HullLevel = 0 | 1 | 2 | 3
 
@@ -17,6 +17,7 @@ export interface DamageOutcome {
   shieldBroke: boolean
   hullLevelChanged: boolean
   destroyed: boolean
+  killed: boolean
 }
 
 export interface HullModifiers {
@@ -65,6 +66,7 @@ export class ShipHealth implements DamageSink {
     shieldBroke: false,
     hullLevelChanged: false,
     destroyed: false,
+    killed: false,
   }
   private readonly _modifiers: HullModifiers = {
     speedMul: 1,
@@ -130,6 +132,7 @@ export class ShipHealth implements DamageSink {
     this._outcome.shieldBroke = shieldBefore > 0 && this._shield === 0
     this._outcome.hullLevelChanged = this.hullLevel !== levelBefore
     this._outcome.destroyed = destroyed
+    this._outcome.killed = false
     return this._outcome
   }
 

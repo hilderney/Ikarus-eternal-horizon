@@ -39,6 +39,49 @@ export interface WarriorSheet {
   readonly weapon: EnemyWeaponSheet
 }
 
+/** Mutable debugger / live-spawn copy of a Warrior sheet. */
+export interface EditableWarriorSheet {
+  id: 'warrior'
+  name: string
+  hp: number
+  radius: number
+  color: number
+  contactDamage: number
+  maxSpeed: number
+  agility: number
+  intelligence: number
+  targets: EnemyTargetId[]
+  reachSpeedMul: number
+  weapon: {
+    rate: number
+    damage: number
+    speed: number
+    lifetime: number
+    range: number
+    radius: number
+    color: number
+    muzzleZ: number
+    decayPerUnit: number
+  }
+}
+
+export function cloneWarriorSheet(src: WarriorSheet): EditableWarriorSheet {
+  return {
+    id: src.id,
+    name: src.name,
+    hp: src.hp,
+    radius: src.radius,
+    color: src.color,
+    contactDamage: src.contactDamage,
+    maxSpeed: src.maxSpeed,
+    agility: src.agility,
+    intelligence: src.intelligence,
+    targets: [...src.targets],
+    reachSpeedMul: src.reachSpeedMul,
+    weapon: { ...src.weapon },
+  }
+}
+
 /** Map sheet agility (0–100) → damp λ for currentSpeed → targetSpeed. */
 export function warriorAgilityLambda(agility: number): number {
   const t = Math.min(1, Math.max(0, agility / 100))

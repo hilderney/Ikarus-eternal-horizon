@@ -10,9 +10,7 @@ import {
   MeshBasicMaterial,
 } from 'three'
 import { clamp, decayFactor, distXZ } from '../../core/math'
-
-/** Frozen layer set (F01 / D13). Copied so this module is self-contained. */
-export type Layer = 'Player' | 'PlayerShot' | 'Enemy' | 'EnemyShot' | 'Meteor' | 'Drop'
+import { Layer } from '../../systems/layers'
 
 export interface WeaponShotPort {
   readonly active: boolean
@@ -44,7 +42,7 @@ export interface WeaponShotOptions {
 }
 
 export class WeaponShot extends Mesh implements WeaponShotPort {
-  readonly layer = 'PlayerShot' as const
+  readonly layer = Layer.PlayerShot
 
   x = 0
   z = 0

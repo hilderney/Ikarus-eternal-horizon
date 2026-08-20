@@ -1,18 +1,20 @@
 /**
- * EnemyGate — staging line behind the front spawn (ship-relative).
- * Enemies rush here (reachGate) before turning to chase the ship.
+ * EnemyGate — 9 fixed entry markers (3 left / 3 middle / 3 right), ship-relative.
+ * Spawners pick one slot in their band; Warriors lerp A(spawn)→B(marker).
  */
 
 import {
-  BoxGeometry,
   DoubleSide,
   Group,
   Mesh,
   MeshBasicMaterial,
+  SphereGeometry,
 } from 'three'
 import type { EnemyGateConfig } from '../../core/balancer'
 
 export type GateEntryBand = 'left' | 'middle' | 'right'
+
+const BANDS: readonly GateEntryBand[] = ['left', 'middle', 'right']
 
 export interface ShipPose {
   readonly x: number
@@ -27,13 +29,15 @@ export interface EnemyGateOptions {
 export class EnemyGate {
   readonly group: Group
 
-  private readonly _mesh: Mesh
-  private readonly _geo: BoxGeometry
+  private readonly _geo: SphereGeometry
   private readonly _mat: MeshBasicMaterial
+  private readonly _markers: Mesh[] = []
+  private readonly _localX: number[] = []
   private readonly _ship = { x: 0, y: 0, z: 0 }
   private readonly _offset = { x: 0, y: 0, z: 0 }
   private readonly _size = { x: 1, y: 1, z: 1 }
   private readonly _entryPointsX: EnemyGateConfig['entryPointsX']
+  private _markerRadius: number
   private _arriveRadius: number
   private _reachSpeedMul: number
   private _agilityLambda: number
@@ -54,26 +58,48 @@ export class EnemyGate {
       middle: [...cfg.entryPointsX.middle] as [number, number, number],
       right: [...cfg.entryPointsX.right] as [number, number, number],
     }
+    this._markerRadius = Math.max(0.15, cfg.markerRadius)
     this._arriveRadius = cfg.arriveRadius
     this._reachSpeedMul = cfg.reachSpeedMul
     this._agilityLambda = cfg.agilityLambda
     this._visible = cfg.visible
 
-    this._geo = new BoxGeometry(1, 1, 1)
+    this._geo = new SphereGeometry(1, 10, 8)
     this._mat = new MeshBasicMaterial({
       color: cfg.color,
+      wireframe: true,
       transparent: true,
       opacity: cfg.opacity,
       depthWrite: false,
       side: DoubleSide,
     })
-    this._mesh = new Mesh(this._geo, this._mat)
-    this._mesh.name = 'enemyGate'
+
     this.group = new Group()
     this.group.name = 'enemyGate'
-    this.group.add(this._mesh)
+
+    for (const band of BANDS) {
+      for (const lx of this._entryPointsX[band]) {
+        this._localX.push(lx)
+        const mesh = new Mesh(this._geo, this._mat)
+        mesh.name = `enemyGate.${band}.${lx}`
+        mesh.scale.setScalar(this._markerRadius)
+        mesh.position.set(lx, 0, 0)
+        this._markers.push(mesh)
+        this.group.add(mesh)
+      }
+    }
+
     this.group.visible = this._visible
     this._dirty = true
+  }
+
+  /** Flat list of the 9 local-X marker offsets (left→middle→right). */
+  markerLocalXs(): readonly number[] {
+    return this._localX
+  }
+
+  markerCount(): number {
+    return this._markers.length
   }
 
   offset(): { x: number; y: number; z: number } {
@@ -82,6 +108,10 @@ export class EnemyGate {
 
   size(): { x: number; y: number; z: number } {
     return this._size
+  }
+
+  markerRadius(): number {
+    return this._markerRadius
   }
 
   worldCenter(): { x: number; y: number; z: number } {
@@ -103,7 +133,7 @@ export class EnemyGate {
     return slots[index] ?? 0
   }
 
-  /** World-space gate entry: centre + local entry X (y/z stay on the gate plane). */
+  /** World-space gate entry B: centre + local entry X (y/z on the gate plane). */
   worldEntryPoint(entryOffsetX: number): { x: number; y: number; z: number } {
     const center = this.worldCenter()
     return {
@@ -129,6 +159,14 @@ export class EnemyGate {
     return this._visible
   }
 
+  color(): number {
+    return this._mat.color.getHex()
+  }
+
+  opacity(): number {
+    return this._mat.opacity
+  }
+
   setOffset(x: number, y: number, z: number): void {
     this._offset.x = x
     this._offset.y = y
@@ -140,6 +178,13 @@ export class EnemyGate {
     this._size.x = Math.max(0.1, x)
     this._size.y = Math.max(0.1, y)
     this._size.z = Math.max(0.1, z)
+    // Debugger size.y drives marker radius for the 9 spheres.
+    this._markerRadius = Math.max(0.15, y)
+    this._dirty = true
+  }
+
+  setMarkerRadius(value: number): void {
+    this._markerRadius = Math.max(0.15, value)
     this._dirty = true
   }
 
@@ -184,7 +229,15 @@ export class EnemyGate {
     }
     const center = this.worldCenter()
     this.group.position.set(center.x, center.y, center.z)
-    this._mesh.scale.set(this._size.x, this._size.y, this._size.z)
+    for (let i = 0; i < this._markers.length; i++) {
+      const mesh = this._markers[i]
+      const lx = this._localX[i] ?? 0
+      if (!mesh) {
+        continue
+      }
+      mesh.position.set(lx, 0, 0)
+      mesh.scale.setScalar(this._markerRadius)
+    }
     this.group.visible = this._visible
     this._dirty = false
   }
@@ -195,6 +248,7 @@ export class EnemyGate {
     }
     this._disposed = true
     this.group.clear()
+    this._markers.length = 0
     this._geo.dispose()
     this._mat.dispose()
   }

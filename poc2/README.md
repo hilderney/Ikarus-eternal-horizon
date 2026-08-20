@@ -33,7 +33,7 @@ npm run verify     # all three — the gate every card must pass (hub §6.1)
 
 Fase 0 is playable (`npm run dev` in this folder). **Done:** Stages A–B, C01–C03, D01–D06 (four weapons, unified L1–12 levels), E01/E05 thin (SpawnArea + BattleField + 1-enemy test stream), E04, E07, G03, G06, G08 Ship + Equips + SpawnArea, G09, G12, G11 scheme picker.
 
-**You can:** fly the modular airplane (WASD / stick / nipple), dash L1–L12, cycle **laser → plasma → beam → mjolnir**, hold fire per weapon profile. Three **red SpawnAreas** feed **Warrior** gunships (sheet: targets gate→player, agility/intel, fixed warm bolt). Amber **EnemyGate** at z −90 / y 0: each spawn picks one of **3 entry X** slots (`left`←spawnLeft, `middle`←spawnFront, `right`←spawnRight); `reachGate` uses **synchronizedLerp** to that entry, then **seekChase** on the play plane + fire. Blue **BattleField** culls leavers via pool release. Pause (Esc/Start) for scheme + remap. DEV debugger: Ship, Equips, SpawnArea, Parallax. Shot→enemy / enemy→ship damage waits on F01.
+**You can:** fly the modular airplane (WASD / stick / nipple), dash L1–L12, cycle **laser → plasma → beam → mjolnir**, hold fire per weapon profile. Three **red SpawnAreas** feed **Warrior** gunships. Amber **EnemyGate** entry slots → synchronizedLerp → seekChase + fire. **F01–F04 live:** layered collision (no friendly fire), DamageResolver (shield then hull / kills), magnet drops on kill, difficulty mul from kill counter. Blue **BattleField** culls leavers via pool release. Pause (Esc/Start) for scheme + remap. DEV debugger: Ship, Equips, Enemy, SpawnArea, Parallax.
 
 **Next:** F01 collision, remaining G08 tabs, wire C03 onto integrity/shield bytes, G11 inventory/restart/quit, Yuka seek, G01 Title flow.
 
@@ -48,7 +48,8 @@ Fase 0 is playable (`npm run dev` in this folder). **Done:** Stages A–B, C01�
 | Gamepad | Left stick | Y | A | X | B | RB | Start (Esc still works) |
 | Touch | Left stick | overlay Fire | Bomb | Wpn | Bomb× | Dash | Pause |
 
-Click a bind in the left column, then press the new key / mouse button / pad button. Collisions swap. **Reset binds** restores `BALANCE`. Overlay button slots remap on the Touch tab. In the debugger **Equips** tab, change weapon level (1–12) and edit resolved stats live. **SpawnArea** tab picks **left** / **right** / **front** and tunes that volume (`intervalSec`, `maxActive`). **Parallax** tab picks a camera-anchored layer and edits speed / gain / offset / points live (Reset restores mount defaults).
+Click a bind in the left column, then press the new key / mouse button / pad button. Collisions swap. **Reset binds** restores `BALANCE`. Overlay button slots remap on the Touch tab. In the debugger **Equips** tab, change weapon level (1–12) and edit resolved stats live. **SpawnArea** tab picks **left** / **right** / **front** / **gate** and tunes that volume (`opacity`, offset/size; spawn cadence on flanks only). **Enemy** tab edits the live Warrior sheet (hp/speed/weapon) without moving the player ship.
+ **Parallax** tab picks a camera-anchored layer and edits speed / gain / offset / points live (Reset restores mount defaults).
 
 ---
 

@@ -8,6 +8,11 @@ import { BALANCE } from '../core/balancer'
 import type { BattleField } from '../gameobjects/battle-field/battle-field'
 import type { EnemyGate, GateEntryBand } from '../gameobjects/enemy-gate/enemy-gate'
 import { Enemy, type SeekTargetPort } from '../gameobjects/enemy/enemy'
+import {
+  cloneWarriorSheet,
+  type EditableWarriorSheet,
+  WARRIOR,
+} from '../gameobjects/enemy/warrior'
 import type { SpawnArea } from '../gameobjects/spawn-area/spawn-area'
 import { ObjectPool } from '../pools/object-pool'
 import type { ShotAcquirePort } from './shot-manager'
@@ -40,6 +45,11 @@ export interface EnemyManagerOptions {
   readonly enemyGate: EnemyGate
   readonly battleField: BattleField
   readonly shots?: ShotAcquirePort
+  /** F01 register/unregister live enemies. */
+  readonly colliders?: {
+    registerTarget(t: Enemy): void
+    unregisterTarget(t: Enemy): void
+  }
   /** Defaults to BALANCE.enemy.poolSize. */
   readonly capacity?: number
 }
@@ -52,8 +62,10 @@ export class EnemyManager {
   private readonly _battleField: BattleField
   private readonly _seek: SeekTargetPort
   private readonly _shots: ShotAcquirePort | null
+  private readonly _colliders: EnemyManagerOptions['colliders'] | null
   private readonly _geo: BoxGeometry
   private readonly _pool: ObjectPool<Enemy>
+  private readonly _liveSheet: EditableWarriorSheet = cloneWarriorSheet(WARRIOR)
   private readonly _acc: Record<SpawnSide, number> = { left: 0, right: 0, front: 0 }
   private readonly _lane: Record<SpawnSide, number> = { left: 0, right: 0, front: 0 }
   private _disposed = false
@@ -70,6 +82,7 @@ export class EnemyManager {
     this._battleField = options.battleField
     this._seek = options.seekTarget
     this._shots = options.shots ?? null
+    this._colliders = options.colliders ?? null
     this._geo = new BoxGeometry(1, 1, 1)
     const capacity = options.capacity ?? BALANCE.enemy.poolSize
     this._pool = new ObjectPool<Enemy>({
@@ -85,9 +98,11 @@ export class EnemyManager {
         return enemy
       },
       reset: (enemy) => {
+        this._colliders?.unregisterTarget(enemy)
         enemy.deactivate()
       },
       disposeItem: (enemy) => {
+        this._colliders?.unregisterTarget(enemy)
         this._scene.remove(enemy)
         enemy.dispose()
       },
@@ -96,6 +111,30 @@ export class EnemyManager {
 
   activeCount(): number {
     return this._pool.activeCount
+  }
+
+  /** Live Warrior sheet used by new spawns and the Enemy debugger tab. */
+  liveSheet(): EditableWarriorSheet {
+    return this._liveSheet
+  }
+
+  resetLiveSheet(): void {
+    const fresh = cloneWarriorSheet(WARRIOR)
+    Object.assign(this._liveSheet, {
+      ...fresh,
+      targets: [...fresh.targets],
+      weapon: { ...fresh.weapon },
+    })
+    this._applyLiveSheetToActive()
+  }
+
+  /** Push current live sheet onto every active enemy (no pose reset). */
+  applyLiveSheetToActive(): void {
+    this._applyLiveSheetToActive()
+  }
+
+  forEachActive(fn: (enemy: Enemy) => void): void {
+    this._pool.forEachActive(fn)
   }
 
   spawnOne(side: SpawnSide = this._pickSide()): Enemy | null {
@@ -129,9 +168,10 @@ export class EnemyManager {
       x,
       y: center.y,
       z,
-      sheet: BALANCE.enemy.warrior,
+      sheet: this._liveSheet,
       gateEntryOffsetX,
     })
+    this._colliders?.registerTarget(enemy)
     return enemy
   }
 
@@ -196,5 +236,11 @@ export class EnemyManager {
 
   private _pickSide(): SpawnSide {
     return SPAWN_SIDES[Math.floor(Math.random() * SPAWN_SIDES.length)] ?? 'front'
+  }
+
+  private _applyLiveSheetToActive(): void {
+    this._pool.forEachActive((enemy) => {
+      enemy.applyLiveSheet(this._liveSheet)
+    })
   }
 }
