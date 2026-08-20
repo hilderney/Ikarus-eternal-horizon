@@ -31,9 +31,9 @@ npm run verify     # all three — the gate every card must pass (hub §6.1)
 
 ## State
 
-Fase 0 is playable (`npm run dev` in this folder). **Done:** Stages A–B, C01–C03, D01–D06 (four weapons, unified L1–12 levels), E01/E05 thin (SpawnArea + 1-enemy test stream), E04, E07, G03, G06, G08 Ship + Equips + SpawnArea, G09, G12, G11 scheme picker.
+Fase 0 is playable (`npm run dev` in this folder). **Done:** Stages A–B, C01–C03, D01–D06 (four weapons, unified L1–12 levels), E01/E05 thin (SpawnArea + BattleField + 1-enemy test stream), E04, E07, G03, G06, G08 Ship + Equips + SpawnArea, G09, G12, G11 scheme picker.
 
-**You can:** fly the modular airplane (WASD / stick / nipple), dash L1–L12, cycle **laser → plasma → beam → mjolnir**, hold fire per weapon profile. A **red SpawnArea** sits ahead/sides of the ship; every `intervalSec` (default 1.6s) at most **one** hostile (wireframe rose box) spawns inside it and seeks the ship. Pause (Esc/Start) for scheme + remap in `area-inputs`. DEV debugger: Ship, Equips (live weapon stats), **SpawnArea** (offset/size/interval/maxActive/lanes). Energy is `ship.stats.energy`. Shot→enemy damage waits on F01.
+**You can:** fly the modular airplane (WASD / stick / nipple), dash L1–L12, cycle **laser → plasma → beam → mjolnir**, hold fire per weapon profile. Three **red SpawnAreas** (`spawnLeft` / `spawnRight` / `spawnFront` at z −140) sit on the ship flanks and forward edge; each side ticks its own `intervalSec` (cap = sum of `maxActive`). A **blue BattleField** wall (`offset.x` ±240, `offset.z` −160…30 relative to the ship) culls enemies that leave — pool release, no mesh destroy. Pause (Esc/Start) for scheme + remap in `area-inputs`. DEV debugger: Ship, Equips (live weapon stats), **SpawnArea** (left/right/front), **Parallax** (per-layer speed/gain/offset/count/color). Energy is `ship.stats.energy`. Shot→enemy damage waits on F01.
 
 **Next:** F01 collision, remaining G08 tabs, wire C03 onto integrity/shield bytes, G11 inventory/restart/quit, Yuka seek, G01 Title flow.
 
@@ -48,7 +48,7 @@ Fase 0 is playable (`npm run dev` in this folder). **Done:** Stages A–B, C01�
 | Gamepad | Left stick | Y | A | X | B | RB | Start (Esc still works) |
 | Touch | Left stick | overlay Fire | Bomb | Wpn | Bomb× | Dash | Pause |
 
-Click a bind in the left column, then press the new key / mouse button / pad button. Collisions swap. **Reset binds** restores `BALANCE`. Overlay button slots remap on the Touch tab. In the debugger **Equips** tab, change weapon level (1–12) and edit resolved stats live. **SpawnArea** tab tunes the red spawn volume and cadence (`intervalSec`, `maxActive`).
+Click a bind in the left column, then press the new key / mouse button / pad button. Collisions swap. **Reset binds** restores `BALANCE`. Overlay button slots remap on the Touch tab. In the debugger **Equips** tab, change weapon level (1–12) and edit resolved stats live. **SpawnArea** tab picks **left** / **right** / **front** and tunes that volume (`intervalSec`, `maxActive`). **Parallax** tab picks a camera-anchored layer and edits speed / gain / offset / points live (Reset restores mount defaults).
 
 ---
 

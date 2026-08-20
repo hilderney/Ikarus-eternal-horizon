@@ -3,34 +3,36 @@ import { Mesh } from 'three'
 import { BALANCE } from '../../core/balancer'
 import { SpawnArea } from './spawn-area'
 
+const CFG = BALANCE.enemy.spawnLeft
+
 describe('SpawnArea', () => {
   it('builds a named group with a semi-transparent red mesh', () => {
-    const area = new SpawnArea({ config: BALANCE.enemy.spawn })
-    expect(area.group.name).toBe('spawnArea')
+    const area = new SpawnArea({ config: CFG, name: 'spawnAreaLeft' })
+    expect(area.group.name).toBe('spawnAreaLeft')
     const mesh = area.group.children[0]
     expect(mesh).toBeInstanceOf(Mesh)
-    expect(area.color()).toBe(BALANCE.enemy.spawn.color)
-    expect(area.opacity()).toBe(BALANCE.enemy.spawn.opacity)
+    expect(area.color()).toBe(CFG.color)
+    expect(area.opacity()).toBe(CFG.opacity)
     expect(area.visible()).toBe(true)
     area.dispose()
   })
 
   it('syncRender places the box at ship + offset with configured size', () => {
-    const area = new SpawnArea({ config: BALANCE.enemy.spawn })
+    const area = new SpawnArea({ config: CFG })
     area.update({ x: 2, y: 1, z: -3 })
     area.syncRender()
-    expect(area.group.position.x).toBeCloseTo(2 + BALANCE.enemy.spawn.offset.x, 5)
-    expect(area.group.position.y).toBeCloseTo(1 + BALANCE.enemy.spawn.offset.y, 5)
-    expect(area.group.position.z).toBeCloseTo(-3 + BALANCE.enemy.spawn.offset.z, 5)
+    expect(area.group.position.x).toBeCloseTo(2 + CFG.offset.x, 5)
+    expect(area.group.position.y).toBeCloseTo(1 + CFG.offset.y, 5)
+    expect(area.group.position.z).toBeCloseTo(-3 + CFG.offset.z, 5)
     const mesh = area.group.children[0] as Mesh
-    expect(mesh.scale.x).toBe(BALANCE.enemy.spawn.size.x)
-    expect(mesh.scale.y).toBe(BALANCE.enemy.spawn.size.y)
-    expect(mesh.scale.z).toBe(BALANCE.enemy.spawn.size.z)
+    expect(mesh.scale.x).toBe(CFG.size.x)
+    expect(mesh.scale.y).toBe(CFG.size.y)
+    expect(mesh.scale.z).toBe(CFG.size.z)
     area.dispose()
   })
 
   it('setOffset / setSize update the next syncRender', () => {
-    const area = new SpawnArea({ config: BALANCE.enemy.spawn })
+    const area = new SpawnArea({ config: CFG })
     area.update({ x: 0, y: 0, z: 0 })
     area.setOffset(1, 2, -5)
     area.setSize(8, 3, 10)
@@ -44,7 +46,7 @@ describe('SpawnArea', () => {
   })
 
   it('setVisible toggles group.visible', () => {
-    const area = new SpawnArea({ config: BALANCE.enemy.spawn })
+    const area = new SpawnArea({ config: CFG })
     area.setVisible(false)
     expect(area.group.visible).toBe(false)
     area.setVisible(true)
@@ -52,9 +54,9 @@ describe('SpawnArea', () => {
     area.dispose()
   })
 
-  it('exposes intervalSec and lanesX for future E05', () => {
-    const area = new SpawnArea({ config: BALANCE.enemy.spawn })
-    expect(area.intervalSec()).toBe(1.6)
+  it('exposes intervalSec and lanesX for E05', () => {
+    const area = new SpawnArea({ config: CFG })
+    expect(area.intervalSec()).toBe(CFG.intervalSec)
     expect(area.lanesX()).toEqual([-4, -2, 0, 2, 4])
     area.setIntervalSec(0.8)
     area.setLanesX([-3, 0, 3])
@@ -64,7 +66,7 @@ describe('SpawnArea', () => {
   })
 
   it('dispose frees geometry and material and is idempotent', () => {
-    const area = new SpawnArea({ config: BALANCE.enemy.spawn })
+    const area = new SpawnArea({ config: CFG })
     area.dispose()
     area.dispose()
     expect(area.group.children).toHaveLength(0)

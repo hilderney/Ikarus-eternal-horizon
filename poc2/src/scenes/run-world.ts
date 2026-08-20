@@ -12,6 +12,7 @@ import { CameraController } from '../gameobjects/controller/camera-controller'
 import { PlayerController } from '../gameobjects/controller/player-controller'
 import { Gizmos } from '../gameobjects/gizmos/gizmos'
 import { LimitBox } from '../gameobjects/limit-box/limit-box'
+import { BattleField } from '../gameobjects/battle-field/battle-field'
 import { SpawnArea } from '../gameobjects/spawn-area/spawn-area'
 import { ParallaxField } from '../gameobjects/parallax/parallax-field'
 import {
@@ -45,6 +46,7 @@ import { Debugger, type DebuggerBinds } from '../ui/debugger/debugger'
 import { EquipsTab } from '../ui/debugger/equips-tab'
 import { ShipTab } from '../ui/debugger/ship-tab'
 import { SpawnAreaTab } from '../ui/debugger/spawn-area-tab'
+import { ParallaxTab } from '../ui/debugger/parallax-tab'
 import { InputMap } from '../ui/input-map/input-map'
 import type {
   CameraHandle,
@@ -161,8 +163,24 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
     })
     scene.add(gizmos.group)
 
-    const spawnArea = new SpawnArea({ config: BALANCE.enemy.spawn })
-    scene.add(spawnArea.group)
+    const spawnLeft = new SpawnArea({
+      config: BALANCE.enemy.spawnLeft,
+      name: 'spawnAreaLeft',
+    })
+    scene.add(spawnLeft.group)
+    const spawnRight = new SpawnArea({
+      config: BALANCE.enemy.spawnRight,
+      name: 'spawnAreaRight',
+    })
+    scene.add(spawnRight.group)
+    const spawnFront = new SpawnArea({
+      config: BALANCE.enemy.spawnFront,
+      name: 'spawnAreaFront',
+    })
+    scene.add(spawnFront.group)
+
+    const battleField = new BattleField({ config: BALANCE.battlefield })
+    scene.add(battleField.group)
 
     const player = new PlayerController({
       input,
@@ -199,7 +217,10 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
     const enemies = new EnemyManager({
       scene,
       seekTarget: ship.transform.position,
-      spawnArea,
+      spawnLeft,
+      spawnRight,
+      spawnFront,
+      battleField,
     })
 
     const idleHud: HudPort = {
@@ -227,7 +248,10 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       enemies,
       limitBox,
       gizmos,
-      spawnArea,
+      spawnLeft,
+      spawnRight,
+      spawnFront,
+      battleField,
       player,
       camCtl,
       idleHud,
@@ -304,14 +328,39 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       return wrap(
         (dt: number) => {
           void dt
-          world.spawnArea.update(world.ship.transform.position)
+          const ship = world.ship.transform.position
+          world.spawnLeft.update(ship)
+          world.spawnRight.update(ship)
+          world.spawnFront.update(ship)
         },
         () => {
-          world.spawnArea.syncRender()
+          world.spawnLeft.syncRender()
+          world.spawnRight.syncRender()
+          world.spawnFront.syncRender()
         },
         () => {
-          scene.remove(world.spawnArea.group)
-          world.spawnArea.dispose()
+          scene.remove(world.spawnLeft.group)
+          world.spawnLeft.dispose()
+          scene.remove(world.spawnRight.group)
+          world.spawnRight.dispose()
+          scene.remove(world.spawnFront.group)
+          world.spawnFront.dispose()
+        },
+      )
+    },
+    battleField() {
+      const world = current()
+      return wrap(
+        (dt: number) => {
+          void dt
+          world.battleField.update(world.ship.transform.position)
+        },
+        () => {
+          world.battleField.syncRender()
+        },
+        () => {
+          scene.remove(world.battleField.group)
+          world.battleField.dispose()
         },
       )
     },
@@ -424,6 +473,15 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       }
       const world = current()
       const { ship } = world
+      const areaAt = (side: number) => {
+        if (side === 1) {
+          return world.spawnRight
+        }
+        if (side === 2) {
+          return world.spawnFront
+        }
+        return world.spawnLeft
+      }
       const binds: DebuggerBinds = {
         ship: {
           snapshot: () => {
@@ -494,45 +552,63 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
           },
         },
         spawnArea: {
-          offset: () => world.spawnArea.offset(),
-          size: () => world.spawnArea.size(),
-          worldCenter: () => world.spawnArea.worldCenter(),
-          intervalSec: () => world.spawnArea.intervalSec(),
-          lanesX: () => world.spawnArea.lanesX(),
-          maxActive: () => world.spawnArea.maxActive(),
-          visible: () => world.spawnArea.visible(),
-          color: () => world.spawnArea.color(),
-          opacity: () => world.spawnArea.opacity(),
-          setOffset: (x, y, z) => {
-            world.spawnArea.setOffset(x, y, z)
+          sideNames: () => ['left', 'right', 'front'],
+          offset: (side) => areaAt(side).offset(),
+          size: (side) => areaAt(side).size(),
+          worldCenter: (side) => areaAt(side).worldCenter(),
+          intervalSec: (side) => areaAt(side).intervalSec(),
+          lanesX: (side) => areaAt(side).lanesX(),
+          maxActive: (side) => areaAt(side).maxActive(),
+          visible: (side) => areaAt(side).visible(),
+          color: (side) => areaAt(side).color(),
+          opacity: (side) => areaAt(side).opacity(),
+          setOffset: (side, x, y, z) => {
+            areaAt(side).setOffset(x, y, z)
           },
-          setSize: (x, y, z) => {
-            world.spawnArea.setSize(x, y, z)
+          setSize: (side, x, y, z) => {
+            areaAt(side).setSize(x, y, z)
           },
-          setIntervalSec: (value) => {
-            world.spawnArea.setIntervalSec(value)
+          setIntervalSec: (side, value) => {
+            areaAt(side).setIntervalSec(value)
           },
-          setLanesX: (lanes) => {
-            world.spawnArea.setLanesX(lanes)
+          setLanesX: (side, lanes) => {
+            areaAt(side).setLanesX(lanes)
           },
-          setMaxActive: (value) => {
-            world.spawnArea.setMaxActive(value)
+          setMaxActive: (side, value) => {
+            areaAt(side).setMaxActive(value)
           },
-          setVisible: (visible) => {
-            world.spawnArea.setVisible(visible)
+          setVisible: (side, visible) => {
+            areaAt(side).setVisible(visible)
           },
-          setColor: (hex) => {
-            world.spawnArea.setColor(hex)
+          setColor: (side, hex) => {
+            areaAt(side).setColor(hex)
           },
-          setOpacity: (value) => {
-            world.spawnArea.setOpacity(value)
+          setOpacity: (side, value) => {
+            areaAt(side).setOpacity(value)
+          },
+        },
+        parallax: {
+          layerCount: () => world.parallax.layerCount(),
+          layerNames: () => world.parallax.layerNames(),
+          config: (index) => world.parallax.config(index),
+          applyConfig: (index, config) => {
+            world.parallax.applyConfig(index, config)
+          },
+          visible: (index) => world.parallax.visible(index),
+          setVisible: (index, visible) => {
+            world.parallax.setVisible(index, visible)
           },
         },
       }
       const panel = new Debugger({
         host: debuggerHost,
         binds,
-        tabs: [new ShipTab(binds), new EquipsTab(binds), new SpawnAreaTab(binds)],
+        tabs: [
+          new ShipTab(binds),
+          new EquipsTab(binds),
+          new SpawnAreaTab(binds),
+          new ParallaxTab(binds),
+        ],
         enabled: true,
       })
       return {

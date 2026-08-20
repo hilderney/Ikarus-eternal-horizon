@@ -4,6 +4,7 @@
 
 import { BALANCE } from '../../core/balancer'
 import type { WeaponId } from '../../gameobjects/weapon/catalog'
+import type { ParallaxLayerConfig } from '../../gameobjects/parallax/parallax-layer'
 import type { WeaponLevelSnapshot, WeaponLevelSnapshotField } from '../../gameobjects/weapon/weapon-levels'
 
 export type DebuggerTabId =
@@ -88,23 +89,33 @@ export interface DebuggerWeaponsBind extends DebuggerLevelBind {
 }
 
 export interface DebuggerSpawnAreaBind {
-  offset(): { x: number; y: number; z: number }
-  size(): { x: number; y: number; z: number }
-  worldCenter(): { x: number; y: number; z: number }
-  intervalSec(): number
-  lanesX(): readonly number[]
-  maxActive(): number
-  visible(): boolean
-  color(): number
-  opacity(): number
-  setOffset(x: number, y: number, z: number): void
-  setSize(x: number, y: number, z: number): void
-  setIntervalSec(value: number): void
-  setLanesX(lanes: readonly number[]): void
-  setMaxActive(value: number): void
-  setVisible(visible: boolean): void
-  setColor(hex: number): void
-  setOpacity(value: number): void
+  sideNames(): readonly string[]
+  offset(side: number): { x: number; y: number; z: number }
+  size(side: number): { x: number; y: number; z: number }
+  worldCenter(side: number): { x: number; y: number; z: number }
+  intervalSec(side: number): number
+  lanesX(side: number): readonly number[]
+  maxActive(side: number): number
+  visible(side: number): boolean
+  color(side: number): number
+  opacity(side: number): number
+  setOffset(side: number, x: number, y: number, z: number): void
+  setSize(side: number, x: number, y: number, z: number): void
+  setIntervalSec(side: number, value: number): void
+  setLanesX(side: number, lanes: readonly number[]): void
+  setMaxActive(side: number, value: number): void
+  setVisible(side: number, visible: boolean): void
+  setColor(side: number, hex: number): void
+  setOpacity(side: number, value: number): void
+}
+
+export interface DebuggerParallaxBind {
+  layerCount(): number
+  layerNames(): readonly string[]
+  config(index: number): ParallaxLayerConfig | null
+  applyConfig(index: number, config: ParallaxLayerConfig): void
+  visible(index: number): boolean
+  setVisible(index: number, visible: boolean): void
 }
 
 export interface DebuggerBinds {
@@ -112,6 +123,7 @@ export interface DebuggerBinds {
   readonly weapons: DebuggerWeaponsBind
   readonly dash: DebuggerLevelBind
   readonly spawnArea: DebuggerSpawnAreaBind
+  readonly parallax: DebuggerParallaxBind
 }
 
 export interface DebuggerOptions {

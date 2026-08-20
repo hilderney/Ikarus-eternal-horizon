@@ -171,7 +171,7 @@ export interface FollowBoxConfig {
   }
 }
 
-/** Enemy spawn volume relative to the ship (front + sides). E05 will spawn inside it. */
+/** Enemy spawn volume relative to the ship (left / right flanks). E05 spawns inside it. */
 export interface EnemySpawnConfig {
   /** Centre of the volume relative to the ship (−Z is forward). */
   readonly offset: Vec3Params
@@ -203,10 +203,23 @@ export interface EnemyDespawnConfig {
 }
 
 export interface EnemyConfig {
-  readonly spawn: EnemySpawnConfig
+  readonly spawnLeft: EnemySpawnConfig
+  readonly spawnRight: EnemySpawnConfig
+  readonly spawnFront: EnemySpawnConfig
   readonly generic: EnemyGenericConfig
   readonly despawn: EnemyDespawnConfig
   readonly poolSize: number
+}
+
+/** Active play volume relative to the ship. Outside ⇒ pool-release (enemies/meteors). */
+export interface BattleFieldConfig {
+  readonly offsetX: { readonly min: number; readonly max: number }
+  readonly offsetZ: { readonly min: number; readonly max: number }
+  /** Vertical extent of the blue wall frame (world Y). */
+  readonly wallHeight: number
+  readonly color: number
+  readonly opacity: number
+  readonly visible: boolean
 }
 
 export interface ShipVisualConfig {
@@ -422,6 +435,7 @@ export interface Balance {
   readonly drops: DropsConfig
   readonly shot: { readonly despawn: ShotDespawnConfig }
   readonly enemy: EnemyConfig
+  readonly battlefield: BattleFieldConfig
   readonly vfx: VfxConfig
   readonly haptics: HapticsConfig
   readonly loop: LoopConfig
@@ -660,9 +674,9 @@ const BALANCE_DATA: Balance = {
         size: 1,
         color: 0xa5e8ff,
         alpha: 0.5,
-        position: { x: 0, y: -600, z: 100 },
+        position: { x: 0, y: -400, z: 100 },
         rotation: { x: 0, y: 0, z: 0 },
-        gridSize: 1000,
+        gridSize: 2000,
         gridColor: 0x555555,
         gridOpacity: 0,
         zNearWrap: 0,
@@ -679,7 +693,7 @@ const BALANCE_DATA: Balance = {
         alpha: 0.5,
         position: { x: 0, y: -300, z: 100 },
         rotation: { x: 0, y: 0, z: 0 },
-        gridSize: 1000,
+        gridSize: 2000,
         gridColor: 0x555555,
         gridOpacity: 0,
         zNearWrap: 0,
@@ -694,9 +708,9 @@ const BALANCE_DATA: Balance = {
         size: 1,
         color: 0x7c68ff,
         alpha: 0.5,
-        position: { x: 0, y: -150, z: 100 },
+        position: { x: 0, y: -250, z: 100 },
         rotation: { x: 0, y: 0, z: 0 },
-        gridSize: 1000,
+        gridSize: 2000,
         gridColor: 0x555555,
         gridOpacity: 0,
         zNearWrap: 0,
@@ -731,13 +745,33 @@ const BALANCE_DATA: Balance = {
     despawn: { zNear: 16, zFar: -32, halfX: 16 },
   },
   enemy: {
-    spawn: {
-      offset: { x: 0, y: 0, z: -14 },
-      size: { x: 16, y: 2, z: 12 },
+    spawnLeft: {
+      offset: { x: -140, y: 0, z: -140 },
+      size: { x: 10, y: 2, z: 10 },
       visible: true,
       color: 0xff2222,
       opacity: 0.22,
-      intervalSec: 1.6,
+      intervalSec: 3,
+      lanesX: [-4, -2, 0, 2, 4],
+      maxActive: 1,
+    },
+    spawnRight: {
+      offset: { x: 140, y: 0, z: -140 },
+      size: { x: 10, y: 2, z: 10 },
+      visible: true,
+      color: 0xff2222,
+      opacity: 0.22,
+      intervalSec: 3,
+      lanesX: [-4, -2, 0, 2, 4],
+      maxActive: 1,
+    },
+    spawnFront: {
+      offset: { x: 0, y: 0, z: -140 },
+      size: { x: 10, y: 2, z: 10 },
+      visible: true,
+      color: 0xff2222,
+      opacity: 0.22,
+      intervalSec: 3,
       lanesX: [-4, -2, 0, 2, 4],
       maxActive: 1,
     },
@@ -748,8 +782,16 @@ const BALANCE_DATA: Balance = {
       maxSpeed: 4,
       contactDamage: 8,
     },
-    despawn: { zNear: 18, zFar: -40, halfX: 22 },
+    despawn: { zNear: 30, zFar: -160, halfX: 240 },
     poolSize: 32,
+  },
+  battlefield: {
+    offsetX: { min: -240, max: 240 },
+    offsetZ: { min: -160, max: 30 },
+    wallHeight: 6,
+    color: 0x3b82f6,
+    opacity: 0.9,
+    visible: true,
   },
   vfx: {
     shake: { maxAmplitude: 0.18, decayPerSec: 6 },

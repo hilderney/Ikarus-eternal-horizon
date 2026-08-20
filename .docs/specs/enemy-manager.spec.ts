@@ -135,8 +135,9 @@ export declare class EnemyManager {
  *              entityManager.add(vehicle).
  *   update   — spawnAcc += dt; while spawnAcc >= interval: spawnOne; spawnAcc -= interval.
  *              interval = BALANCE.enemy.spawn.intervalSec / difficulty.spawnRateMul.
- *              forEachActive: enemy.update; if !active || isOffField || hp<=0 → despawn.
- *              entityManager.update(dt) OR each vehicle.update — once, not both.
+ *              forEachActive: enemy.update; if !active || !battleField.contains || hp<=0
+ *              → pool.release (reuse; no mesh destroy). BattleField = ship-relative
+ *              BALANCE.battlefield (offset.x ±240, offset.z −160…30).
  *   despawn  — unregister, scene.remove, entityManager.remove, pool.release.
  *   MiniBoss pendingMilestone: expose only; do not spawn a boss class (ENM-03/§7).
  */

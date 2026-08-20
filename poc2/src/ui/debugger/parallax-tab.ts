@@ -1,7 +1,8 @@
 /**
- * SDD-G08 SpawnArea tab — left / right flank volumes + cadence.
+ * SDD-G08 Parallax tab — live layer params (camera-anchored star fields).
  */
 
+import type { ParallaxLayerConfig } from '../../gameobjects/parallax/parallax-layer'
 import type { DebuggerBinds, DebuggerTab } from './debugger'
 
 interface NumberHandle {
@@ -31,24 +32,18 @@ interface ReadonlyHandle {
 
 type Handle = NumberHandle | BoolHandle | TextHandle | ReadonlyHandle
 
-interface SpawnClone {
-  offset: { x: number; y: number; z: number }
-  size: { x: number; y: number; z: number }
-  intervalSec: number
-  lanesX: string
-  maxActive: number
+interface LayerClone {
+  config: ParallaxLayerConfig
   visible: boolean
-  color: number
-  opacity: number
 }
 
-export class SpawnAreaTab implements DebuggerTab {
-  readonly id = 'spawn-area' as const
+export class ParallaxTab implements DebuggerTab {
+  readonly id = 'parallax' as const
   private readonly _binds: DebuggerBinds
   private readonly _handles: Handle[] = []
-  private _defaults: SpawnClone[] | null = null
+  private _defaults: LayerClone[] | null = null
   private _form: HTMLFormElement | null = null
-  private _sideIndex = 0
+  private _layerIndex = 0
 
   constructor(binds: DebuggerBinds) {
     this._binds = binds
@@ -62,44 +57,86 @@ export class SpawnAreaTab implements DebuggerTab {
       event.preventDefault()
     })
 
-    const spawn = this._binds.spawnArea
-    this._defaults = spawn.sideNames().map((_, side) => cloneSpawn(spawn, side))
+    const parallax = this._binds.parallax
+    this._defaults = Array.from({ length: parallax.layerCount() }, (_, index) => {
+      const config = parallax.config(index)
+      if (!config) {
+        throw new Error(`missing parallax layer ${index}`)
+      }
+      return { config: cloneConfig(config), visible: parallax.visible(index) }
+    })
 
-    this._group(form, 'Side (ship-relative)')
-    this._selectSide(form)
+    this._group(form, 'Layer (camera-anchored)')
+    this._selectLayer(form)
 
     this._group(form, 'Visible')
-    this._flag(form, 'spawn.visible', () => spawn.visible(this._sideIndex), (value) => {
-      spawn.setVisible(this._sideIndex, value)
+    this._flag(form, 'parallax.visible', () => parallax.visible(this._layerIndex), (value) => {
+      parallax.setVisible(this._layerIndex, value)
     })
 
-    this._group(form, 'Offset (relative to ship)')
-    this._axis(form, 'offset', -240, 240, 1, () => spawn.offset(this._sideIndex), (x, y, z) => {
-      spawn.setOffset(this._sideIndex, x, y, z)
+    this._group(form, 'Motion')
+    this._scalar(form, 'speed', 'speed', 0, 20, 0.01, () => this._cfg().speed, (value) => {
+      this._patch({ speed: value })
+    })
+    this._scalar(form, 'speedJitter', 'speedJitter', 0, 2, 0.01, () => this._cfg().speedJitter, (value) => {
+      this._patch({ speedJitter: value })
+    })
+    this._scalar(
+      form,
+      'parallaxGain',
+      'parallaxGain',
+      0,
+      2,
+      0.001,
+      () => this._cfg().parallaxGain,
+      (value) => {
+        this._patch({ parallaxGain: value })
+      },
+    )
+
+    this._group(form, 'Points')
+    this._scalar(form, 'count', 'count', 1, 2000, 1, () => this._cfg().count, (value) => {
+      this._patch({ count: Math.round(value) })
+    })
+    this._scalar(form, 'size', 'size', 0.1, 10, 0.1, () => this._cfg().size, (value) => {
+      this._patch({ size: value })
+    })
+    this._scalar(form, 'alpha', 'alpha', 0, 1, 0.01, () => this._cfg().alpha, (value) => {
+      this._patch({ alpha: value })
+    })
+    this._color(form, 'color', () => this._cfg().color, (hex) => {
+      this._patch({ color: hex })
     })
 
-    this._group(form, 'Size (full extents)')
-    this._axis(form, 'size', 0.1, 80, 0.1, () => spawn.size(this._sideIndex), (x, y, z) => {
-      spawn.setSize(this._sideIndex, x, y, z)
+    this._group(form, 'Offset from camera')
+    this._axis(form, 'position', -2000, 2000, 1, () => this._cfg().position, (x, y, z) => {
+      this._patch({ position: { x, y, z } })
     })
 
-    this._group(form, 'World centre (read-only)')
-    this._readOnlyVec(form, 'world', () => spawn.worldCenter(this._sideIndex))
+    this._group(form, 'Rotation (deg)')
+    this._axis(form, 'rotation', -180, 180, 1, () => this._cfg().rotation, (x, y, z) => {
+      this._patch({ rotation: { x, y, z } })
+    })
 
-    this._group(form, 'Spawn cadence (E05)')
-    this._scalar(form, 'intervalSec', 'intervalSec', 0.05, 10, 0.05, () => spawn.intervalSec(this._sideIndex), (value) => {
-      spawn.setIntervalSec(this._sideIndex, value)
+    this._group(form, 'Grid / wrap')
+    this._scalar(form, 'gridSize', 'gridSize', 10, 5000, 10, () => this._cfg().gridSize, (value) => {
+      this._patch({ gridSize: value })
     })
-    this._scalar(form, 'maxActive', 'maxActive', 1, 32, 1, () => spawn.maxActive(this._sideIndex), (value) => {
-      spawn.setMaxActive(this._sideIndex, value)
+    this._scalar(form, 'gridOpacity', 'gridOpacity', 0, 1, 0.01, () => this._cfg().gridOpacity, (value) => {
+      this._patch({ gridOpacity: value })
     })
-    this._lanes(form)
+    this._color(form, 'gridColor', () => this._cfg().gridColor, (hex) => {
+      this._patch({ gridColor: hex })
+    })
+    this._scalar(form, 'zNearWrap', 'zNearWrap', -500, 500, 1, () => this._cfg().zNearWrap, (value) => {
+      this._patch({ zNearWrap: value })
+    })
+    this._scalar(form, 'zFar', 'zFar', -10000, 0, 10, () => this._cfg().zFar, (value) => {
+      this._patch({ zFar: value })
+    })
 
-    this._group(form, 'Visual')
-    this._scalar(form, 'opacity', 'opacity', 0, 1, 0.01, () => spawn.opacity(this._sideIndex), (value) => {
-      spawn.setOpacity(this._sideIndex, value)
-    })
-    this._color(form)
+    this._group(form, 'Name (read-only)')
+    this._readOnly(form, 'name', () => this._cfg().name)
 
     panel.append(form)
     this._form = form
@@ -127,19 +164,13 @@ export class SpawnAreaTab implements DebuggerTab {
 
   reset(): void {
     const defaults = this._defaults
-    const spawn = this._binds.spawnArea
+    const parallax = this._binds.parallax
     if (!defaults) {
       return
     }
-    defaults.forEach((entry, side) => {
-      spawn.setOffset(side, entry.offset.x, entry.offset.y, entry.offset.z)
-      spawn.setSize(side, entry.size.x, entry.size.y, entry.size.z)
-      spawn.setIntervalSec(side, entry.intervalSec)
-      spawn.setLanesX(side, parseLanes(entry.lanesX))
-      spawn.setMaxActive(side, entry.maxActive)
-      spawn.setVisible(side, entry.visible)
-      spawn.setColor(side, entry.color)
-      spawn.setOpacity(side, entry.opacity)
+    defaults.forEach((entry, index) => {
+      parallax.applyConfig(index, cloneConfig(entry.config))
+      parallax.setVisible(index, entry.visible)
     })
     this.sync()
   }
@@ -151,6 +182,25 @@ export class SpawnAreaTab implements DebuggerTab {
     this._defaults = null
   }
 
+  private _cfg(): ParallaxLayerConfig {
+    const config = this._binds.parallax.config(this._layerIndex)
+    if (!config) {
+      throw new Error(`missing parallax layer ${this._layerIndex}`)
+    }
+    return config
+  }
+
+  private _patch(partial: Partial<ParallaxLayerConfig>): void {
+    const next = { ...this._cfg(), ...partial }
+    if (partial.position) {
+      next.position = { ...partial.position }
+    }
+    if (partial.rotation) {
+      next.rotation = { ...partial.rotation }
+    }
+    this._binds.parallax.applyConfig(this._layerIndex, next)
+  }
+
   private _group(host: HTMLElement, label: string): void {
     const el = document.createElement('div')
     el.className = 'debug-group'
@@ -158,23 +208,24 @@ export class SpawnAreaTab implements DebuggerTab {
     host.append(el)
   }
 
-  private _selectSide(host: HTMLElement): void {
+  private _selectLayer(host: HTMLElement): void {
     const row = document.createElement('label')
     row.className = 'debug-row debug-textrow'
     const name = document.createElement('span')
     name.className = 'debug-label'
-    name.textContent = 'side'
+    name.textContent = 'layer'
     const select = document.createElement('select')
-    select.dataset.bind = 'spawn.side'
-    this._binds.spawnArea.sideNames().forEach((sideName, index) => {
+    select.dataset.bind = 'parallax.layer'
+    const names = this._binds.parallax.layerNames()
+    names.forEach((layerName, index) => {
       const option = document.createElement('option')
       option.value = String(index)
-      option.textContent = sideName
+      option.textContent = `${index}: ${layerName}`
       select.append(option)
     })
-    select.value = String(this._sideIndex)
+    select.value = String(this._layerIndex)
     select.addEventListener('change', () => {
-      this._sideIndex = Number(select.value) || 0
+      this._layerIndex = Number(select.value) || 0
       this.sync()
     })
     row.append(name, select)
@@ -198,24 +249,18 @@ export class SpawnAreaTab implements DebuggerTab {
     }
   }
 
-  private _readOnlyVec(host: HTMLElement, prefix: string, read: () => { x: number; y: number; z: number }): void {
-    for (const axis of ['x', 'y', 'z'] as const) {
-      const row = document.createElement('label')
-      row.className = 'debug-row'
-      const name = document.createElement('span')
-      name.className = 'debug-label'
-      name.textContent = `${prefix}.${axis}`
-      const value = document.createElement('span')
-      value.className = 'debug-value'
-      value.dataset.bind = `${prefix}.${axis}`
-      row.append(name, value)
-      host.append(row)
-      this._handles.push({
-        kind: 'readonly',
-        el: value,
-        read: () => formatNum(read()[axis]),
-      })
-    }
+  private _readOnly(host: HTMLElement, path: string, read: () => string): void {
+    const row = document.createElement('label')
+    row.className = 'debug-row'
+    const name = document.createElement('span')
+    name.className = 'debug-label'
+    name.textContent = path
+    const value = document.createElement('span')
+    value.className = 'debug-value'
+    value.dataset.bind = path
+    row.append(name, value)
+    host.append(row)
+    this._handles.push({ kind: 'readonly', el: value, read })
   }
 
   private _scalar(
@@ -289,44 +334,25 @@ export class SpawnAreaTab implements DebuggerTab {
     this._handles.push({ kind: 'bool', el: input, read })
   }
 
-  private _lanes(host: HTMLElement): void {
-    const spawn = this._binds.spawnArea
+  private _color(
+    host: HTMLElement,
+    path: string,
+    read: () => number,
+    write: (hex: number) => void,
+  ): void {
     const row = document.createElement('label')
     row.className = 'debug-row debug-textrow'
     const name = document.createElement('span')
     name.className = 'debug-label'
-    name.textContent = 'lanesX'
+    name.textContent = path
     const input = document.createElement('input')
     input.type = 'text'
-    input.dataset.bind = 'lanesX'
-    input.placeholder = '-4, -2, 0, 2, 4'
-    input.addEventListener('input', () => {
-      spawn.setLanesX(this._sideIndex, parseLanes(input.value))
-    })
-    row.append(name, input)
-    host.append(row)
-    this._handles.push({
-      kind: 'text',
-      el: input,
-      read: () => spawn.lanesX(this._sideIndex).join(', '),
-    })
-  }
-
-  private _color(host: HTMLElement): void {
-    const spawn = this._binds.spawnArea
-    const row = document.createElement('label')
-    row.className = 'debug-row debug-textrow'
-    const name = document.createElement('span')
-    name.className = 'debug-label'
-    name.textContent = 'color'
-    const input = document.createElement('input')
-    input.type = 'text'
-    input.dataset.bind = 'color'
-    input.placeholder = '0xff2222'
+    input.dataset.bind = path
+    input.placeholder = '0xa5e8ff'
     input.addEventListener('change', () => {
       const parsed = Number(input.value)
       if (Number.isFinite(parsed)) {
-        spawn.setColor(this._sideIndex, parsed >>> 0)
+        write(parsed >>> 0)
       }
     })
     row.append(name, input)
@@ -334,31 +360,19 @@ export class SpawnAreaTab implements DebuggerTab {
     this._handles.push({
       kind: 'text',
       el: input,
-      read: () => `0x${spawn.color(this._sideIndex).toString(16).padStart(6, '0')}`,
+      read: () => `0x${read().toString(16).padStart(6, '0')}`,
     })
   }
 }
 
-function cloneSpawn(spawn: DebuggerBinds['spawnArea'], side: number): SpawnClone {
+function cloneConfig(config: ParallaxLayerConfig): ParallaxLayerConfig {
   return {
-    offset: { ...spawn.offset(side) },
-    size: { ...spawn.size(side) },
-    intervalSec: spawn.intervalSec(side),
-    lanesX: spawn.lanesX(side).join(', '),
-    maxActive: spawn.maxActive(side),
-    visible: spawn.visible(side),
-    color: spawn.color(side),
-    opacity: spawn.opacity(side),
+    ...config,
+    position: { ...config.position },
+    rotation: { ...config.rotation },
   }
 }
 
-function parseLanes(raw: string): number[] {
-  return raw
-    .split(/[,\s]+/)
-    .map((item) => Number(item.trim()))
-    .filter((item) => Number.isFinite(item))
-}
-
 function formatNum(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2)
+  return Number.isInteger(value) ? String(value) : value.toFixed(3)
 }

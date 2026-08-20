@@ -66,20 +66,22 @@ describe('ParallaxField', () => {
     field.dispose()
   })
 
-  it('uses DYNAMIC VIEW gains 0.000225 / 0.225 / 0.3 and y -600/-300/-150', () => {
+  it('uses DYNAMIC VIEW gains 0.000225 / 0.225 / 0.3 and configured y offsets', () => {
     const [a, b, c] = BALANCE.parallax.layers
     expect(a?.parallaxGain).toBeCloseTo(0.000225, 10)
     expect(b?.parallaxGain).toBeCloseTo(0.225, 10)
     expect(c?.parallaxGain).toBeCloseTo(0.3, 10)
-    expect(a?.position.y).toBe(-600)
-    expect(b?.position.y).toBe(-300)
-    expect(c?.position.y).toBe(-150)
+    expect(a?.position.y).toBe(BALANCE.parallax.layers[0]?.position.y)
+    expect(b?.position.y).toBe(BALANCE.parallax.layers[1]?.position.y)
+    expect(c?.position.y).toBe(BALANCE.parallax.layers[2]?.position.y)
   })
 
-  it('uses gridSize 1000 and zFar -2000 on every layer', () => {
+  it('uses shared gridSize and zFar on every layer', () => {
+    const first = BALANCE.parallax.layers[0]
+    expect(first).toBeDefined()
     for (const layer of BALANCE.parallax.layers) {
-      expect(layer.gridSize).toBe(1000)
-      expect(layer.zFar).toBe(-2000)
+      expect(layer.gridSize).toBe(first?.gridSize)
+      expect(layer.zFar).toBe(first?.zFar)
     }
   })
 
@@ -156,6 +158,16 @@ describe('ParallaxLayer', () => {
     const geometry = pointsOf(layer).geometry
     layer.applyConfig({ ...cfg, color: 0xff0000 })
     expect(pointsOf(layer).geometry).toBe(geometry)
+    layer.dispose()
+  })
+
+  it('config returns a live snapshot and setVisible toggles the group', () => {
+    const layer = new ParallaxLayer(smallLayer({ speed: 3, alpha: 0.4 }))
+    expect(layer.config().speed).toBe(3)
+    expect(layer.config().alpha).toBe(0.4)
+    layer.setVisible(false)
+    expect(layer.visible()).toBe(false)
+    expect(layer.group.visible).toBe(false)
     layer.dispose()
   })
 

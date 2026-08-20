@@ -99,6 +99,10 @@ function makeWorld(
       bump('spawnArea')
       return makeStep(log, 'spawnArea')
     },
+    battleField: () => {
+      bump('battleField')
+      return makeStep(log, 'battleField')
+    },
     ship: () => {
       bump('ship')
       return makeStep(log, 'ship')
@@ -242,6 +246,7 @@ describe('RunScene', () => {
     expect(calls.limitBox).toBe(1)
     expect(calls.gizmos).toBe(1)
     expect(calls.spawnArea).toBe(1)
+    expect(calls.battleField).toBe(1)
     scene.dispose()
   })
 
@@ -408,7 +413,7 @@ describe('RunScene', () => {
     scene.dispose()
   })
 
-  it('dispose disposes camera, parallax, limit-box, gizmos, spawn-area, ship, managers, hud', () => {
+  it('dispose disposes camera, parallax, limit-box, gizmos, spawn-area, battle-field, ship, managers, hud', () => {
     const log: string[] = []
     const scene = new RunScene({
       areas: makeAreas(),
@@ -426,6 +431,7 @@ describe('RunScene', () => {
     expect(log).toContain('limitBox.dispose')
     expect(log).toContain('gizmos.dispose')
     expect(log).toContain('spawnArea.dispose')
+    expect(log).toContain('battleField.dispose')
     expect(log).toContain('ship.dispose')
     expect(log).toContain('energy.dispose')
     expect(log).toContain('hud.dispose')

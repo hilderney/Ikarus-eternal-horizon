@@ -148,14 +148,24 @@ describe('BALANCE', () => {
     expect(BALANCE.ship.modules.converter.crystal.labFusion).toBe(2)
   })
 
-  it('exposes enemy spawn volume ahead of the ship', () => {
-    expect(BALANCE.enemy.spawn.offset.z).toBe(-14)
-    expect(BALANCE.enemy.spawn.size.x).toBe(16)
-    expect(BALANCE.enemy.spawn.visible).toBe(true)
-    expect(BALANCE.enemy.spawn.color).toBe(0xff2222)
-    expect(BALANCE.enemy.spawn.intervalSec).toBe(1.6)
-    expect(BALANCE.enemy.spawn.maxActive).toBe(1)
-    expect(BALANCE.enemy.spawn.lanesX).toEqual([-4, -2, 0, 2, 4])
+  it('exposes enemy left/right spawn volumes beside the ship', () => {
+    expect(BALANCE.enemy.spawnLeft.offset).toEqual({ x: -140, y: 0, z: -140 })
+    expect(BALANCE.enemy.spawnRight.offset).toEqual({ x: 140, y: 0, z: -140 })
+    expect(BALANCE.enemy.spawnFront.offset).toEqual({ x: 0, y: 0, z: -140 })
+    expect(BALANCE.enemy.spawnLeft.size.x).toBe(10)
+    expect(BALANCE.enemy.spawnRight.size.x).toBe(10)
+    expect(BALANCE.enemy.spawnFront.size.x).toBe(10)
+    expect(BALANCE.enemy.spawnLeft.visible).toBe(true)
+    expect(BALANCE.enemy.spawnRight.visible).toBe(true)
+    expect(BALANCE.enemy.spawnFront.visible).toBe(true)
+    expect(BALANCE.enemy.spawnLeft.color).toBe(0xff2222)
+    expect(BALANCE.enemy.spawnLeft.intervalSec).toBe(3)
+    expect(BALANCE.enemy.spawnRight.intervalSec).toBe(3)
+    expect(BALANCE.enemy.spawnFront.intervalSec).toBe(3)
+    expect(BALANCE.enemy.spawnLeft.maxActive).toBe(1)
+    expect(BALANCE.enemy.spawnRight.maxActive).toBe(1)
+    expect(BALANCE.enemy.spawnFront.maxActive).toBe(1)
+    expect(BALANCE.enemy.spawnLeft.lanesX).toEqual([-4, -2, 0, 2, 4])
     expect(BALANCE.enemy.generic.hp).toBe(3)
     expect(BALANCE.enemy.poolSize).toBe(32)
   })
@@ -171,6 +181,13 @@ describe('BALANCE', () => {
     expect(BALANCE.weapons.loadout).toEqual(['laser', 'plasma', 'beam', 'mjolnir'])
     expect(BALANCE.weapons.catalog.laser.poolSize).toBe(128)
     expect(BALANCE.weapons.catalog.plasma.poolSize).toBe(32)
+  })
+
+  it('exposes BattleField ship-relative bounds (blue wall cull volume)', () => {
+    expect(BALANCE.battlefield.offsetX).toEqual({ min: -240, max: 240 })
+    expect(BALANCE.battlefield.offsetZ).toEqual({ min: -160, max: 30 })
+    expect(BALANCE.battlefield.color).toBe(0x3b82f6)
+    expect(BALANCE.battlefield.visible).toBe(true)
   })
 
   it('treats BALANCE as a frozen object (Object.isFrozen or as const)', () => {

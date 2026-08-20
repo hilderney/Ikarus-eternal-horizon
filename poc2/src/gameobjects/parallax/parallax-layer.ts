@@ -41,7 +41,10 @@ export interface ParallaxLayerConfig {
 export interface ParallaxLayerPort {
   update(dt: number, camera: PerspectiveCamera): void
   syncRender(): void
+  config(): ParallaxLayerConfig
   applyConfig(config: ParallaxLayerConfig): void
+  setVisible(visible: boolean): void
+  visible(): boolean
   dispose(): void
 }
 
@@ -169,8 +172,41 @@ export class ParallaxLayer implements ParallaxLayerPort {
     }
   }
 
+  config(): ParallaxLayerConfig {
+    const cfg = this._cfg
+    return {
+      name: cfg.name,
+      count: cfg.count,
+      speed: cfg.speed,
+      speedJitter: cfg.speedJitter,
+      parallaxGain: cfg.parallaxGain,
+      size: cfg.size,
+      color: cfg.color,
+      alpha: cfg.alpha,
+      position: { ...cfg.position },
+      rotation: { ...cfg.rotation },
+      gridSize: cfg.gridSize,
+      gridColor: cfg.gridColor,
+      gridOpacity: cfg.gridOpacity,
+      zNearWrap: cfg.zNearWrap,
+      zFar: cfg.zFar,
+    }
+  }
+
+  visible(): boolean {
+    return this.group.visible
+  }
+
+  setVisible(visible: boolean): void {
+    this.group.visible = visible
+  }
+
   applyConfig(config: ParallaxLayerConfig): void {
-    this._cfg = config
+    this._cfg = {
+      ...config,
+      position: { ...config.position },
+      rotation: { ...config.rotation },
+    }
     this.group.remove(this._grid)
     this._grid.geometry.dispose()
     disposeMaterial(this._grid.material)

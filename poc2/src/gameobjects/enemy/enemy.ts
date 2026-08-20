@@ -179,6 +179,16 @@ export class Enemy extends Mesh {
     return Math.abs(this.x) > box.halfX || this.z > box.zNear || this.z < box.zFar
   }
 
+  /** Prefer BattleField.contains via EnemyManager; kept for absolute despawn tests. */
+  isOutsideBattleField(bounds: {
+    readonly minX: number
+    readonly maxX: number
+    readonly minZ: number
+    readonly maxZ: number
+  }): boolean {
+    return this.x < bounds.minX || this.x > bounds.maxX || this.z < bounds.minZ || this.z > bounds.maxZ
+  }
+
   dispose(): void {
     this.deactivate()
     this._mat.dispose()

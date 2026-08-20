@@ -11,6 +11,8 @@ import { Debugger } from './debugger'
 import { EquipsTab } from './equips-tab'
 import { ShipTab } from './ship-tab'
 import { SpawnAreaTab } from './spawn-area-tab'
+import { ParallaxTab } from './parallax-tab'
+import type { ParallaxLayerConfig } from '../../gameobjects/parallax/parallax-layer'
 import shipTabSource from './ship-tab.ts?raw'
 import equipsTabSource from './equips-tab.ts?raw'
 
@@ -87,14 +89,91 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
   let activeWeapon: WeaponId = (sheet.loadout.equippedWeapon as WeaponId) ?? 'laser'
   let weaponConfig = copyWeaponConfig(WEAPONS[activeWeapon])
   applyWeaponLevel(weaponConfig, weaponLevel)
-  let spawnOffset = { x: 0, y: 0, z: -14 }
-  let spawnSize = { x: 16, y: 2, z: 12 }
-  let spawnInterval = 1.6
-  let spawnLanes = [-4, -2, 0, 2, 4]
-  let spawnMaxActive = 1
-  let spawnVisible = true
-  let spawnColor = 0xff2222
-  let spawnOpacity = 0.22
+  let spawnLeft = {
+    offset: { x: -140, y: 0, z: -140 },
+    size: { x: 10, y: 2, z: 10 },
+    intervalSec: 3,
+    lanesX: [-4, -2, 0, 2, 4],
+    maxActive: 1,
+    visible: true,
+    color: 0xff2222,
+    opacity: 0.22,
+  }
+  let spawnRight = {
+    offset: { x: 140, y: 0, z: -140 },
+    size: { x: 10, y: 2, z: 10 },
+    intervalSec: 3,
+    lanesX: [-4, -2, 0, 2, 4],
+    maxActive: 1,
+    visible: true,
+    color: 0xff2222,
+    opacity: 0.22,
+  }
+  let spawnFront = {
+    offset: { x: 0, y: 0, z: -140 },
+    size: { x: 10, y: 2, z: 10 },
+    intervalSec: 3,
+    lanesX: [-4, -2, 0, 2, 4],
+    maxActive: 1,
+    visible: true,
+    color: 0xff2222,
+    opacity: 0.22,
+  }
+  const sideAt = (side: number) => {
+    if (side === 1) {
+      return spawnRight
+    }
+    if (side === 2) {
+      return spawnFront
+    }
+    return spawnLeft
+  }
+  const setSide = (side: number, next: typeof spawnLeft): void => {
+    if (side === 1) {
+      spawnRight = next
+    } else if (side === 2) {
+      spawnFront = next
+    } else {
+      spawnLeft = next
+    }
+  }
+  const parallaxLayers: ParallaxLayerConfig[] = [
+    {
+      name: 'background_stars',
+      count: 10,
+      speed: 0.2,
+      speedJitter: 0.5,
+      parallaxGain: 0.01,
+      size: 1,
+      color: 0xa5e8ff,
+      alpha: 0.5,
+      position: { x: 0, y: -600, z: 100 },
+      rotation: { x: 0, y: 0, z: 0 },
+      gridSize: 1000,
+      gridColor: 0x555555,
+      gridOpacity: 0,
+      zNearWrap: 0,
+      zFar: -2000,
+    },
+    {
+      name: 'debris',
+      count: 8,
+      speed: 1,
+      speedJitter: 0.5,
+      parallaxGain: 0.3,
+      size: 1,
+      color: 0x7c68ff,
+      alpha: 0.5,
+      position: { x: 0, y: -150, z: 100 },
+      rotation: { x: 0, y: 0, z: 0 },
+      gridSize: 1000,
+      gridColor: 0x555555,
+      gridOpacity: 0,
+      zNearWrap: 0,
+      zFar: -2000,
+    },
+  ]
+  const parallaxVisible = [true, true]
   const refreshRecovering = (): void => {
     sheet.status.recovering = !shooting && !sheet.status.dashing && !sheet.status.flickering
   }
@@ -162,42 +241,71 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
       },
     },
     spawnArea: {
-      offset: () => ({ ...spawnOffset }),
-      size: () => ({ ...spawnSize }),
-      worldCenter: () => ({
-        x: spawnOffset.x,
-        y: spawnOffset.y,
-        z: spawnOffset.z,
-      }),
-      intervalSec: () => spawnInterval,
-      lanesX: () => [...spawnLanes],
-      maxActive: () => spawnMaxActive,
-      visible: () => spawnVisible,
-      color: () => spawnColor,
-      opacity: () => spawnOpacity,
-      setOffset(x, y, z) {
-        spawnOffset = { x, y, z }
+      sideNames: () => ['left', 'right', 'front'],
+      offset: (side) => ({ ...sideAt(side).offset }),
+      size: (side) => ({ ...sideAt(side).size }),
+      worldCenter: (side) => ({ ...sideAt(side).offset }),
+      intervalSec: (side) => sideAt(side).intervalSec,
+      lanesX: (side) => [...sideAt(side).lanesX],
+      maxActive: (side) => sideAt(side).maxActive,
+      visible: (side) => sideAt(side).visible,
+      color: (side) => sideAt(side).color,
+      opacity: (side) => sideAt(side).opacity,
+      setOffset(side, x, y, z) {
+        setSide(side, { ...sideAt(side), offset: { x, y, z } })
       },
-      setSize(x, y, z) {
-        spawnSize = { x, y, z }
+      setSize(side, x, y, z) {
+        setSide(side, { ...sideAt(side), size: { x, y, z } })
       },
-      setIntervalSec(value) {
-        spawnInterval = value
+      setIntervalSec(side, value) {
+        setSide(side, { ...sideAt(side), intervalSec: value })
       },
-      setLanesX(lanes) {
-        spawnLanes = [...lanes]
+      setLanesX(side, lanes) {
+        setSide(side, { ...sideAt(side), lanesX: [...lanes] })
       },
-      setMaxActive(value) {
-        spawnMaxActive = value
+      setMaxActive(side, value) {
+        setSide(side, { ...sideAt(side), maxActive: value })
       },
-      setVisible(visible) {
-        spawnVisible = visible
+      setVisible(side, visible) {
+        setSide(side, { ...sideAt(side), visible })
       },
-      setColor(hex) {
-        spawnColor = hex
+      setColor(side, hex) {
+        setSide(side, { ...sideAt(side), color: hex })
       },
-      setOpacity(value) {
-        spawnOpacity = value
+      setOpacity(side, value) {
+        setSide(side, { ...sideAt(side), opacity: value })
+      },
+    },
+    parallax: {
+      layerCount: () => parallaxLayers.length,
+      layerNames: () => parallaxLayers.map((layer) => layer.name),
+      config(index) {
+        const layer = parallaxLayers[index]
+        return layer
+          ? {
+              ...layer,
+              position: { ...layer.position },
+              rotation: { ...layer.rotation },
+            }
+          : null
+      },
+      applyConfig(index, config) {
+        if (index < 0 || index >= parallaxLayers.length) {
+          return
+        }
+        parallaxLayers[index] = {
+          ...config,
+          position: { ...config.position },
+          rotation: { ...config.rotation },
+        }
+      },
+      visible(index) {
+        return parallaxVisible[index] ?? false
+      },
+      setVisible(index, visible) {
+        if (index >= 0 && index < parallaxVisible.length) {
+          parallaxVisible[index] = visible
+        }
       },
     },
   }
@@ -471,7 +579,7 @@ describe('EquipsTab', () => {
 })
 
 describe('SpawnAreaTab', () => {
-  it('edits spawn offset and toggles visibility', () => {
+  it('edits left/right spawn offset and toggles visibility', () => {
     const host = document.createElement('div')
     document.body.append(host)
     const binds = makeBinds(makeSheet())
@@ -482,17 +590,55 @@ describe('SpawnAreaTab', () => {
       enabled: true,
     })
     expect(host.querySelector('[data-tab="spawn-area"]')).not.toBeNull()
-    const z = bind(host, 'offset.z')
+    const z = bind(host, 'offset.z', 'number')
     z.value = '-20'
     z.dispatchEvent(new Event('input', { bubbles: true }))
-    expect(binds.spawnArea.offset().z).toBe(-20)
+    expect(binds.spawnArea.offset(0).z).toBe(-20)
+    const sideSelect = selectBind(host, 'spawn.side')
+    sideSelect.value = '1'
+    sideSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    const x = bind(host, 'offset.x', 'number')
+    x.value = '120'
+    x.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.spawnArea.offset(1).x).toBe(120)
     const visible = host.querySelector<HTMLInputElement>('input[data-bind="spawn.visible"]')
     expect(visible).not.toBeNull()
     if (visible) {
       visible.checked = false
       visible.dispatchEvent(new Event('input', { bubbles: true }))
-      expect(binds.spawnArea.visible()).toBe(false)
+      expect(binds.spawnArea.visible(1)).toBe(false)
     }
+    dbg.dispose()
+  })
+})
+
+describe('ParallaxTab', () => {
+  it('edits layer speed and toggles visibility live', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new ParallaxTab(binds)],
+      enabled: true,
+    })
+    expect(host.querySelector('[data-tab="parallax"]')).not.toBeNull()
+    const speed = bind(host, 'speed', 'number')
+    speed.value = '4.5'
+    speed.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.parallax.config(0)?.speed).toBe(4.5)
+    const visible = host.querySelector<HTMLInputElement>('input[data-bind="parallax.visible"]')
+    expect(visible).not.toBeNull()
+    if (visible) {
+      visible.checked = false
+      visible.dispatchEvent(new Event('input', { bubbles: true }))
+      expect(binds.parallax.visible(0)).toBe(false)
+    }
+    const layerSelect = selectBind(host, 'parallax.layer')
+    layerSelect.value = '1'
+    layerSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    expect(binds.parallax.config(1)?.name).toBe('debris')
     dbg.dispose()
   })
 })

@@ -20,6 +20,8 @@ export interface ShipPose {
 
 export interface SpawnAreaOptions {
   readonly config: EnemySpawnConfig
+  /** Scene / debugger label (e.g. spawnAreaLeft). */
+  readonly name?: string
 }
 
 export interface SpawnAreaPort {
@@ -67,9 +69,10 @@ export class SpawnArea implements SpawnAreaPort {
       side: DoubleSide,
     })
     this._mesh = new Mesh(this._geo, this._mat)
-    this._mesh.name = 'spawnArea'
+    const name = options.name ?? 'spawnArea'
+    this._mesh.name = name
     this.group = new Group()
-    this.group.name = 'spawnArea'
+    this.group.name = name
     this.group.add(this._mesh)
     this.group.visible = this._visible
     this._dirty = true

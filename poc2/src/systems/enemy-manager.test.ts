@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '../core/balancer'
+import { BattleField } from '../gameobjects/battle-field/battle-field'
 import { SpawnArea } from '../gameobjects/spawn-area/spawn-area'
 import { EnemyManager } from './enemy-manager'
 
@@ -19,119 +20,161 @@ function makeScene() {
   }
 }
 
+function makeManager(capacity = 8): {
+  scene: ReturnType<typeof makeScene>
+  spawnLeft: SpawnArea
+  spawnRight: SpawnArea
+  spawnFront: SpawnArea
+  battleField: BattleField
+  manager: EnemyManager
+} {
+  const scene = makeScene()
+  const spawnLeft = new SpawnArea({ config: BALANCE.enemy.spawnLeft, name: 'spawnAreaLeft' })
+  const spawnRight = new SpawnArea({ config: BALANCE.enemy.spawnRight, name: 'spawnAreaRight' })
+  const spawnFront = new SpawnArea({ config: BALANCE.enemy.spawnFront, name: 'spawnAreaFront' })
+  const battleField = new BattleField({
+    config: {
+      ...BALANCE.battlefield,
+      offsetZ: { min: -200, max: 30 },
+    },
+  })
+  for (const area of [spawnLeft, spawnRight, spawnFront]) {
+    area.update({ x: 0, y: 0, z: 0 })
+    area.syncRender()
+  }
+  battleField.update({ x: 0, y: 0, z: 0 })
+  battleField.syncRender()
+  const manager = new EnemyManager({
+    scene,
+    seekTarget: { x: 0, z: 0 },
+    spawnLeft,
+    spawnRight,
+    spawnFront,
+    battleField,
+    capacity,
+  })
+  return { scene, spawnLeft, spawnRight, spawnFront, battleField, manager }
+}
+
+function disposeAll(parts: {
+  spawnLeft: SpawnArea
+  spawnRight: SpawnArea
+  spawnFront: SpawnArea
+  battleField: BattleField
+  manager: EnemyManager
+}): void {
+  parts.manager.dispose()
+  parts.spawnLeft.dispose()
+  parts.spawnRight.dispose()
+  parts.spawnFront.dispose()
+  parts.battleField.dispose()
+}
+
+function silenceOtherSides(
+  parts: ReturnType<typeof makeManager>,
+  keep: 'left' | 'right' | 'front',
+): void {
+  if (keep !== 'left') {
+    parts.spawnLeft.setIntervalSec(99)
+  }
+  if (keep !== 'right') {
+    parts.spawnRight.setIntervalSec(99)
+  }
+  if (keep !== 'front') {
+    parts.spawnFront.setIntervalSec(99)
+  }
+}
+
 describe('EnemyManager', () => {
-  it('spawns one enemy when spawnAcc crosses intervalSec', () => {
-    const scene = makeScene()
-    const spawnArea = new SpawnArea({ config: BALANCE.enemy.spawn })
-    spawnArea.update({ x: 0, y: 0, z: 0 })
-    spawnArea.syncRender()
-    const manager = new EnemyManager({
-      scene,
-      seekTarget: { x: 0, z: 0 },
-      spawnArea,
-      capacity: 4,
-    })
-    expect(manager.activeCount()).toBe(0)
-    manager.update(BALANCE.enemy.spawn.intervalSec)
-    expect(manager.activeCount()).toBe(1)
-    manager.dispose()
-    spawnArea.dispose()
+  it('spawns from the left when left interval elapses', () => {
+    const parts = makeManager()
+    silenceOtherSides(parts, 'left')
+    expect(parts.manager.activeCount()).toBe(0)
+    parts.manager.update(BALANCE.enemy.spawnLeft.intervalSec)
+    expect(parts.manager.activeCount()).toBe(1)
+    disposeAll(parts)
   })
 
-  it('keeps at most maxActive live enemies', () => {
-    const scene = makeScene()
-    const spawnArea = new SpawnArea({ config: BALANCE.enemy.spawn })
-    spawnArea.setIntervalSec(0.1)
-    spawnArea.update({ x: 0, y: 0, z: 0 })
-    spawnArea.syncRender()
-    const manager = new EnemyManager({
-      scene,
-      seekTarget: { x: 0, z: 0 },
-      spawnArea,
-      capacity: 8,
-    })
-    manager.update(1)
-    expect(manager.activeCount()).toBe(BALANCE.enemy.spawn.maxActive)
-    manager.dispose()
-    spawnArea.dispose()
+  it('spawns from the right when right interval elapses', () => {
+    const parts = makeManager()
+    silenceOtherSides(parts, 'right')
+    parts.manager.update(BALANCE.enemy.spawnRight.intervalSec)
+    expect(parts.manager.activeCount()).toBe(1)
+    const enemyX = parts.manager.spawnOne('right')?.x ?? 0
+    expect(enemyX).toBeGreaterThan(0)
+    disposeAll(parts)
   })
 
-  it('spawnOne places the enemy inside the spawn volume', () => {
-    const scene = makeScene()
-    const spawnArea = new SpawnArea({ config: BALANCE.enemy.spawn })
-    spawnArea.update({ x: 2, y: 0, z: -3 })
-    spawnArea.syncRender()
-    const manager = new EnemyManager({
-      scene,
-      seekTarget: { x: 0, z: 0 },
-      spawnArea,
-      capacity: 2,
-    })
-    const enemy = manager.spawnOne()
+  it('spawns from the front when front interval elapses', () => {
+    const parts = makeManager()
+    silenceOtherSides(parts, 'front')
+    parts.manager.update(BALANCE.enemy.spawnFront.intervalSec)
+    expect(parts.manager.activeCount()).toBe(1)
+    const enemy = parts.manager.spawnOne('front')
+    expect(Math.abs(enemy?.x ?? 99)).toBeLessThan(10)
+    disposeAll(parts)
+  })
+
+  it('keeps at most sum of all side maxActive live enemies', () => {
+    const parts = makeManager(8)
+    parts.spawnLeft.setIntervalSec(0.1)
+    parts.spawnRight.setIntervalSec(0.1)
+    parts.spawnFront.setIntervalSec(0.1)
+    parts.manager.update(1)
+    expect(parts.manager.activeCount()).toBe(
+      BALANCE.enemy.spawnLeft.maxActive +
+        BALANCE.enemy.spawnRight.maxActive +
+        BALANCE.enemy.spawnFront.maxActive,
+    )
+    disposeAll(parts)
+  })
+
+  it('spawnOne(front) places the enemy inside the front volume', () => {
+    const parts = makeManager(2)
+    const enemy = parts.manager.spawnOne('front')
     expect(enemy).not.toBeNull()
-    const center = spawnArea.worldCenter()
-    const size = spawnArea.size()
+    const center = parts.spawnFront.worldCenter()
+    const size = parts.spawnFront.size()
     expect(Math.abs((enemy?.x ?? 0) - center.x)).toBeLessThanOrEqual(size.x / 2 + 5)
     expect(Math.abs((enemy?.z ?? 0) - center.z)).toBeLessThanOrEqual(size.z / 2 + 0.01)
-    manager.dispose()
-    spawnArea.dispose()
+    disposeAll(parts)
   })
 
-  it('releases off-field enemies the same update', () => {
-    const scene = makeScene()
-    const spawnArea = new SpawnArea({ config: BALANCE.enemy.spawn })
-    spawnArea.update({ x: 0, y: 0, z: 0 })
-    spawnArea.syncRender()
-    const manager = new EnemyManager({
-      scene,
-      seekTarget: { x: 0, z: 0 },
-      spawnArea,
-      capacity: 2,
-    })
-    const enemy = manager.spawnOne()
+  it('releases enemies that leave the BattleField (pool reuse, no destroy)', () => {
+    const parts = makeManager(2)
+    const enemy = parts.manager.spawnOne('left')
     expect(enemy).not.toBeNull()
     if (enemy) {
-      enemy.z = BALANCE.enemy.despawn.zFar - 1
+      enemy.z = -201
     }
-    manager.update(0)
-    expect(manager.activeCount()).toBe(0)
-    manager.dispose()
-    spawnArea.dispose()
+    parts.manager.update(0)
+    expect(parts.manager.activeCount()).toBe(0)
+    expect(parts.manager.spawnOne('right')).not.toBeNull()
+    expect(parts.manager.activeCount()).toBe(1)
+    disposeAll(parts)
   })
 
   it('dispose is idempotent', () => {
-    const scene = makeScene()
-    const spawnArea = new SpawnArea({ config: BALANCE.enemy.spawn })
-    const manager = new EnemyManager({
-      scene,
-      seekTarget: { x: 0, z: 0 },
-      spawnArea,
-      capacity: 1,
-    })
-    manager.dispose()
-    expect(() => manager.dispose()).not.toThrow()
-    spawnArea.dispose()
+    const parts = makeManager(1)
+    parts.manager.dispose()
+    expect(() => parts.manager.dispose()).not.toThrow()
+    parts.spawnLeft.dispose()
+    parts.spawnRight.dispose()
+    parts.spawnFront.dispose()
+    parts.battleField.dispose()
   })
 })
 
 describe('EnemyManager lanes', () => {
-  it('cycles lanesX for successive spawnOne calls', () => {
-    const scene = makeScene()
-    const spawnArea = new SpawnArea({ config: BALANCE.enemy.spawn })
-    spawnArea.setLanesX([-4, 0, 4])
-    spawnArea.setMaxActive(3)
-    spawnArea.update({ x: 0, y: 0, z: 0 })
-    spawnArea.syncRender()
-    const manager = new EnemyManager({
-      scene,
-      seekTarget: { x: 0, z: 0 },
-      spawnArea,
-      capacity: 3,
-    })
-    expect(manager.spawnOne()?.x).toBe(-4)
-    expect(manager.spawnOne()?.x).toBe(0)
-    expect(manager.spawnOne()?.x).toBe(4)
-    manager.dispose()
-    spawnArea.dispose()
+  it('cycles lanesX for successive spawnOne calls on the same side', () => {
+    const parts = makeManager(3)
+    parts.spawnLeft.setLanesX([-4, 0, 4])
+    parts.spawnLeft.setMaxActive(3)
+    parts.spawnRight.setMaxActive(0)
+    parts.spawnFront.setMaxActive(0)
+    expect(parts.manager.spawnOne('left')?.x).toBe(BALANCE.enemy.spawnLeft.offset.x - 4)
+    expect(parts.manager.spawnOne('left')?.x).toBe(BALANCE.enemy.spawnLeft.offset.x)
+    expect(parts.manager.spawnOne('left')?.x).toBe(BALANCE.enemy.spawnLeft.offset.x + 4)
+    disposeAll(parts)
   })
 })
