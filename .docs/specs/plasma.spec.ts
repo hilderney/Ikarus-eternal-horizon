@@ -47,7 +47,7 @@
 /**
  * Orchestrator : hub-v4.3 / 2026-08-18  E04 acquire; hits wait on F01; WPN-03
  * Programming  : hub-v4.3 / 2026-08-18  D01 ShotSpawn (no y); spawn.color orange
- * Game Design  : hub-v4.3 / 2026-08-18  POC-1 orb 14 / 2.4 / 0.22 / 2.2 / 1.5
+ * Game Design  : hub-v4.3 / 2026-08-19  PLASMA_LEVELS L1–12 via weapon-levels.ts
  * TDD          : hub-v4.3 / 2026-08-18  cases named; test file not yet written (red next)
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·

@@ -266,8 +266,8 @@ export declare const BALANCE: Balance
  * Port from POC-1 (do not retune until a playtest says so):
  *   layout.playfield            = { width: 540, height: 960 }  // portrait 9:16
  *   gameplay.energy             = { start: 100, max: 100, regenPerSec: 8 }
- *   gameplay.fireKey            = 'Space'
- *   gameplay.switchKey          = 'KeyF'
+ *   gameplay.fireKey            = 'KeyF'
+ *   gameplay.switchKey          = 'KeyG'
  *   gameplay.pauseKey           = 'Escape'
  *   gameplay.bombKey            = 'KeyE'
  *   gameplay.switchBombKey      = 'KeyQ'

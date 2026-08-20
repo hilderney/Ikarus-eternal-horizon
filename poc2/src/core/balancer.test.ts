@@ -156,7 +156,7 @@ describe('BALANCE', () => {
 
   it('exposes shot despawn bounds and laser+plasma loadout', () => {
     expect(BALANCE.shot.despawn).toEqual({ zNear: 16, zFar: -32, halfX: 16 })
-    expect(BALANCE.weapons.loadout).toEqual(['laser', 'plasma'])
+    expect(BALANCE.weapons.loadout).toEqual(['laser', 'plasma', 'beam', 'mjolnir'])
     expect(BALANCE.weapons.catalog.laser.poolSize).toBe(128)
     expect(BALANCE.weapons.catalog.plasma.poolSize).toBe(32)
   })

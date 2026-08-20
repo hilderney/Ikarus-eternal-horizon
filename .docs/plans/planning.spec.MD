@@ -433,7 +433,7 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 - **Scope:** `class PlasmaBehaviour implements WeaponBehaviour` — slow orbs from the **E04** WeaponShot pool, `aoeRadius` 2.2. AoE is applied by F01 later; this pass orbs fly, fade, and expire.
 - **Requires:** D01, D02, D03, E04. (F01 for splash — not a blocker for spawn/switch.)
 - **Lib:** **Three.js** (orb mesh via `weapon-shot` with `aoeRadius > 0`)
-- **Rules:** the orb is a pooled `WeaponShot`, not a new entity type; `registerWeapon('plasma')` only (D12). Loadout `['laser', 'plasma']`.
+- **Rules:** the orb is a pooled `WeaponShot`, not a new entity type; `registerWeapon('plasma')` only (D12). Loadout all four weapons; `applyWeaponLevel` scales PLASMA_LEVELS L1–12.
 - **Maps:** `WPN-03`, `WPN-04`, `WPN-05`. **Acceptance:** F/LB switches without stalling; orbs are orange and slower than laser. Splash [manual] after F01.
 
 #### `SDD-D05` Weapon / Beam

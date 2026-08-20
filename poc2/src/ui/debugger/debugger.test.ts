@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { copyWeaponConfig, WEAPONS, type WeaponId } from '../../gameobjects/weapon/catalog'
+import {
+  applyWeaponLevel,
+  patchWeaponStat,
+  weaponLevelSnapshot,
+} from '../../gameobjects/weapon/weapon-levels'
 import type { DebuggerBinds, DebuggerShipBind } from './debugger'
 import { Debugger } from './debugger'
 import { EquipsTab } from './equips-tab'
@@ -77,6 +83,9 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
   let shooting = false
   let weaponLevel = 1
   let dashLevel = 1
+  let activeWeapon: WeaponId = (sheet.loadout.equippedWeapon as WeaponId) ?? 'laser'
+  let weaponConfig = copyWeaponConfig(WEAPONS[activeWeapon])
+  applyWeaponLevel(weaponConfig, weaponLevel)
   const refreshRecovering = (): void => {
     sheet.status.recovering = !shooting && !sheet.status.dashing && !sheet.status.flickering
   }
@@ -98,6 +107,11 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
     },
     equipWeapon(id) {
       sheet.loadout.equippedWeapon = id
+      if (id) {
+        activeWeapon = id as WeaponId
+        weaponConfig = copyWeaponConfig(WEAPONS[activeWeapon])
+        applyWeaponLevel(weaponConfig, weaponLevel)
+      }
     },
     equipBomb(id) {
       sheet.loadout.equippedBomb = id
@@ -124,6 +138,12 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
       level: () => weaponLevel,
       setLevel(level) {
         weaponLevel = level
+        applyWeaponLevel(weaponConfig, level)
+      },
+      activeId: () => activeWeapon,
+      stats: () => weaponLevelSnapshot(weaponConfig),
+      patchStat(field, value) {
+        patchWeaponStat(weaponConfig, field, value)
       },
     },
     dash: {

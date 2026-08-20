@@ -158,6 +158,17 @@ describe('PlasmaBehaviour', () => {
     setSpy.mockRestore()
     plasma.dispose()
   })
+  it('applyLevel 12 increases damage and aoeRadius vs L1', () => {
+    const { port } = recordingPort()
+    const weapon = new Weapon({ id: 'plasma', shots: port })
+    weapon.applyLevel(1)
+    const l1Damage = weapon.config.damage
+    const l1Aoe = weapon.config.orb?.aoeRadius
+    weapon.applyLevel(12)
+    expect(weapon.config.damage).toBeGreaterThan(l1Damage)
+    expect(weapon.config.orb?.aoeRadius).toBeGreaterThan(l1Aoe ?? 0)
+    weapon.dispose()
+  })
 })
 
 describe('registerPlasma', () => {

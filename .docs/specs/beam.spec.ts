@@ -43,14 +43,14 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.3 / 2026-08-18  G2 — catalog row only this pass; no factory
- * Programming  : hub-v4.1 / 2026-08-17  contract kept; F01 hit-query not this pass
- * Game Design  : hub-v4.3 / 2026-08-18  numbers live in D02 catalog.ts (POC-1 port)
- * TDD          : hub-v4.1 / 2026-08-17  cases named; do not write tests this pass
+ * Orchestrator : hub-v4.3 / 2026-08-19  BEAM_LEVELS L1–12; inline HitTarget until F01
+ * Programming  : hub-v4.3 / 2026-08-19  BeamVisual + deps.scene; energy per second
+ * Game Design  : hub-v4.3 / 2026-08-19  width/length/dps/energyPerSec scale per level
+ * TDD          : hub-v4.3 / 2026-08-19  beam.test.ts green
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: spec-complete (G2 deferred — catalog only)
+ * Status: done (F01 replaces inline hit loop later)
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

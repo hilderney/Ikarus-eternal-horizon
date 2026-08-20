@@ -3,7 +3,9 @@
  */
 
 import { DASH_LEVELS } from '../../gameobjects/controller/dash-levels'
-import { LASER_LEVELS } from '../../gameobjects/weapon/laser-levels'
+import type { WeaponId } from '../../gameobjects/weapon/catalog'
+import type { WeaponLevelSnapshotField } from '../../gameobjects/weapon/weapon-levels'
+import { statFieldsForWeapon, WEAPON_LEVEL_COUNT } from '../../gameobjects/weapon/weapon-levels'
 import type { DebuggerBinds, DebuggerTab } from './debugger'
 
 type ListKey =
@@ -38,6 +40,12 @@ interface TextHandle {
 
 type Handle = NumberHandle | TextHandle
 
+interface StatHandle {
+  readonly field: WeaponLevelSnapshotField
+  readonly el: HTMLInputElement
+  readonly valueEl: HTMLElement
+}
+
 interface EquipsClone {
   equippedWeapon: string | null
   weapons: string[]
@@ -68,8 +76,11 @@ export class EquipsTab implements DebuggerTab {
   readonly id = 'equips' as const
   private readonly _binds: DebuggerBinds
   private readonly _handles: Handle[] = []
+  private readonly _statHandles: StatHandle[] = []
   private _defaults: EquipsClone | null = null
   private _form: HTMLFormElement | null = null
+  private _statsHost: HTMLElement | null = null
+  private _lastWeaponId: WeaponId | null = null
 
   constructor(binds: DebuggerBinds) {
     this._binds = binds
@@ -86,19 +97,25 @@ export class EquipsTab implements DebuggerTab {
     this._group(form, 'Equipped weapon')
     this._equipped(form, 'equippedWeapon', 'loadout.equippedWeapon', [...WEAPON_IDS], (id) => {
       this._binds.ship.equipWeapon(id)
+      this._rebuildWeaponStats()
     })
     this._scalar(
       form,
       'weapon level',
       'weapons.level',
       1,
-      LASER_LEVELS.length,
+      WEAPON_LEVEL_COUNT,
       1,
       () => this._binds.weapons.level(),
       (value) => {
         this._binds.weapons.setLevel(value)
+        this._rebuildWeaponStats()
       },
     )
+    this._statsHost = document.createElement('div')
+    this._statsHost.className = 'debug-weapon-stats'
+    form.append(this._statsHost)
+    this._rebuildWeaponStats()
     this._list(form, 'weapons', 'loadout.weapons')
 
     this._group(form, 'Dash')
@@ -166,6 +183,11 @@ export class EquipsTab implements DebuggerTab {
         handle.el.value = handle.read()
       }
     }
+    const activeId = this._binds.weapons.activeId()
+    if (activeId !== this._lastWeaponId) {
+      this._rebuildWeaponStats()
+    }
+    this._syncWeaponStats()
   }
 
   reset(): void {
@@ -195,9 +217,12 @@ export class EquipsTab implements DebuggerTab {
 
   dispose(): void {
     this._handles.length = 0
+    this._statHandles.length = 0
     this._form?.remove()
     this._form = null
+    this._statsHost = null
     this._defaults = null
+    this._lastWeaponId = null
   }
 
   private _group(host: HTMLElement, label: string): void {
@@ -301,6 +326,59 @@ export class EquipsTab implements DebuggerTab {
       el: select,
       read: () => this._binds.ship.snapshot().loadout[key] ?? '',
     })
+  }
+
+  private _rebuildWeaponStats(): void {
+    const host = this._statsHost
+    if (!host) {
+      return
+    }
+    host.replaceChildren()
+    this._statHandles.length = 0
+    const activeId = this._binds.weapons.activeId()
+    this._lastWeaponId = activeId
+    this._group(host, `Weapon stats (L${this._binds.weapons.level()}) — ${activeId}`)
+    for (const field of statFieldsForWeapon(activeId)) {
+      this._statScalar(host, field)
+    }
+    this._syncWeaponStats()
+  }
+
+  private _statScalar(host: HTMLElement, field: WeaponLevelSnapshotField): void {
+    const row = document.createElement('label')
+    row.className = 'debug-row'
+    const name = document.createElement('span')
+    name.className = 'debug-label'
+    name.textContent = field
+    const spin = document.createElement('input')
+    spin.type = 'number'
+    spin.step = 'any'
+    spin.dataset.bind = `weapons.stats.${field}`
+    const value = document.createElement('span')
+    value.className = 'debug-value'
+    spin.addEventListener('input', () => {
+      const parsed = Number(spin.value)
+      if (!Number.isFinite(parsed)) {
+        return
+      }
+      this._binds.weapons.patchStat(field, parsed)
+      value.textContent = formatNum(parsed)
+    })
+    row.append(name, spin, value)
+    host.append(row)
+    this._statHandles.push({ field, el: spin, valueEl: value })
+  }
+
+  private _syncWeaponStats(): void {
+    const stats = this._binds.weapons.stats()
+    for (const handle of this._statHandles) {
+      if (document.activeElement === handle.el) {
+        continue
+      }
+      const next = stats[handle.field]
+      handle.el.value = String(next)
+      handle.valueEl.textContent = formatNum(next)
+    }
   }
 
   private _list(host: HTMLElement, label: string, path: string): void {

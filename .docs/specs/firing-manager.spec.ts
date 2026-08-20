@@ -208,8 +208,8 @@ export declare class FiringManager {
 // ─── 4. BALANCE, feel, leveling, graphics ────────────────────────────────────
 /**
  * Port from POC-1 / A01 — do not retune:
- *   BALANCE.gameplay.fireKey            = 'Space'   // A02 maps to action 'fire'
- *   BALANCE.gameplay.switchKey          = 'KeyF'    // A02 maps to action 'switchWeapon'
+ *   BALANCE.gameplay.fireKey            = 'KeyF'
+ *   BALANCE.gameplay.switchKey          = 'KeyG'
  *   BALANCE.controls.gamepad.buttons.fire          = 7  // RT
  *   BALANCE.controls.gamepad.buttons.switchWeapon  = 4  // LB
  *   BALANCE.weapons.loadout             = ['laser', 'plasma']   // WPN-03 this pass

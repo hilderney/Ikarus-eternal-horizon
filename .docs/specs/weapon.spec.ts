@@ -25,8 +25,8 @@
  *            and acquire()s bolts.
  * Does not own: WeaponShot mesh (D01), EnergyManager (D03), ShotManager pool
  *            lifecycle (E04), FiringManager input (E07), Plasma behaviour
- *            (D04 registers into this seam). Beam/Mjolnir (D05/D06) are
- *            catalog rows only this pass — not registered, not in loadout.
+ *            (D04 registers into this seam). Beam/Mjolnir (D05/D06) register with
+ *            BEAM_LEVELS / MJOLNIR_LEVELS and WeaponDeps.scene for visuals.
  * Player-facing: L1 cyan needle at 8/s cost 1; L5/L12 volley shapes when applyLaserLevel
  *            is used. Adding a weapon must not edit class Weapon.
  */
@@ -45,7 +45,7 @@
  *
  * Downstream (who breaks if this contract changes):
  *   SDD-D04 Plasma        — 1 catalog row + 1 registerWeapon
- *   SDD-D05 / D06         — catalog rows reserved; factories G2
+ *   SDD-D05 / D06         — registerWeapon + weapon-levels L1–12
  *   SDD-E07 FiringManager — constructs Weapon(id, shots), feeds BehaviourCtx
  *   SDD-G08 Debugger      — LASER_LEVELS presets
  *

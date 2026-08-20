@@ -323,14 +323,14 @@ export declare class CameraController {
  *   Action          Hold / edge   Keyboard (1)     Gamepad (2)        Mouse mix (3)           Touch (4)
  *   --------------  ------------  ---------------  -----------------  ----------------------  -------------------
  *   move X/Z        analog/digital WASD            left stick         WASD                    nipplejs static stick
- *   fire            HOLD          Space            RT 7               Mouse0 left             Fire button
- *   bomb            EDGE          KeyE             South/A 0          Mouse2 right            Bomb button
- *   switchWeapon    EDGE          KeyF             LB 4               Wheel notch             Switch-W button
- *   switchBomb      EDGE          KeyQ             RB 5               Mouse1 middle           Switch-B button
- *   dash            EDGE          ControlLeft      LT 6               ControlLeft (keyboard)  Dash button
+ *   fire            HOLD          KeyF             Y 3                Mouse0 left             Fire button
+ *   bomb            EDGE          KeyT             South/A 0          Mouse2 right            Bomb button
+ *   switchWeapon    EDGE          KeyG             X 2                Wheel down              Switch-W button
+ *   switchBomb      EDGE          KeyY             B 1                Wheel up                Switch-B button
+ *   dash            EDGE          Space            RB 5               Space (keyboard)        Dash button
  *   pause           EDGE          Escape           Start 9            Escape                  Pause button
  *
- * Scheme 1 — Keyboard: POC-1 WASD + Space + F, plus E / Q / Ctrl / Esc.
+ * Scheme 1 — Keyboard: WASD + F/G/T/Y/Space/Esc (defaults in BALANCE.gameplay).
  *             Shift stays the camera-rot modifier (IJKL/UO). Do not bind dash
  *             to Shift.
  * Scheme 2 — Gamepad: D18 W3C map; RB added for switchBomb; LT is dash

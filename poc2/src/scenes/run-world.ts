@@ -25,9 +25,16 @@ import {
 } from '../gameobjects/ship/ship'
 import { ShipHealth } from '../gameobjects/ship/ship-health'
 import { WeaponShot } from '../gameobjects/shot/weapon-shot'
+import {
+  patchWeaponStat,
+  weaponLevelSnapshot,
+  type WeaponLevelSnapshotField,
+} from '../gameobjects/weapon/weapon-levels'
 import { Weapon } from '../gameobjects/weapon/weapon'
 import '../gameobjects/weapon/behaviours/laser'
 import '../gameobjects/weapon/behaviours/plasma'
+import '../gameobjects/weapon/behaviours/beam'
+import '../gameobjects/weapon/behaviours/mjolnir'
 import { EnergyManager } from '../systems/energy-manager'
 import { FiringManager } from '../systems/firing-manager'
 import { ShotManager } from '../systems/shot-manager'
@@ -179,7 +186,7 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       shooting: ship,
       registry: {
         create(id) {
-          return new Weapon({ id, shots: shots.asAcquirePort() })
+          return new Weapon({ id, shots: shots.asAcquirePort(), deps: { scene } })
         },
       },
     })
@@ -418,6 +425,11 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
           setLevel: (level) => {
             world.firing.setWeaponLevel(level)
             world.ship.setWeaponLevel(level)
+          },
+          activeId: () => world.firing.activeId(),
+          stats: () => weaponLevelSnapshot(world.firing.weapon().config),
+          patchStat: (field: WeaponLevelSnapshotField, value: number) => {
+            patchWeaponStat(world.firing.weapon().config, field, value)
           },
         },
         dash: {

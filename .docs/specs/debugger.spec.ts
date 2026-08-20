@@ -294,7 +294,8 @@ export declare class WeaponsTab implements DebuggerTab {
  *     status_flickering, status_dashing, status_shooting, status_recovering
  *   Equips — same loadout objects the sim reads, plus live weapon and dash level:
  *     equippedWeapon + weapons[]  (equipWeapon / FiringManager.setActive)
- *     weapon level 1–12           (FiringManager.setWeaponLevel → applyLaserLevel)
+ *     weapon level 1–12           (FiringManager.setWeaponLevel → applyWeaponLevel)
+ *     weapon stats (editable)       (EquipsTab reads stats()/patchStat per profile)
  *     dash level 1–12             (PlayerController.setDashLevel → DASH_LEVELS)
  *     equippedBomb + bombs[]
  *     equippedWings + wings[]

@@ -452,7 +452,7 @@ const BALANCE_DATA: Balance = {
     antialias: true,
   },
   weapons: {
-    loadout: ['laser', 'plasma'],
+    loadout: ['laser', 'plasma', 'beam', 'mjolnir'],
     catalog: WEAPONS,
   },
   gameplay: {

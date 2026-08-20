@@ -204,11 +204,11 @@ POC2 uses **four exclusive schemes** (`D19`). One is active at a time. Default i
 | Action | Keyboard | Mix (keyboard + mouse) | Gamepad (W3C standard) | Touch |
 |---|---|---|---|---|
 | Movement | WASD | WASD | Left stick (axes 0/1, deadzone 0.18) | Left nipple stick |
-| Primary fire | Space | Space **or** Left click | RT (button 7, analog ≥ 0.35) | Fire |
-| Special Ordnance / bomb | E | E **or** Right click | South / A (button 0) | Bomb |
-| Switch weapon | F | F **or** wheel | LB (button 4) | Wpn |
-| Switch bomb | Q | Q **or** Middle click | RB (button 5) | Bomb× |
-| Dash | Left Ctrl | Left Ctrl | LT (button 6) | Dash |
+| Primary fire | F | F **or** Left click | Y (button 3) | Fire |
+| Special Ordnance / bomb | T | T **or** Right click | South / A (button 0) | Bomb |
+| Switch weapon | G | G **or** wheel down | X (button 2) | Wpn |
+| Switch bomb | Y | Y **or** wheel up | B (button 1) | Bomb× |
+| Dash | Space | Space | RB (button 5) | Dash |
 | Pause | Esc | Esc | Start (button 9) **or** Esc | Pause |
 
 Camera debug rig stays IJKL / UO + Shift (not combat). Pointer-steer (mouse moves the ship) stays deferred. Dedicated jet reserve stays `SHIP-08`; dash spends the shared Energy pool. Dual-rumble presets live in `BALANCE.haptics` (wired when F04/F05 land). Persistent save of remaps and Steam Input stay **G3** (`SHIP-13`).

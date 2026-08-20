@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { BALANCE } from '../core/balancer'
 import type { InputPort } from '../core/input'
 import type { WeaponId } from '../gameobjects/weapon/catalog'
+import { copyWeaponConfig, WEAPONS } from '../gameobjects/weapon/catalog'
 import { defaultModifiers } from '../gameobjects/weapon/registry'
 import type { BehaviourCtx } from '../gameobjects/weapon/registry'
 import { FiringManager } from './firing-manager'
@@ -39,7 +40,7 @@ function inputStub(pressed: Partial<Record<'fire' | 'switchWeapon', boolean>> = 
 function makeWeapon(id: WeaponId, onUpdate?: (ctx: BehaviourCtx) => void): WeaponPort & { disposed: number } {
   const weapon = {
     id,
-    config: { muzzleOffset: { x: 0, y: 0, z: -1.4 } },
+    config: copyWeaponConfig(WEAPONS[id]),
     disposed: 0,
     update(ctx: BehaviourCtx) {
       onUpdate?.(ctx)

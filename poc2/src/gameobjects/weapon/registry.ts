@@ -2,11 +2,16 @@
  * SDD-D02 weapon registry seam (D12). Adding a gun = catalog row + registerWeapon.
  */
 
+import type { Scene } from 'three'
 import type { WeaponConfig, WeaponId } from './catalog'
 import type { ShotSpawn } from '../shot/weapon-shot'
 
 export interface ShotAcquirePort {
   acquire(): { activate(spawn: ShotSpawn): void } | null
+}
+
+export interface WeaponDeps {
+  readonly scene?: Scene
 }
 
 export interface Vec3Like {
@@ -20,8 +25,18 @@ export interface EnergyPort {
   spend(cost: number): void
 }
 
+export interface HitTarget {
+  readonly x: number
+  readonly z: number
+  readonly radius: number
+  readonly team: 'enemy' | 'player'
+  readonly active: boolean
+  takeDamage(amount: number): void
+}
+
 export interface WeaponServices {
   energy: EnergyPort
+  readonly targets?: readonly HitTarget[]
 }
 
 export interface WeaponModifiers {
@@ -49,6 +64,7 @@ export interface WeaponBehaviour {
 export type WeaponBehaviourFactory = (
   config: WeaponConfig,
   shots: ShotAcquirePort,
+  deps?: WeaponDeps,
 ) => WeaponBehaviour
 
 export const WEAPON_REGISTRY: Partial<Record<WeaponId, WeaponBehaviourFactory>> = {}

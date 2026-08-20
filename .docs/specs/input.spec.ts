@@ -303,8 +303,8 @@ export declare class InputState implements InputPort {
  *   BALANCE.controls.shipKeys.moveZMinus   = 'KeyW'     // forward (screen-up)
  *   BALANCE.controls.shipKeys.moveZPlus    = 'KeyS'     // back
  *   BALANCE.controls.camera.keys.*         = IJKL / UO + Shift combos (debug rig)
- *   BALANCE.gameplay.fireKey               = 'Space'
- *   BALANCE.gameplay.switchKey             = 'KeyF'
+ *   BALANCE.gameplay.fireKey               = 'KeyF'
+ *   BALANCE.gameplay.switchKey             = 'KeyG'
  *   BALANCE.gameplay.pauseKey              = 'Escape'
  *   BALANCE.gameplay.bombKey               = 'KeyE'
  *   BALANCE.gameplay.switchBombKey         = 'KeyQ'
@@ -321,8 +321,8 @@ export declare class InputState implements InputPort {
  *   BALANCE.controls.gamepad.invertMoveZ       = false   // Q12: stick-up = W
  *   BALANCE.controls.gamepad.axes.moveX        = 0
  *   BALANCE.controls.gamepad.axes.moveZ        = 1
- *   BALANCE.controls.gamepad.buttons.fire      = 7       // RT
- *   BALANCE.controls.gamepad.buttons.switchWeapon = 4    // LB
+ *   BALANCE.controls.gamepad.buttons.fire      = 3       // Y
+ *   BALANCE.controls.gamepad.buttons.switchWeapon = 2    // X
  *   BALANCE.controls.gamepad.buttons.switchBomb   = 5    // RB
  *   BALANCE.controls.gamepad.buttons.pause     = 9       // Start
  *   BALANCE.controls.gamepad.buttons.dash      = 6       // LT (SHIP-08 energy later)

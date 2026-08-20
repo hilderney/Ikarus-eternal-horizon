@@ -5,7 +5,8 @@
 import { defaultModifiers } from '../gameobjects/weapon/registry'
 import type { BehaviourCtx, WeaponModifiers } from '../gameobjects/weapon/registry'
 import type { WeaponId } from '../gameobjects/weapon/catalog'
-import { LASER_LEVELS } from '../gameobjects/weapon/laser-levels'
+import type { WeaponConfig } from '../gameobjects/weapon/catalog'
+import { WEAPON_LEVEL_COUNT } from '../gameobjects/weapon/weapon-levels'
 import type { InputPort } from '../core/input'
 
 export interface EnergyPort {
@@ -37,7 +38,7 @@ export interface FiringManagerOptions {
 
 export interface WeaponPort {
   readonly id: WeaponId
-  readonly config: { readonly muzzleOffset: { x: number; y: number; z: number } }
+  readonly config: WeaponConfig
   applyLevel(level: number): void
   update(ctx: BehaviourCtx): void
   dispose(): void
@@ -91,9 +92,8 @@ export class FiringManager {
   }
 
   setWeaponLevel(level: number): void {
-    const max = LASER_LEVELS.length
     const next = Math.round(level)
-    this._weaponLevel = Math.min(max, Math.max(1, next))
+    this._weaponLevel = Math.min(WEAPON_LEVEL_COUNT, Math.max(1, next))
     this._weapon.applyLevel(this._weaponLevel)
   }
 

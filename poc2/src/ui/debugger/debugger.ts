@@ -3,6 +3,8 @@
  */
 
 import { BALANCE } from '../../core/balancer'
+import type { WeaponId } from '../../gameobjects/weapon/catalog'
+import type { WeaponLevelSnapshot, WeaponLevelSnapshotField } from '../../gameobjects/weapon/weapon-levels'
 
 export type DebuggerTabId =
   | 'ship'
@@ -73,15 +75,21 @@ export interface DebuggerShipBind {
   equipEnergyConverter(id: string | null): void
 }
 
-export interface DebuggerWeaponsBind {
+export interface DebuggerLevelBind {
   level(): number
   setLevel(level: number): void
+}
+
+export interface DebuggerWeaponsBind extends DebuggerLevelBind {
+  activeId(): WeaponId
+  stats(): WeaponLevelSnapshot
+  patchStat(field: WeaponLevelSnapshotField, value: number): void
 }
 
 export interface DebuggerBinds {
   readonly ship: DebuggerShipBind
   readonly weapons: DebuggerWeaponsBind
-  readonly dash: DebuggerWeaponsBind
+  readonly dash: DebuggerLevelBind
 }
 
 export interface DebuggerOptions {
