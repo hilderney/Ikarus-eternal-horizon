@@ -12,6 +12,8 @@ import {
 } from 'three'
 import type { EnemyGateConfig } from '../../core/balancer'
 
+export type GateEntryBand = 'left' | 'middle' | 'right'
+
 export interface ShipPose {
   readonly x: number
   readonly y: number
@@ -31,6 +33,7 @@ export class EnemyGate {
   private readonly _ship = { x: 0, y: 0, z: 0 }
   private readonly _offset = { x: 0, y: 0, z: 0 }
   private readonly _size = { x: 1, y: 1, z: 1 }
+  private readonly _entryPointsX: EnemyGateConfig['entryPointsX']
   private _arriveRadius: number
   private _reachSpeedMul: number
   private _agilityLambda: number
@@ -46,6 +49,11 @@ export class EnemyGate {
     this._size.x = cfg.size.x
     this._size.y = cfg.size.y
     this._size.z = cfg.size.z
+    this._entryPointsX = {
+      left: [...cfg.entryPointsX.left] as [number, number, number],
+      middle: [...cfg.entryPointsX.middle] as [number, number, number],
+      right: [...cfg.entryPointsX.right] as [number, number, number],
+    }
     this._arriveRadius = cfg.arriveRadius
     this._reachSpeedMul = cfg.reachSpeedMul
     this._agilityLambda = cfg.agilityLambda
@@ -81,6 +89,27 @@ export class EnemyGate {
       x: this._ship.x + this._offset.x,
       y: this._ship.y + this._offset.y,
       z: this._ship.z + this._offset.z,
+    }
+  }
+
+  entryPointsX(band: GateEntryBand): readonly [number, number, number] {
+    return this._entryPointsX[band]
+  }
+
+  /** Pick one of the three local-X slots for the band (controlled random). */
+  pickEntryOffsetX(band: GateEntryBand): number {
+    const slots = this._entryPointsX[band]
+    const index = Math.floor(Math.random() * slots.length) % slots.length
+    return slots[index] ?? 0
+  }
+
+  /** World-space gate entry: centre + local entry X (y/z stay on the gate plane). */
+  worldEntryPoint(entryOffsetX: number): { x: number; y: number; z: number } {
+    const center = this.worldCenter()
+    return {
+      x: center.x + entryOffsetX,
+      y: center.y,
+      z: center.z,
     }
   }
 

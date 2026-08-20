@@ -205,12 +205,21 @@ export interface EnemyGateConfig {
   readonly visible: boolean
   readonly color: number
   readonly opacity: number
-  /** Distance to gate centre that triggers chase phase. */
+  /** Distance to gate entry that triggers chase phase. */
   readonly arriveRadius: number
   /** Target speed multiplier while in reachGate (e.g. 3). */
   readonly reachSpeedMul: number
   /** Exponential damp λ for currentSpeed → targetSpeed. */
   readonly agilityLambda: number
+  /**
+   * Local X offsets (relative to gate centre) for controlled random arrival.
+   * left ← spawnLeft, middle ← spawnFront, right ← spawnRight (3 each).
+   */
+  readonly entryPointsX: {
+    readonly left: readonly [number, number, number]
+    readonly middle: readonly [number, number, number]
+    readonly right: readonly [number, number, number]
+  }
 }
 
 export interface EnemyDespawnConfig {
@@ -806,6 +815,11 @@ const BALANCE_DATA: Balance = {
       arriveRadius: 8,
       reachSpeedMul: 3,
       agilityLambda: 3.5,
+      entryPointsX: {
+        left: [-24, -18, -12],
+        middle: [-6, 0, 6],
+        right: [12, 18, 24],
+      },
     },
     generic: {
       hp: WARRIOR.hp,

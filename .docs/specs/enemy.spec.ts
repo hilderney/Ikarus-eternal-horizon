@@ -177,7 +177,9 @@ export declare class Enemy extends THREE.Mesh implements TargetHit, DamageSink {
  *   R2. Implements TargetHit with team === 'enemy' and radius from BALANCE.
  *   R3. takeDamage / applyDamage reduce hp; hp<=0 ⇒ active=false, killed=true, once.
  *   R4. Movement is owned by EnemyMovementManager:
- *       reachGate → synchronizedLerp (single t, easeInOutCubic, XYZ proportional A→B);
+ *       reachGate → synchronizedLerp (single t, easeInOutCubic, XYZ proportional A→B)
+ *       toward a personal gate entry (gate.centre.x + gateEntryOffsetX from
+ *       BALANCE.enemy.gate.entryPointsX band: left/middle/right);
  *       chase → seekChase (XZ seek + Y damp to player / gate plane).
  *       On handoff, y snaps to gate.y (BALANCE.enemy.gate.offset.y = 0).
  *   R5. update(dt) never allocates and never writes material/geometry; syncRender

@@ -73,6 +73,20 @@ describe('Enemy Warrior', () => {
     geo.dispose()
   })
 
+  it('reachGate aims at gate centre + personal entry offset X', () => {
+    const seek = { x: 100, y: 0, z: 0 }
+    const gate = { x: 0, y: 0, z: -90 }
+    const geo = new BoxGeometry(1, 1, 1)
+    const enemy = new Enemy({ geometry: geo, seekTarget: seek, gateTarget: gate })
+    enemy.activate({ x: 0, y: 50, z: -140, gateEntryOffsetX: 18 })
+    expect(enemy.gateEntryOffsetX()).toBe(18)
+    enemy.update(0.5)
+    expect(enemy.x).toBeGreaterThan(0)
+    expect(enemy.phase()).toBe('reachGate')
+    enemy.dispose()
+    geo.dispose()
+  })
+
   it('reachGate descends in Y toward the gate, not sideways to the ship', () => {
     const seek = { x: 100, y: 0, z: 0 }
     const gate = { x: 0, y: 0, z: -90 }

@@ -32,6 +32,8 @@ export interface EnemySpawn {
   readonly y: number
   readonly z: number
   readonly sheet?: WarriorSheet
+  /** Local X offset from gate centre (picked from entryPointsX band). */
+  readonly gateEntryOffsetX?: number
 }
 
 export interface EnemyOptions {
@@ -76,6 +78,8 @@ export class Enemy extends Mesh {
   private _intelligence = 60
   private _fireAcc = 0
   private _sheet: WarriorSheet = BALANCE.enemy.warrior
+  private _entryOffsetX = 0
+  private readonly _gateAim = { x: 0, y: 0, z: 0 }
 
   constructor(options: EnemyOptions) {
     const mat = new MeshBasicMaterial({
@@ -123,6 +127,7 @@ export class Enemy extends Mesh {
     this._reachSpeedMul = sheet.reachSpeedMul
     this._agilityLambda = warriorAgilityLambda(sheet.agility)
     this._intelligence = sheet.intelligence
+    this._entryOffsetX = spawn.gateEntryOffsetX ?? 0
     this._phase = sheet.targets[0] === 'enemyGate' ? 'reachGate' : 'chase'
     this._currentSpeed = this._cruiseSpeed
     this._fireAcc = 0
@@ -142,9 +147,10 @@ export class Enemy extends Mesh {
     this._movement.reset()
     if (this._phase === 'reachGate') {
       this._movement.setStrategy('synchronizedLerp')
+      const aim = this._refreshGateAim()
       this._movement.beginJourney(
         { x: spawn.x, y: spawn.y, z: spawn.z },
-        { x: this._gate.x, y: this._gate.y, z: this._gate.z },
+        { x: aim.x, y: aim.y, z: aim.z },
         this._cruiseSpeed * this._reachSpeedMul,
       )
     } else {
@@ -164,7 +170,12 @@ export class Enemy extends Mesh {
     this._phase = 'reachGate'
     this._currentSpeed = 0
     this._fireAcc = 0
+    this._entryOffsetX = 0
     this._movement.reset()
+  }
+
+  gateEntryOffsetX(): number {
+    return this._entryOffsetX
   }
 
   update(dt: number): void {
@@ -180,7 +191,7 @@ export class Enemy extends Mesh {
     this._pos.x = this.x
     this._pos.y = this.y
     this._pos.z = this.z
-    const aim = this._phase === 'reachGate' ? this._gate : this._seek
+    const aim = this._phase === 'reachGate' ? this._refreshGateAim() : this._seek
     const { arrived } = this._movement.update({
       position: this._pos,
       dt,
@@ -292,6 +303,13 @@ export class Enemy extends Mesh {
   dispose(): void {
     this.deactivate()
     this._mat.dispose()
+  }
+
+  private _refreshGateAim(): { x: number; y: number; z: number } {
+    this._gateAim.x = this._gate.x + this._entryOffsetX
+    this._gateAim.y = this._gate.y
+    this._gateAim.z = this._gate.z
+    return this._gateAim
   }
 
   private _tryFire(dt: number): void {

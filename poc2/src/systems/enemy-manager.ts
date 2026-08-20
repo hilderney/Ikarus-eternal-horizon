@@ -6,7 +6,7 @@
 import { BoxGeometry } from 'three'
 import { BALANCE } from '../core/balancer'
 import type { BattleField } from '../gameobjects/battle-field/battle-field'
-import type { EnemyGate } from '../gameobjects/enemy-gate/enemy-gate'
+import type { EnemyGate, GateEntryBand } from '../gameobjects/enemy-gate/enemy-gate'
 import { Enemy, type SeekTargetPort } from '../gameobjects/enemy/enemy'
 import type { SpawnArea } from '../gameobjects/spawn-area/spawn-area'
 import { ObjectPool } from '../pools/object-pool'
@@ -16,6 +16,15 @@ export type SpawnSide = 'left' | 'right' | 'front'
 
 const SPAWN_SIDES: readonly SpawnSide[] = ['left', 'right', 'front']
 
+function entryBandForSide(side: SpawnSide): GateEntryBand {
+  if (side === 'left') {
+    return 'left'
+  }
+  if (side === 'right') {
+    return 'right'
+  }
+  return 'middle'
+}
 export interface ScenePort {
   add(object: unknown): void
   remove(object: unknown): void
@@ -96,6 +105,7 @@ export class EnemyManager {
     if (this._pool.activeCount >= this._maxActiveTotal()) {
       return null
     }
+    this._syncGateAim()
     const area = this._areas[side]
     const enemy = this._pool.acquire()
     if (!enemy) {
@@ -114,7 +124,14 @@ export class EnemyManager {
       x = center.x + (Math.random() - 0.5) * size.x
     }
     const z = center.z + (Math.random() - 0.5) * size.z
-    enemy.activate({ x, y: center.y, z, sheet: BALANCE.enemy.warrior })
+    const gateEntryOffsetX = this._enemyGate.pickEntryOffsetX(entryBandForSide(side))
+    enemy.activate({
+      x,
+      y: center.y,
+      z,
+      sheet: BALANCE.enemy.warrior,
+      gateEntryOffsetX,
+    })
     return enemy
   }
 
@@ -163,6 +180,7 @@ export class EnemyManager {
   }
 
   private _syncGateAim(): void {
+    // Shared port stays at gate centre; each enemy adds its own entryOffsetX.
     const center = this._enemyGate.worldCenter()
     this._gateTarget.x = center.x
     this._gateTarget.y = center.y

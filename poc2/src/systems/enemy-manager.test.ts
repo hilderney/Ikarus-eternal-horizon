@@ -147,6 +147,22 @@ describe('EnemyManager', () => {
     disposeAll(parts)
   })
 
+  it('picks gate entry X from the band matching the spawn side', () => {
+    const parts = makeManager(24)
+    parts.spawnLeft.setMaxActive(8)
+    parts.spawnRight.setMaxActive(8)
+    parts.spawnFront.setMaxActive(8)
+    const left = new Set(BALANCE.enemy.gate.entryPointsX.left)
+    const middle = new Set(BALANCE.enemy.gate.entryPointsX.middle)
+    const right = new Set(BALANCE.enemy.gate.entryPointsX.right)
+    for (let i = 0; i < 6; i++) {
+      expect(left.has(parts.manager.spawnOne('left')?.gateEntryOffsetX() ?? NaN)).toBe(true)
+      expect(middle.has(parts.manager.spawnOne('front')?.gateEntryOffsetX() ?? NaN)).toBe(true)
+      expect(right.has(parts.manager.spawnOne('right')?.gateEntryOffsetX() ?? NaN)).toBe(true)
+    }
+    disposeAll(parts)
+  })
+
   it('releases enemies that leave the BattleField (pool reuse, no destroy)', () => {
     const parts = makeManager(2)
     silenceOtherSides(parts, 'left')
