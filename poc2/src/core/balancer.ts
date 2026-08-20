@@ -171,6 +171,44 @@ export interface FollowBoxConfig {
   }
 }
 
+/** Enemy spawn volume relative to the ship (front + sides). E05 will spawn inside it. */
+export interface EnemySpawnConfig {
+  /** Centre of the volume relative to the ship (−Z is forward). */
+  readonly offset: Vec3Params
+  /** Full extents of the box (world units). */
+  readonly size: Vec3Params
+  readonly visible: boolean
+  readonly color: number
+  readonly opacity: number
+  /** Seconds between spawn attempts (E05). */
+  readonly intervalSec: number
+  /** Preferred X lanes inside the volume (shared with meteor spawn). */
+  readonly lanesX: readonly number[]
+  /** Cap live enemies (1 = test stream). */
+  readonly maxActive: number
+}
+
+export interface EnemyGenericConfig {
+  readonly hp: number
+  readonly radius: number
+  readonly color: number
+  readonly maxSpeed: number
+  readonly contactDamage: number
+}
+
+export interface EnemyDespawnConfig {
+  readonly zNear: number
+  readonly zFar: number
+  readonly halfX: number
+}
+
+export interface EnemyConfig {
+  readonly spawn: EnemySpawnConfig
+  readonly generic: EnemyGenericConfig
+  readonly despawn: EnemyDespawnConfig
+  readonly poolSize: number
+}
+
 export interface ShipVisualConfig {
   readonly size: { readonly w: number; readonly h: number; readonly d: number }
   readonly wireframeColor: number
@@ -383,6 +421,7 @@ export interface Balance {
   readonly score: ScoreConfig
   readonly drops: DropsConfig
   readonly shot: { readonly despawn: ShotDespawnConfig }
+  readonly enemy: EnemyConfig
   readonly vfx: VfxConfig
   readonly haptics: HapticsConfig
   readonly loop: LoopConfig
@@ -690,6 +729,27 @@ const BALANCE_DATA: Balance = {
   },
   shot: {
     despawn: { zNear: 16, zFar: -32, halfX: 16 },
+  },
+  enemy: {
+    spawn: {
+      offset: { x: 0, y: 0, z: -14 },
+      size: { x: 16, y: 2, z: 12 },
+      visible: true,
+      color: 0xff2222,
+      opacity: 0.22,
+      intervalSec: 1.6,
+      lanesX: [-4, -2, 0, 2, 4],
+      maxActive: 1,
+    },
+    generic: {
+      hp: 3,
+      radius: 0.55,
+      color: 0xf43f5e,
+      maxSpeed: 4,
+      contactDamage: 8,
+    },
+    despawn: { zNear: 18, zFar: -40, halfX: 22 },
+    poolSize: 32,
   },
   vfx: {
     shake: { maxAmplitude: 0.18, decayPerSec: 6 },

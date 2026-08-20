@@ -50,14 +50,14 @@ POC-1 is frozen. These specs describe **`poc2/` only**.
 | G11 | [pause-scene.spec.ts](./pause-scene.spec.ts) | `poc2/src/scenes/pause-scene.test.ts` |
 | G12 | [touch-controls.spec.ts](./touch-controls.spec.ts) | `poc2/src/ui/touch-controls/touch-controls.test.ts` |
 
-Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B, C01–C03, D01–D06, G06, G08 (Ship + Equips), G09, G03 and G12 are **done**. D04–D06 register all four guns with unified `WeaponLevelRow` L1–12 (`weapon-levels.ts`). F01 hit-query still pending — beam/mjolnir use inline `HitTarget` loop until then; plasma AoE splash waits on F01. Fase 0 is playable; **F** / **Y** fires laser, **G** / **X** cycles weapons (laser → plasma → beam → mjolnir). Laser range is from the fire point (not a world plane). The debugger-area shows Ship and Equips in DEV; Equips exposes editable weapon stats per level for finetuning. D03 energy is the same pool as `ship.stats.energy` (Ship tab slider). Regen waits `ship.cooldowns.recoveringMs` after spend and only while `recovering`. Collector `energyGain` adds to that regen. Equips weapon level 1–12 is `FiringManager.setWeaponLevel` → `applyWeaponLevel`. Equips dash level 1–12 is `PlayerController.setDashLevel`; dash lockout is `status.dashing` (`ship.cooldowns.dashingMs`). C01 is a modular airplane: body hull is the hitbox; wings/shield/weapon/bombs/collector/converter are parented meshes that apply `BALANCE.ship.modules` (labFusion is stored for later G11 craft/convert speed). **area-inputs** is an editable control map (Keyboard / Mix / Gamepad / Touch); remaps write live `InputBindings` (Escape still pauses).
+Each spec has four signed sections: **Orchestrator**, **Programming / Three.js**, **Game Design**, **TDD**. Stages A–B, C01–C03, D01–D06, E01 (thin), E04–E05 (thin spawn), G06, G08 (Ship + Equips + SpawnArea), G09, G03 and G12 are **done**. D04–D06 register all four guns with unified `WeaponLevelRow` L1–12 (`weapon-levels.ts`). **SpawnArea** is a red semi-transparent volume ahead/sides of the ship; `EnemyManager` spawns at most `maxActive` (default **1**) every `intervalSec` inside that volume. F01 hit-query still pending — beam/mjolnir use inline `HitTarget` loop until then; plasma AoE splash and shot→enemy damage wait on F01. Fase 0 is playable; **F** / **Y** fires laser, **G** / **X** cycles weapons. The debugger-area shows Ship, Equips and **SpawnArea** in DEV. Equips exposes editable weapon stats per level. D03 energy is the same pool as `ship.stats.energy`. **area-inputs** remaps live `InputBindings` (Escape still pauses).
 
 ## Next steps (playable order)
 
-1. **G08 remaining tabs** after Ship / Equips: Camera · LimitBox · Parallax · Weapons catalog · Energy · Shots · Collision.
+1. **G08 remaining tabs** after Ship / Equips / SpawnArea: Camera · LimitBox · Parallax · Weapons catalog · Energy · Shots · Collision.
 2. **Wire C03 combat onto the byte pools.** Integrity/shield become the same 0–255 pools the Ship tab shows. Energy is already bound (D03).
 3. **Statuses.** `flickering` / `shooting` / `dashing` / `recovering` timers live in `BALANCE.ship.cooldowns`. Dash is allowed when energy remains and `status.dashing` is false. Energy regen waits `recoveringMs` after spend and only while `recovering`.
-4. **F01 Collision** — Player / PlayerShot hitboxes, plasma splash. Then F04 / F05 / G07 HUD bars.
-5. **G11 Pause** inventory / restart / quit (scheme picker is live).
+4. **F01 Collision** — Player / PlayerShot hitboxes, plasma splash, wire beam/mjolnir + shots to Enemy. Then F04 / F05 / G07 HUD bars.
+5. **G11 Pause** inventory / restart / quit (scheme picker is live). Yuka seek on E01.
 
-C01 ship sheet is live (`debugSnapshot`). G08 **Ship** and **Equips** tabs are mounted in `#debugger-area` (DEV).
+C01 ship sheet is live (`debugSnapshot`). G08 **Ship**, **Equips** and **SpawnArea** tabs are mounted in `#debugger-area` (DEV).

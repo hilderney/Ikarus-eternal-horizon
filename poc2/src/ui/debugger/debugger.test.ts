@@ -10,6 +10,7 @@ import type { DebuggerBinds, DebuggerShipBind } from './debugger'
 import { Debugger } from './debugger'
 import { EquipsTab } from './equips-tab'
 import { ShipTab } from './ship-tab'
+import { SpawnAreaTab } from './spawn-area-tab'
 import shipTabSource from './ship-tab.ts?raw'
 import equipsTabSource from './equips-tab.ts?raw'
 
@@ -86,6 +87,14 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
   let activeWeapon: WeaponId = (sheet.loadout.equippedWeapon as WeaponId) ?? 'laser'
   let weaponConfig = copyWeaponConfig(WEAPONS[activeWeapon])
   applyWeaponLevel(weaponConfig, weaponLevel)
+  let spawnOffset = { x: 0, y: 0, z: -14 }
+  let spawnSize = { x: 16, y: 2, z: 12 }
+  let spawnInterval = 1.6
+  let spawnLanes = [-4, -2, 0, 2, 4]
+  let spawnMaxActive = 1
+  let spawnVisible = true
+  let spawnColor = 0xff2222
+  let spawnOpacity = 0.22
   const refreshRecovering = (): void => {
     sheet.status.recovering = !shooting && !sheet.status.dashing && !sheet.status.flickering
   }
@@ -150,6 +159,45 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
       level: () => dashLevel,
       setLevel(level) {
         dashLevel = level
+      },
+    },
+    spawnArea: {
+      offset: () => ({ ...spawnOffset }),
+      size: () => ({ ...spawnSize }),
+      worldCenter: () => ({
+        x: spawnOffset.x,
+        y: spawnOffset.y,
+        z: spawnOffset.z,
+      }),
+      intervalSec: () => spawnInterval,
+      lanesX: () => [...spawnLanes],
+      maxActive: () => spawnMaxActive,
+      visible: () => spawnVisible,
+      color: () => spawnColor,
+      opacity: () => spawnOpacity,
+      setOffset(x, y, z) {
+        spawnOffset = { x, y, z }
+      },
+      setSize(x, y, z) {
+        spawnSize = { x, y, z }
+      },
+      setIntervalSec(value) {
+        spawnInterval = value
+      },
+      setLanesX(lanes) {
+        spawnLanes = [...lanes]
+      },
+      setMaxActive(value) {
+        spawnMaxActive = value
+      },
+      setVisible(visible) {
+        spawnVisible = visible
+      },
+      setColor(hex) {
+        spawnColor = hex
+      },
+      setOpacity(value) {
+        spawnOpacity = value
       },
     },
   }
@@ -419,5 +467,32 @@ describe('EquipsTab', () => {
   it('does not import ShipTab form groups', () => {
     expect(equipsTabSource).not.toMatch(/status\.flickering|stats\.energy/)
     expect(equipsTabSource).toMatch(/snapshot\(\)/)
+  })
+})
+
+describe('SpawnAreaTab', () => {
+  it('edits spawn offset and toggles visibility', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new SpawnAreaTab(binds)],
+      enabled: true,
+    })
+    expect(host.querySelector('[data-tab="spawn-area"]')).not.toBeNull()
+    const z = bind(host, 'offset.z')
+    z.value = '-20'
+    z.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.spawnArea.offset().z).toBe(-20)
+    const visible = host.querySelector<HTMLInputElement>('input[data-bind="spawn.visible"]')
+    expect(visible).not.toBeNull()
+    if (visible) {
+      visible.checked = false
+      visible.dispatchEvent(new Event('input', { bubbles: true }))
+      expect(binds.spawnArea.visible()).toBe(false)
+    }
+    dbg.dispose()
   })
 })

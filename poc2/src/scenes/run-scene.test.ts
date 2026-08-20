@@ -95,6 +95,10 @@ function makeWorld(
       bump('gizmos')
       return makeStep(log, 'gizmos')
     },
+    spawnArea: () => {
+      bump('spawnArea')
+      return makeStep(log, 'spawnArea')
+    },
     ship: () => {
       bump('ship')
       return makeStep(log, 'ship')
@@ -220,7 +224,7 @@ describe('RunScene', () => {
     expect(scene.id).toBe('run')
   })
 
-  it('mount constructs camera, parallax, limit-box and gizmos via factory', () => {
+  it('mount constructs camera, parallax, limit-box, gizmos and spawn-area via factory', () => {
     const log: string[] = []
     const { world, calls } = makeWorld(log)
     const scene = new RunScene({
@@ -237,6 +241,7 @@ describe('RunScene', () => {
     expect(calls.parallax).toBe(1)
     expect(calls.limitBox).toBe(1)
     expect(calls.gizmos).toBe(1)
+    expect(calls.spawnArea).toBe(1)
     scene.dispose()
   })
 
@@ -403,7 +408,7 @@ describe('RunScene', () => {
     scene.dispose()
   })
 
-  it('dispose disposes camera, parallax, limit-box, gizmos, ship, managers, hud', () => {
+  it('dispose disposes camera, parallax, limit-box, gizmos, spawn-area, ship, managers, hud', () => {
     const log: string[] = []
     const scene = new RunScene({
       areas: makeAreas(),
@@ -420,6 +425,7 @@ describe('RunScene', () => {
     expect(log).toContain('parallax.dispose')
     expect(log).toContain('limitBox.dispose')
     expect(log).toContain('gizmos.dispose')
+    expect(log).toContain('spawnArea.dispose')
     expect(log).toContain('ship.dispose')
     expect(log).toContain('energy.dispose')
     expect(log).toContain('hud.dispose')

@@ -459,11 +459,11 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 ### Stage E — World & pressure
 
 #### `SDD-E01` Enemy (basic)
-- **Folder:** `src/gameobjects/enemy/`
-- **Scope:** `class Enemy extends THREE.Mesh` — pooled; `active`, `hp`, `takeDamage(amount)`, drift-toward-player motion, despawn off-field. Implements `TargetHit` port (`team 'enemy'`, `radius`). Archetypes Tank/Warrior/Rogue → §7.
-- **Requires:** A01, A03, A05, F01.
-- **Lib:** **Three.js** movement visuals; **Yuka** (steering/pathing for drift-toward-player motion) — first Yuka card, install here
-- **Maps:** `ENM-01`, `ENM-02`. **Acceptance:** spawns from the deep field, closes in, dies from shots, despawns off-screen.
+- **Folder:** `src/gameobjects/enemy/` · spec [enemy.spec.ts](../specs/enemy.spec.ts)
+- **Scope:** `class Enemy extends THREE.Mesh` — pooled; `active`, `hp`, `takeDamage(amount)`, thin seek toward ship, despawn off-field. Implements `TargetHit` port (`team 'enemy'`, `radius`). Archetypes Tank/Warrior/Rogue → §7. **Yuka SeekBehavior deferred** (first-party drift for now).
+- **Requires:** A01, A03, A05. (F01 for shot hits — not a blocker for spawn/visual.)
+- **Lib:** **Three.js** (wireframe box mesh)
+- **Maps:** `ENM-01`, `ENM-02`. **Acceptance:** spawns from SpawnArea, closes in, despawns off-screen; dies when `takeDamage` empties hp (F01 will call this).
 
 #### `SDD-E02` Meteor (basic)
 - **Folder:** `src/gameobjects/meteor/`
@@ -487,11 +487,11 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 - **Maps:** `WPN-01`, `RUL-02`. **Acceptance:** shots recycle; exhaustion returns null; no cross-cleanup.
 
 #### `SDD-E05` EnemyManager
-- **Folder:** `src/systems/enemy-manager.ts`
-- **Scope:** spawn schedule + live list, patterns, pooling, despawn; scales intensity from `DifficultyManager`.
-- **Requires:** A01, A03, A05, E01, F03.
-- **Lib:** **Yuka** (behavior orchestration — steering via `Vehicle`/`SteeringBehavior`); **Three.js** (spawn visuals)
-- **Maps:** `ENM-01`, `ENM-02`, `ENM-03` (seam), `RUL-02`. **Acceptance:** pressure ramps with difficulty; population is pooled.
+- **Folder:** `src/systems/enemy-manager.ts` · spec [enemy-manager.spec.ts](../specs/enemy-manager.spec.ts)
+- **Scope:** spawn schedule + live list + pooling + despawn. Spawns inside **SpawnArea** (`BALANCE.enemy.spawn` / live debugger binds). Test stream: `maxActive: 1` every `intervalSec`. F03 rate and Yuka EntityManager deferred.
+- **Requires:** A01, A03, A05, E01. (F03 / F01 later.)
+- **Lib:** **Three.js** (scene add/remove of Enemy meshes)
+- **Maps:** `ENM-01`, `ENM-02`, `RUL-02`. **Acceptance:** one test hostile appears on cadence inside the red volume; population is pooled.
 
 #### `SDD-E06` MeteorManager
 - **Folder:** `src/systems/meteor-manager.ts`

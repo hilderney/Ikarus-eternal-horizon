@@ -548,7 +548,7 @@ Four product gates, each shipping a playable vertical slice.
 
 | Gate | Deliverable | Exit criteria |
 |---|---|---|
-| **G0** Vertical Slice | Local playable prototype | X/Y movement, pooled Laser, one enemy, simple health, score, death and restart, wireframe visuals. **POC2 in progress:** movement + dash, Laser/Plasma fire (no hits until collision), modular ship, four schemes + live remap, pause scheme picker, DEV debugger (Ship / Equips) |
+| **G0** Vertical Slice | Local playable prototype | X/Y movement, pooled Laser, one enemy, simple health, score, death and restart, wireframe visuals. **POC2 in progress:** movement + dash, four weapons L1–12, SpawnArea + 1-enemy test stream, modular ship, four schemes + live remap, pause scheme picker, DEV debugger (Ship / Equips / SpawnArea) |
 | **G1** Itch Prototype | Web build on Itch.io | `index.html` at root with relative paths and responsive canvas, Force Field vs Integrity, Metal Scrap repair in the CraftSlot, asteroid drops, local best score, essential audio, pooled bullets and particles |
 | **G2** Professional Build | Full product | Complete bestiary, 50/100/500 milestones, Mega Asteroid, Boss General, full arsenal and Special Ordnance, Energy economy, Survivor mode, low-poly neon art, event audio, **Bounty Board contracts, AI Narrator/Ikarus voice lines, sector band staging, item flavor text**, balance numbers locked |
 | **G3** Steam 1.0 | Publishable PC build | Steam runtime, **persistent remap** + Steam Input (session remap + four schemes already in POC2; rumble presets in `BALANCE.haptics`), 8 leaderboards, 15–30 achievements, Steam Cloud, store assets, Steam Deck checklist |

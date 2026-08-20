@@ -47,7 +47,9 @@
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
  * Orchestrator : hub-v4.3 / 2026-08-18  one tab per subject; Ship first
- * Programming  : hub-v4.3 / 2026-08-19  ShipTab + EquipsTab; weapon + dash level
+ * Programming  : hub-v4.3 / 2026-08-20  ShipTab + EquipsTab + SpawnAreaTab
+ * Game Design  : hub-v4.3 / 2026-08-20  spawn volume + weapon level finetune
+ * TDD          : hub-v4.3 / 2026-08-20  debugger.test.ts green
  * Game Design  : hub-v4.3 / 2026-08-19  loadout lives on Equips; laser/dash L1–L12
  * TDD          : hub-v4.3 / 2026-08-19  debugger.test.ts (Ship + Equips)
  *
@@ -67,6 +69,7 @@ export type DebuggerTabId =
   | 'equips'
   | 'cam'
   | 'limit-box'
+  | 'spawn-area'
   | 'parallax'
   | 'weapons'
   | 'energy'
@@ -243,6 +246,7 @@ export declare class WeaponsTab implements DebuggerTab {
  *   reset       — restore mount-time snapshot, then apply hooks
  *   ShipTab     — pose, six byte pools, three statuses; id is 'ship'
  *   EquipsTab   — loadout lists + equipped weapon level 1–12 + dash level 1–12; id is 'equips'
+ *   SpawnAreaTab — offset/size/intervalSec/maxActive/lanesX + visual; id is 'spawn-area'
  */
 
 // ─── 5. Rules and invariants ─────────────────────────────────────────────────

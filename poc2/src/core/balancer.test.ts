@@ -148,6 +148,18 @@ describe('BALANCE', () => {
     expect(BALANCE.ship.modules.converter.crystal.labFusion).toBe(2)
   })
 
+  it('exposes enemy spawn volume ahead of the ship', () => {
+    expect(BALANCE.enemy.spawn.offset.z).toBe(-14)
+    expect(BALANCE.enemy.spawn.size.x).toBe(16)
+    expect(BALANCE.enemy.spawn.visible).toBe(true)
+    expect(BALANCE.enemy.spawn.color).toBe(0xff2222)
+    expect(BALANCE.enemy.spawn.intervalSec).toBe(1.6)
+    expect(BALANCE.enemy.spawn.maxActive).toBe(1)
+    expect(BALANCE.enemy.spawn.lanesX).toEqual([-4, -2, 0, 2, 4])
+    expect(BALANCE.enemy.generic.hp).toBe(3)
+    expect(BALANCE.enemy.poolSize).toBe(32)
+  })
+
   it('exposes gizmos gridSize 1000 and worldAxisSize 4', () => {
     expect(BALANCE.gizmos.gridSize).toBe(1000)
     expect(BALANCE.gizmos.worldAxisSize).toBe(4)

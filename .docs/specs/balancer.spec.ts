@@ -296,6 +296,10 @@ export declare const BALANCE: Balance
  *   weapons.loadout             = ['laser', 'plasma']  // WPN-03; catalog holds all four
  *   weapons.catalog             = WEAPONS from catalog.ts (D02 extract; A01 re-exports)
  *   shot.despawn                = { zNear: 16, zFar: -32, halfX: 16 }  // E04
+ *   enemy.spawn                 = { offset, size, visible, color, opacity, intervalSec, lanesX, maxActive: 1 }
+ *   enemy.generic               = { hp: 3, radius: 0.55, color: 0xf43f5e, maxSpeed: 4, contactDamage: 8 }
+ *   enemy.despawn               = { zNear: 18, zFar: -40, halfX: 22 }
+ *   enemy.poolSize              = 32
  *
  * New sections (placeholders, Q08 owns the hull curve). Combat still reads
  * ship.health until C03 consume the C01 integrity/shield bytes; D03 already

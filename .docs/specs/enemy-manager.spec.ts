@@ -45,14 +45,14 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  pool, Yuka EntityManager, F03 rate, despawn
- * Game Design  : hub-v4.1 / 2026-08-17  spawn cadence, lanes, ramp feel
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.3 / 2026-08-20  SpawnArea volume; maxActive=1 test stream
+ * Programming  : hub-v4.3 / 2026-08-20  ObjectPool + intervalSec; no F01 register yet
+ * Game Design  : hub-v4.3 / 2026-08-20  BALANCE.enemy.spawn.* live via debugger
+ * TDD          : hub-v4.3 / 2026-08-20  enemy-manager.test.ts green
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: spec-complete
+ * Status: done (thin — Yuka EntityManager + F01 register deferred)
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

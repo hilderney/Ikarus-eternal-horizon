@@ -11,6 +11,7 @@ export type DebuggerTabId =
   | 'equips'
   | 'cam'
   | 'limit-box'
+  | 'spawn-area'
   | 'parallax'
   | 'weapons'
   | 'energy'
@@ -86,10 +87,31 @@ export interface DebuggerWeaponsBind extends DebuggerLevelBind {
   patchStat(field: WeaponLevelSnapshotField, value: number): void
 }
 
+export interface DebuggerSpawnAreaBind {
+  offset(): { x: number; y: number; z: number }
+  size(): { x: number; y: number; z: number }
+  worldCenter(): { x: number; y: number; z: number }
+  intervalSec(): number
+  lanesX(): readonly number[]
+  maxActive(): number
+  visible(): boolean
+  color(): number
+  opacity(): number
+  setOffset(x: number, y: number, z: number): void
+  setSize(x: number, y: number, z: number): void
+  setIntervalSec(value: number): void
+  setLanesX(lanes: readonly number[]): void
+  setMaxActive(value: number): void
+  setVisible(visible: boolean): void
+  setColor(hex: number): void
+  setOpacity(value: number): void
+}
+
 export interface DebuggerBinds {
   readonly ship: DebuggerShipBind
   readonly weapons: DebuggerWeaponsBind
   readonly dash: DebuggerLevelBind
+  readonly spawnArea: DebuggerSpawnAreaBind
 }
 
 export interface DebuggerOptions {
@@ -112,6 +134,7 @@ const TAB_LABELS: Record<DebuggerTabId, string> = {
   equips: 'Equips',
   cam: 'Cam',
   'limit-box': 'LimitBox',
+  'spawn-area': 'SpawnArea',
   parallax: 'Parallax',
   weapons: 'Weapons',
   energy: 'Energy',

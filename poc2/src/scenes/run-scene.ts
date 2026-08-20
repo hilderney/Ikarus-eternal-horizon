@@ -55,6 +55,7 @@ export interface RunWorldFactory {
   parallax(): Disposable & Steppable & RenderSyncable
   limitBox(): Disposable & Steppable & RenderSyncable
   gizmos(): Disposable & Steppable & RenderSyncable
+  spawnArea(): Disposable & Steppable & RenderSyncable
   ship(): Disposable & Steppable & RenderSyncable
   playerController(): Steppable
   cameraController(): Steppable
@@ -118,6 +119,7 @@ export class RunScene implements ScenePort {
   private _parallax: (Disposable & Steppable & RenderSyncable) | null = null
   private _limitBox: (Disposable & Steppable & RenderSyncable) | null = null
   private _gizmos: (Disposable & Steppable & RenderSyncable) | null = null
+  private _spawnArea: (Disposable & Steppable & RenderSyncable) | null = null
   private _ship: (Disposable & Steppable & RenderSyncable) | null = null
   private _player: Steppable | null = null
   private _camCtl: Steppable | null = null
@@ -148,6 +150,7 @@ export class RunScene implements ScenePort {
     this._parallax = this._world.parallax()
     this._limitBox = this._world.limitBox()
     this._gizmos = this._world.gizmos()
+    this._spawnArea = this._world.spawnArea()
     this._ship = this._world.ship()
     this._player = this._world.playerController()
     this._camCtl = this._world.cameraController()
@@ -179,6 +182,7 @@ export class RunScene implements ScenePort {
     this._camera?.update(dt)
     this._parallax?.update(dt)
     this._gizmos?.update(dt)
+    this._spawnArea?.update(dt)
     for (const manager of this._managers) {
       manager.update(dt)
     }
@@ -200,6 +204,7 @@ export class RunScene implements ScenePort {
     this._parallax?.syncRender()
     this._limitBox?.syncRender()
     this._gizmos?.syncRender()
+    this._spawnArea?.syncRender()
     this._ship?.syncRender()
     for (const manager of this._managers) {
       manager.syncRender?.()
@@ -225,6 +230,8 @@ export class RunScene implements ScenePort {
     this._managers.length = 0
     this._ship?.dispose()
     this._ship = null
+    this._spawnArea?.dispose()
+    this._spawnArea = null
     this._gizmos?.dispose()
     this._gizmos = null
     this._limitBox?.dispose()

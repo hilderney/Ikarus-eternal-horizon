@@ -49,14 +49,14 @@
 
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
- * Orchestrator : hub-v4.1 / 2026-08-17  scope, requires, DoD
- * Programming  : hub-v4.1 / 2026-08-17  contract, Yuka vehicle, pool lifecycle, THREE.Mesh
- * Game Design  : hub-v4.1 / 2026-08-17  BALANCE.enemy, generic silhouette, distinct tint
- * TDD          : hub-v4.1 / 2026-08-17  cases named; test file not yet written (red next)
+ * Orchestrator : hub-v4.3 / 2026-08-20  thin seek (no Yuka yet); TargetHit ready for F01
+ * Programming  : hub-v4.3 / 2026-08-20  Mesh + activate/update/syncRender/dispose
+ * Game Design  : hub-v4.3 / 2026-08-20  BALANCE.enemy.generic + despawn
+ * TDD          : hub-v4.3 / 2026-08-20  enemy.test.ts green
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: spec-complete
+ * Status: done (thin — Yuka SeekBehavior deferred)
  */
 
 // ═════════════════════════════════════════════════════════════════════════════

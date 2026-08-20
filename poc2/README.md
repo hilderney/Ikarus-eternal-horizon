@@ -31,11 +31,11 @@ npm run verify     # all three — the gate every card must pass (hub §6.1)
 
 ## State
 
-Fase 0 is playable (`npm run dev` in this folder). **Done:** Stages A–B, C01–C03, D01–D06 (four weapons, unified L1–12 levels), E04, E07, G03, G06, G08 Ship + Equips, G09, G12, G11 scheme picker.
+Fase 0 is playable (`npm run dev` in this folder). **Done:** Stages A–B, C01–C03, D01–D06 (four weapons, unified L1–12 levels), E01/E05 thin (SpawnArea + 1-enemy test stream), E04, E07, G03, G06, G08 Ship + Equips + SpawnArea, G09, G12, G11 scheme picker.
 
-**You can:** fly the modular airplane (WASD / stick / nipple), dash L1–L12 (barrel roll on laterals), cycle **laser → plasma → beam → mjolnir** (G / X / wheel), hold fire per weapon profile, pause (Esc/Start) to pick Keyboard / Mix / Gamepad / Touch, remap binds in `area-inputs`. DEV debugger: Ship sheet + Equips (weapon/dash levels, **live-editable weapon stats** per level, modules). Energy is `ship.stats.energy`; collector `energyGain` adds to regen. Beam/Mjolnir show visuals and spend energy; damage to enemies waits on F01.
+**You can:** fly the modular airplane (WASD / stick / nipple), dash L1–L12, cycle **laser → plasma → beam → mjolnir**, hold fire per weapon profile. A **red SpawnArea** sits ahead/sides of the ship; every `intervalSec` (default 1.6s) at most **one** hostile (wireframe rose box) spawns inside it and seeks the ship. Pause (Esc/Start) for scheme + remap in `area-inputs`. DEV debugger: Ship, Equips (live weapon stats), **SpawnArea** (offset/size/interval/maxActive/lanes). Energy is `ship.stats.energy`. Shot→enemy damage waits on F01.
 
-**Next:** F01 collision, remaining G08 tabs, wire C03 onto integrity/shield bytes, G11 inventory/restart/quit, G01 Title flow. Follow hub §5 / the graph in §10.
+**Next:** F01 collision, remaining G08 tabs, wire C03 onto integrity/shield bytes, G11 inventory/restart/quit, Yuka seek, G01 Title flow.
 
 ---
 
@@ -48,7 +48,7 @@ Fase 0 is playable (`npm run dev` in this folder). **Done:** Stages A–B, C01�
 | Gamepad | Left stick | Y | A | X | B | RB | Start (Esc still works) |
 | Touch | Left stick | overlay Fire | Bomb | Wpn | Bomb× | Dash | Pause |
 
-Click a bind in the left column, then press the new key / mouse button / pad button. Collisions swap. **Reset binds** restores `BALANCE`. Overlay button slots remap on the Touch tab. In the debugger **Equips** tab, change weapon level (1–12) and edit resolved stats live for finetuning.
+Click a bind in the left column, then press the new key / mouse button / pad button. Collisions swap. **Reset binds** restores `BALANCE`. Overlay button slots remap on the Touch tab. In the debugger **Equips** tab, change weapon level (1–12) and edit resolved stats live. **SpawnArea** tab tunes the red spawn volume and cadence (`intervalSec`, `maxActive`).
 
 ---
 
