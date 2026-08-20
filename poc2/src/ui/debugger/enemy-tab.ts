@@ -216,6 +216,19 @@ export class EnemyTab implements DebuggerTab {
         enemy.applyToActive()
       },
     )
+    this._scalar(
+      form,
+      'turnRateDeg',
+      'strategy.turnRateDeg',
+      15,
+      360,
+      5,
+      () => enemy.sheet().strategy.turnRateDeg,
+      (value) => {
+        enemy.sheet().strategy.turnRateDeg = value
+        enemy.applyToActive()
+      },
+    )
     this._readOnly(form, 'holdMs', () => {
       const sheet = enemy.sheet()
       return String(Math.max(250, sheet.strategy.swapBaseMs - sheet.intelligence))
@@ -584,6 +597,7 @@ function cloneSheet(src: EditableWarriorSheet): EditableWarriorSheet {
     status: { ...src.status },
     strategy: {
       swapBaseMs: src.strategy.swapBaseMs,
+      turnRateDeg: src.strategy.turnRateDeg,
       weights: { ...src.strategy.weights },
       mods: {
         hitted: { ...src.strategy.mods.hitted },

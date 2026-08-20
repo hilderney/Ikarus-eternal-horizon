@@ -37,6 +37,7 @@ POC-1 is frozen. These specs describe **`poc2/` only**.
 | F03 | [difficulty-manager.spec.ts](./difficulty-manager.spec.ts) | `poc2/src/systems/difficulty-manager.test.ts` |
 | F04 | [damage-resolver.spec.ts](./damage-resolver.spec.ts) | `poc2/src/systems/damage-resolver.test.ts` |
 | F05 | [vfx-manager.spec.ts](./vfx-manager.spec.ts) | `poc2/src/systems/vfx-manager.test.ts` |
+| F06 | [data-persistence.spec.ts](./data-persistence.spec.ts) | `poc2/src/systems/persistence.test.ts` |
 | G01 | [scene-controller.spec.ts](./scene-controller.spec.ts) | `poc2/src/scenes/scene-controller.test.ts` |
 | G02 | [title-scene.spec.ts](./title-scene.spec.ts) | `poc2/src/scenes/title-scene.test.ts` |
 | G03 | [run-scene.spec.ts](./run-scene.spec.ts) | `poc2/src/scenes/run-scene.test.ts` |
