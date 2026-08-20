@@ -50,13 +50,13 @@
 // ─── 9. Agent sign-off ───────────────────────────────────────────────────────
 /**
  * Orchestrator : hub-v4.3 / 2026-08-20  thin seek (no Yuka yet); TargetHit ready for F01
- * Programming  : hub-v4.3 / 2026-08-20  Mesh + activate/update/syncRender/dispose
- * Game Design  : hub-v4.3 / 2026-08-20  BALANCE.enemy.generic + despawn
- * TDD          : hub-v4.3 / 2026-08-20  enemy.test.ts green
+ * Programming  : hub-v4.4 / 2026-08-20  EnemyMovementManager (synchronizedLerp → seekChase)
+ * Game Design  : hub-v4.4 / 2026-08-20  Warrior sheet + gate y=0 play-plane handoff
+ * TDD          : hub-v4.4 / 2026-08-20  enemy + enemy-movement-manager tests
  *
  * DoD (§6.1): spec · tests red · shape · lifecycle · BALANCE · memory ·
  *             IDs · verify green · port fidelity
- * Status: done (thin — Yuka SeekBehavior deferred)
+ * Status: done (thin — Yuka SeekBehavior deferred; movement via EnemyMovementManager)
  */
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -176,7 +176,10 @@ export declare class Enemy extends THREE.Mesh implements TargetHit, DamageSink {
  *   R1. Enemy extends THREE.Mesh (the mesh *is* the enemy).
  *   R2. Implements TargetHit with team === 'enemy' and radius from BALANCE.
  *   R3. takeDamage / applyDamage reduce hp; hp<=0 ⇒ active=false, killed=true, once.
- *   R4. Drift uses a Yuka Vehicle + SeekBehavior toward SeekTargetPort (player).
+ *   R4. Movement is owned by EnemyMovementManager:
+ *       reachGate → synchronizedLerp (single t, easeInOutCubic, XYZ proportional A→B);
+ *       chase → seekChase (XZ seek + Y damp to player / gate plane).
+ *       On handoff, y snaps to gate.y (BALANCE.enemy.gate.offset.y = 0).
  *   R5. update(dt) never allocates and never writes material/geometry; syncRender
  *       writes position (from vehicle), rotation.y, opacity only.
  *   R6. Memory: pooled. activate/deactivate recycle the slot. dispose() only on

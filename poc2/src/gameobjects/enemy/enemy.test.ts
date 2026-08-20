@@ -60,11 +60,11 @@ describe('Warrior sheet', () => {
 
 describe('Enemy Warrior', () => {
   it('activate loads the Warrior sheet', () => {
-    const seek = { x: 0, z: 0 }
-    const gate = { x: 0, z: -90 }
+    const seek = { x: 0, y: 0, z: 0 }
+    const gate = { x: 0, y: 0, z: -90 }
     const geo = new BoxGeometry(1, 1, 1)
     const enemy = new Enemy({ geometry: geo, seekTarget: seek, gateTarget: gate })
-    enemy.activate({ x: 1, y: 0, z: -10 })
+    enemy.activate({ x: 1, y: 50, z: -10 })
     expect(enemy.archetype()).toBe('warrior')
     expect(enemy.sheet().weapon.damage).toBe(WARRIOR.weapon.damage)
     expect(enemy.hp).toBe(WARRIOR.hp)
@@ -73,13 +73,14 @@ describe('Enemy Warrior', () => {
     geo.dispose()
   })
 
-  it('reachGate drifts toward the gate, not the ship', () => {
-    const seek = { x: 100, z: 0 }
-    const gate = { x: 0, z: -90 }
+  it('reachGate descends in Y toward the gate, not sideways to the ship', () => {
+    const seek = { x: 100, y: 0, z: 0 }
+    const gate = { x: 0, y: 0, z: -90 }
     const geo = new BoxGeometry(1, 1, 1)
     const enemy = new Enemy({ geometry: geo, seekTarget: seek, gateTarget: gate })
-    enemy.activate({ x: 0, y: 0, z: -140 })
+    enemy.activate({ x: 0, y: 50, z: -140 })
     enemy.update(0.5)
+    expect(enemy.y).toBeLessThan(50)
     expect(enemy.z).toBeGreaterThan(-140)
     expect(Math.abs(enemy.x)).toBeLessThan(5)
     expect(enemy.phase()).toBe('reachGate')
@@ -87,9 +88,27 @@ describe('Enemy Warrior', () => {
     geo.dispose()
   })
 
+  it('handoff to chase snaps y to gate.y (play plane)', () => {
+    const seek = { x: 0, y: 0, z: 0 }
+    const gate = { x: 0, y: 0, z: -8 }
+    const geo = new BoxGeometry(1, 1, 1)
+    const enemy = new Enemy({ geometry: geo, seekTarget: seek, gateTarget: gate })
+    enemy.activate({ x: 0, y: 2, z: -8 })
+    for (let i = 0; i < 30; i++) {
+      enemy.update(0.1)
+      if (enemy.phase() === 'chase') {
+        break
+      }
+    }
+    expect(enemy.phase()).toBe('chase')
+    expect(enemy.y).toBe(gate.y)
+    enemy.dispose()
+    geo.dispose()
+  })
+
   it('fires the fixed weapon in chase when inside intel engage range', () => {
-    const seek = { x: 0, z: 0 }
-    const gate = { x: 0, z: -8 }
+    const seek = { x: 0, y: 0, z: 0 }
+    const gate = { x: 0, y: 0, z: -8 }
     const spawns: unknown[] = []
     const geo = new BoxGeometry(1, 1, 1)
     const enemy = new Enemy({
@@ -99,7 +118,6 @@ describe('Enemy Warrior', () => {
       shots: makeShotPort(spawns),
     })
     enemy.activate({ x: 0, y: 0, z: -8 })
-    // Already on the gate → flips to chase on first update, then fires toward player
     for (let i = 0; i < 40; i++) {
       enemy.update(0.05)
     }
@@ -113,11 +131,11 @@ describe('Enemy Warrior', () => {
   })
 
   it('speed changes gradually when entering reachGate', () => {
-    const seek = { x: 0, z: 0 }
-    const gate = { x: 0, z: -90 }
+    const seek = { x: 0, y: 0, z: 0 }
+    const gate = { x: 0, y: 0, z: -90 }
     const geo = new BoxGeometry(1, 1, 1)
     const enemy = new Enemy({ geometry: geo, seekTarget: seek, gateTarget: gate })
-    enemy.activate({ x: 0, y: 0, z: -140 })
+    enemy.activate({ x: 0, y: 50, z: -140 })
     const start = enemy.currentSpeed()
     expect(start).toBe(WARRIOR.maxSpeed)
     enemy.update(0.05)
@@ -129,8 +147,8 @@ describe('Enemy Warrior', () => {
   })
 
   it('takeDamage to 0 deactivates once', () => {
-    const seek = { x: 0, z: 0 }
-    const gate = { x: 0, z: -90 }
+    const seek = { x: 0, y: 0, z: 0 }
+    const gate = { x: 0, y: 0, z: -90 }
     const geo = new BoxGeometry(1, 1, 1)
     const enemy = new Enemy({ geometry: geo, seekTarget: seek, gateTarget: gate })
     enemy.activate({ x: 0, y: 0, z: -5 })

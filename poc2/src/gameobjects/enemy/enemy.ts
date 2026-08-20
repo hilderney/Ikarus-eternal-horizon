@@ -1,7 +1,8 @@
 /**
  * SDD-E01 Enemy — Warrior gunship (pooled).
  * Phases follow sheet.targets: reachGate → chase player.
- * Speed via damp(agility); fixed weapon fires in chase within intel range.
+ * Movement via EnemyMovementManager (synchronizedLerp → seekChase).
+ * Speed damp (agility); fixed weapon fires in chase within intel range.
  */
 
 import { Mesh, MeshBasicMaterial } from 'three'
@@ -9,6 +10,7 @@ import type { BoxGeometry } from 'three'
 import { BALANCE } from '../../core/balancer'
 import { clamp, damp, distXZ } from '../../core/math'
 import type { ShotAcquirePort } from '../../systems/shot-manager'
+import { EnemyMovementManager } from '../../systems/enemy-movement-manager'
 import type { ShotSpawn } from '../shot/weapon-shot'
 import {
   warriorAgilityLambda,
@@ -21,6 +23,7 @@ export type EnemyMovePhase = 'reachGate' | 'chase'
 
 export interface SeekTargetPort {
   readonly x: number
+  readonly y: number
   readonly z: number
 }
 
@@ -61,7 +64,8 @@ export class Enemy extends Mesh {
   private readonly _gate: SeekTargetPort
   private readonly _shots: ShotAcquirePort | null
   private readonly _mat: MeshBasicMaterial
-  private _facingY = 0
+  private readonly _movement = new EnemyMovementManager()
+  private readonly _pos = { x: 0, y: 0, z: 0 }
   private _killed = false
   private _phase: EnemyMovePhase = 'reachGate'
   private _cruiseSpeed = 0
@@ -134,6 +138,23 @@ export class Enemy extends Mesh {
     this._mat.opacity = 1
     this._mat.color.setHex(sheet.color)
     this.scale.setScalar(this.radius * 2)
+
+    this._movement.reset()
+    if (this._phase === 'reachGate') {
+      this._movement.setStrategy('synchronizedLerp')
+      this._movement.beginJourney(
+        { x: spawn.x, y: spawn.y, z: spawn.z },
+        { x: this._gate.x, y: this._gate.y, z: this._gate.z },
+        this._cruiseSpeed * this._reachSpeedMul,
+      )
+    } else {
+      this._movement.setStrategy('seekChase')
+      this._movement.beginJourney(
+        { x: spawn.x, y: spawn.y, z: spawn.z },
+        { x: this._seek.x, y: this._seek.y, z: this._seek.z },
+        this._cruiseSpeed,
+      )
+    }
   }
 
   deactivate(): void {
@@ -143,6 +164,7 @@ export class Enemy extends Mesh {
     this._phase = 'reachGate'
     this._currentSpeed = 0
     this._fireAcc = 0
+    this._movement.reset()
   }
 
   update(dt: number): void {
@@ -150,29 +172,39 @@ export class Enemy extends Mesh {
       return
     }
 
-    if (this._phase === 'reachGate') {
-      const gateDist = distXZ(this.x, this.z, this._gate.x, this._gate.z)
-      if (gateDist <= this._arriveRadius) {
-        this._phase = 'chase'
-      }
-    }
-
-    const aim = this._phase === 'reachGate' ? this._gate : this._seek
     const targetSpeed =
       this._phase === 'reachGate' ? this._cruiseSpeed * this._reachSpeedMul : this._cruiseSpeed
     this._currentSpeed = damp(this._currentSpeed, targetSpeed, this._agilityLambda, dt)
     this.vehicle.maxSpeed = this._currentSpeed
 
-    const dx = aim.x - this.x
-    const dz = aim.z - this.z
-    const dist = distXZ(this.x, this.z, aim.x, aim.z)
-    if (dist > 0.001) {
-      const inv = 1 / dist
-      const speed = this._currentSpeed
-      this.x += dx * inv * speed * dt
-      this.z += dz * inv * speed * dt
-      this._facingY = Math.atan2(dx, dz)
+    this._pos.x = this.x
+    this._pos.y = this.y
+    this._pos.z = this.z
+    const aim = this._phase === 'reachGate' ? this._gate : this._seek
+    const { arrived } = this._movement.update({
+      position: this._pos,
+      dt,
+      currentSpeed: this._currentSpeed,
+      target: { x: aim.x, y: aim.y, z: aim.z },
+      arriveRadius: this._arriveRadius,
+      agilityLambda: this._agilityLambda,
+    })
+    this.x = this._pos.x
+    this.y = this._pos.y
+    this.z = this._pos.z
+
+    if (this._phase === 'reachGate' && arrived) {
+      this._phase = 'chase'
+      // Play-plane handoff: gate offset.y is 0.
+      this.y = this._gate.y
+      this._movement.setStrategy('seekChase')
+      this._movement.beginJourney(
+        { x: this.x, y: this.y, z: this.z },
+        { x: this._seek.x, y: this._seek.y, z: this._seek.z },
+        this._cruiseSpeed,
+      )
     }
+
     this.vehicle.position.x = this.x
     this.vehicle.position.y = this.y
     this.vehicle.position.z = this.z
@@ -186,7 +218,7 @@ export class Enemy extends Mesh {
       return
     }
     this.position.set(this.x, this.y, this.z)
-    this.rotation.y = this._facingY
+    this.rotation.y = this._movement.facingY()
     this._mat.opacity = this.hpMax > 0 ? clamp(this.hp / this.hpMax, 0.2, 1) : 0.2
     this.visible = true
   }

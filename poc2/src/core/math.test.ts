@@ -6,7 +6,10 @@ import {
   damp,
   decayFactor,
   distXZ,
+  distXYZ,
+  easeInOutCubic,
   lerp,
+  lerpVec3,
   scratchV3A,
   scratchV3B,
   scratchV3C,
@@ -25,6 +28,24 @@ describe('math', () => {
     expect(lerp(10, 20, 0)).toBe(10)
     expect(lerp(10, 20, 1)).toBe(20)
     expect(lerp(10, 20, 0.5)).toBe(15)
+  })
+
+  it('easeInOutCubic is 0 / 0.5 / 1 at endpoints and midpoint', () => {
+    expect(easeInOutCubic(0)).toBe(0)
+    expect(easeInOutCubic(1)).toBe(1)
+    expect(easeInOutCubic(0.5)).toBeCloseTo(0.5, 10)
+  })
+
+  it('lerpVec3 keeps XYZ in the same proportion', () => {
+    const out = { x: 0, y: 0, z: 0 }
+    lerpVec3({ x: -100, y: -50, z: -50 }, { x: 0, y: 0, z: 0 }, 0.25, out)
+    expect(out.x).toBeCloseTo(-75, 10)
+    expect(out.y).toBeCloseTo(-37.5, 10)
+    expect(out.z).toBeCloseTo(-37.5, 10)
+  })
+
+  it('distXYZ matches hypot of three deltas', () => {
+    expect(distXYZ(0, 0, 0, 3, 4, 12)).toBe(13)
   })
 
   it('damps toward target without overshooting', () => {

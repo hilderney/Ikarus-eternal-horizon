@@ -31,6 +31,42 @@ export function distXZ(ax: number, az: number, bx: number, bz: number): number {
   return Math.hypot(ax - bx, az - bz)
 }
 
+/** Euclidean distance in XYZ. */
+export function distXYZ(
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+): number {
+  return Math.hypot(ax - bx, ay - by, az - bz)
+}
+
+/** Smoothstep-style cubic ease. t should be in [0, 1]. */
+export function easeInOutCubic(t: number): number {
+  const x = clamp(t, 0, 1)
+  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2
+}
+
+export interface LerpVec3 {
+  readonly x: number
+  readonly y: number
+  readonly z: number
+}
+
+/** Component-wise lerp. Writes into `out` (no allocation). */
+export function lerpVec3(
+  a: LerpVec3,
+  b: LerpVec3,
+  t: number,
+  out: { x: number; y: number; z: number },
+): void {
+  out.x = lerp(a.x, b.x, t)
+  out.y = lerp(a.y, b.y, t)
+  out.z = lerp(a.z, b.z, t)
+}
+
 /**
  * Laser (and shot) damage/opacity factor from normalised elapsed time in [0, 1].
  * Boundaries 0.25 / 0.5 / 0.75 sit on the higher rung.

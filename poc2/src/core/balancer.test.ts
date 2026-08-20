@@ -149,9 +149,9 @@ describe('BALANCE', () => {
   })
 
   it('exposes enemy left/right spawn volumes beside the ship', () => {
-    expect(BALANCE.enemy.spawnLeft.offset).toEqual({ x: -140, y: 0, z: -140 })
-    expect(BALANCE.enemy.spawnRight.offset).toEqual({ x: 140, y: 0, z: -140 })
-    expect(BALANCE.enemy.spawnFront.offset).toEqual({ x: 0, y: 0, z: -140 })
+    expect(BALANCE.enemy.spawnLeft.offset).toEqual({ x: -160, y: 50, z: -140 })
+    expect(BALANCE.enemy.spawnRight.offset).toEqual({ x: 160, y: 50, z: -140 })
+    expect(BALANCE.enemy.spawnFront.offset).toEqual({ x: 0, y: 100, z: -140 })
     expect(BALANCE.enemy.spawnLeft.size.x).toBe(10)
     expect(BALANCE.enemy.spawnRight.size.x).toBe(10)
     expect(BALANCE.enemy.spawnFront.size.x).toBe(10)

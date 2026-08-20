@@ -49,10 +49,10 @@ function makeManager(capacity = 8): {
   enemyGate.syncRender()
   battleField.update({ x: 0, y: 0, z: 0 })
   battleField.syncRender()
-  const gateAim = { x: 0, z: -90 }
+  const gateAim = { x: 0, y: 0, z: -90 }
   const manager = new EnemyManager({
     scene,
-    seekTarget: { x: 0, z: 0 },
+    seekTarget: { x: 0, y: 0, z: 0 },
     gateTarget: gateAim,
     spawnLeft,
     spawnRight,
@@ -149,6 +149,8 @@ describe('EnemyManager', () => {
 
   it('releases enemies that leave the BattleField (pool reuse, no destroy)', () => {
     const parts = makeManager(2)
+    silenceOtherSides(parts, 'left')
+    parts.spawnLeft.setIntervalSec(99)
     const enemy = parts.manager.spawnOne('left')
     expect(enemy).not.toBeNull()
     if (enemy) {

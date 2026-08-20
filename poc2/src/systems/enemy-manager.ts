@@ -39,7 +39,7 @@ export class EnemyManager {
   private readonly _scene: ScenePort
   private readonly _areas: Record<SpawnSide, SpawnArea>
   private readonly _enemyGate: EnemyGate
-  private readonly _gateTarget: { x: number; z: number }
+  private readonly _gateTarget: { x: number; y: number; z: number }
   private readonly _battleField: BattleField
   private readonly _seek: SeekTargetPort
   private readonly _shots: ShotAcquirePort | null
@@ -57,7 +57,7 @@ export class EnemyManager {
       front: options.spawnFront,
     }
     this._enemyGate = options.enemyGate
-    this._gateTarget = options.gateTarget as { x: number; z: number }
+    this._gateTarget = options.gateTarget as { x: number; y: number; z: number }
     this._battleField = options.battleField
     this._seek = options.seekTarget
     this._shots = options.shots ?? null
@@ -133,6 +133,10 @@ export class EnemyManager {
     }
 
     this._pool.forEachActive((enemy) => {
+      if (!this._battleField.contains(enemy.x, enemy.z)) {
+        this._pool.release(enemy)
+        return
+      }
       enemy.update(dt)
       if (!enemy.active || enemy.hp <= 0 || !this._battleField.contains(enemy.x, enemy.z)) {
         this._pool.release(enemy)
@@ -161,6 +165,7 @@ export class EnemyManager {
   private _syncGateAim(): void {
     const center = this._enemyGate.worldCenter()
     this._gateTarget.x = center.x
+    this._gateTarget.y = center.y
     this._gateTarget.z = center.z
   }
 

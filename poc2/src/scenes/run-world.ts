@@ -185,7 +185,7 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
 
     const enemyGate = new EnemyGate({ config: BALANCE.enemy.gate })
     scene.add(enemyGate.group)
-    const gateAim = { x: 0, z: 0 }
+    const gateAim = { x: 0, y: 0, z: 0 }
 
     const battleField = new BattleField({ config: BALANCE.battlefield })
     scene.add(battleField.group)
