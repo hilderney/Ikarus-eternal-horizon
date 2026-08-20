@@ -163,6 +163,16 @@ describe('TouchControls', () => {
     expect(fake.destroy).toHaveBeenCalledTimes(1)
   })
 
+  it('syncSlots remaps overlay button actions', () => {
+    const { controls, host, source } = mount()
+    controls.syncSlots(['dash', 'bomb', 'switchWeapon', 'switchBomb', 'fire', 'pause'])
+    const dash = button(host, 'dash')
+    dash.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    expect(source.isPressed('dash')).toBe(true)
+    expect(source.isPressed('fire')).toBe(false)
+    controls.dispose()
+  })
+
   it('does not import three', () => {
     expect(source).not.toMatch(/from ['"]three['"]/)
     expect(source).not.toMatch(/\bTHREE\b/)

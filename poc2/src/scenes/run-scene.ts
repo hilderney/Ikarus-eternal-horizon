@@ -76,6 +76,7 @@ export interface RunWorldFactory {
 
 export interface InputMapPort {
   mount(host: HTMLElement): void
+  update?(dt: number): void
   dispose(): void
 }
 
@@ -170,6 +171,7 @@ export class RunScene implements ScenePort {
       return
     }
     this._input.update(dt)
+    this._inputMap.update?.(dt)
     this._player?.update(dt)
     this._camCtl?.update(dt)
     this._ship?.update(dt)

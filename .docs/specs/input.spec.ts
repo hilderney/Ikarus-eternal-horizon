@@ -34,7 +34,9 @@
  * Does not own: mapping axes to ship/camera motion (SDD-C02), fire/bomb/switch
  *            consumption (SDD-E07), pause overlay chrome (SDD-G11 — this class
  *            only exposes scheme + pause), the touch overlay DOM (SDD-G12),
- *            pointer-steer (SHIP-04 remainder), or persistent remap (SHIP-13 G3).
+ *            pointer-steer (SHIP-04 remainder). Persistent save of remaps
+ *            stays SHIP-13 G3; this pass is a live session table (InputBindings)
+ *            edited from area-inputs.
  * Player-facing: sticky keys after alt-tab, swallowed WASD, Shift combos
  *            fighting IJKL, a dead stick, RT that never fires, a right-click
  *            that opens the browser menu instead of bombing, or rumble that
@@ -274,8 +276,10 @@ export declare class InputState implements InputPort {
  *   R15. connectedPadCount is the number of non-null snapshots from getGamepads().
  *   R16. consumePress returns true at most once per rising edge. A held button
  *        does not retrigger. Wheel: mix scheme only; one edge per notch.
- *   R17. setScheme replaces the active scheme, clears mouse buttons and edges,
- *        and does not allocate on the hot path.
+ *   R18. Combat binds are live `InputBindings` cloned from BALANCE. Keyboard
+ *        / mix share the keyboard map; mix adds mouse buttons + wheel;
+ *        gamepad uses the pad map; touch overlay slots remap G12 actions.
+ *        Assigning a colliding bind swaps. Escape always latches pause.
  */
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
 /**
@@ -406,6 +410,10 @@ export declare class InputState implements InputPort {
  *   it('gamepad scheme ignores Space fire and uses RT')                     // R9, R11
  *   it('touch scheme uses TouchSource axis and ignores WASD')                // R9
  *   it('Escape still latches pause on a non-keyboard scheme')                // R11
+ *
+ * describe('InputState live remaps')
+ *   it('keyboard fire follows bindings.keyboard.fire')                       // R18
+ *   it('gamepad fire follows remapped button index')                         // R18
  *
  * describe('InputState D19 mouse + touch')
  *   it('left mouse button holds fire; right button consumePress bomb once')  // mix

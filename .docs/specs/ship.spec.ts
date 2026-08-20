@@ -18,8 +18,10 @@
  * Owns:      The player craft as a modular THREE.Group — hull, accent, thruster,
  *            weapon tip, hardpoints, ordnance, equipment, inventory, and the
  *            **ship sheet** G08 reads: pose, byte stats (0–255), statuses,
- *            equipped item + owned lists (weapons, bombs, wings, shield fits,
- *            armor, energy collector, energy converter).
+ *            **ship sheet** G08 reads: pose, byte stats (0–255), statuses,
+ *            equipped item + owned lists, plus modular airplane parts
+ *            (body / 4 wings / shield / twin bombs / collector / cockpit converter)
+ *            that write those stats. Body hull is the hitbox.
  * Does not own: motion/tilt (C02), applyDamage routing (C03 — writes integrity
  *            / shield once wired), firing (E07), energy spend/regen (D03 — writes
  *            energy once wired), camera (B01), drop magnet (F02).
@@ -255,8 +257,14 @@ export declare class Ship extends THREE.Group {
 
 // ─── 5. Rules and invariants ─────────────────────────────────────────────────
 /**
- *   R1. Ship extends THREE.Group. Hull, accent, thruster cone, weapon-tip sphere
- *       are children created in the constructor.
+ *   R1. Ship extends THREE.Group. Hull, accent, thruster cone are direct children.
+ *       Weapon tip + wings + shield + bombs + collector + converter live in a
+ *       `modules` group. Hull is `hitbox`.
+ *   R14. Equipped modules apply BALANCE.ship.modules deltas onto stats max
+ *        (body: integrity/energy, wings: agility/deflection, shield: shield/
+ *        deflection, collector: energyGain, converter: labFusion). WeaponSlot
+ *        holds equippedWeapon + weaponLevel; BombSlot holds equippedBomb +
+ *        bombLevel. LabFusion is craft/conversion speed for later G11.
  *   R2. Nothing outside Ship mutates hardpoints, ordnance, equipment, or inventory
  *       storage — only Ship methods (equip*/tryAdd) write those.
  *   R3. applyTransform copies position/rotation(degrees)/scale onto the logical
@@ -269,7 +277,8 @@ export declare class Ship extends THREE.Group {
  *       syncRender: scale.y = 0.72 + 0.28 * sin(t*42) * sin(t*13 + 1.3)
  *       (POC-1 port). X/Z scale stay 1.
  *   R6. Memory: geometries and materials created once. dispose() must reach
- *       hull geo/mat, accent geo/mat, thruster geo/mat, tip geo/mat.
+ *       hull geo/mat, accent geo/mat, thruster geo/mat, tip geo/mat, and every
+ *       module mesh (wings, shield, bombs, collector, converter).
  *   R7. Per-frame allocation: none.
  *   R8. inventory.tryAdd never stores above cap; surplus is not converted here
  *       (RES-05: reject). Metal Scrap is the SHIP-06 minimum resource.
@@ -398,6 +407,10 @@ export declare class Ship extends THREE.Group {
  *   it('setDashing / setShooting / setFlickering update status for the debugger')          // R11
  *   it('loadout.weapons starts as BALANCE.weapons.loadout; equippedWeapon tracks slot 0')  // R12
  *   it('wings/shields/armors/collectors/converters start empty')                           // R12, §7
+ *   it('mounts four wings, twin bombs, shield, collector and cockpit on the body')        // R14
+ *   it('body and wing modules change integrity/energy and agility/deflection')            // R14, SHIP-10
+ *   it('shield, collector and converter write shield/deflection, energyGain and labFusion') // R14
+ *   it('hitbox stays the hull when modules are equipped')                                 // R14
  *
  * Manual:
  *   A-manual-1. [manual] ship is readable as the player craft in the default camera

@@ -143,7 +143,8 @@ export declare class TouchControls {
  *       fine desktop. enabled true/false forces the overlay.
  *   R7. Hidden overlay must not emit axes or actions (axes snap to 0, buttons up).
  *   R8. Per-frame allocation: none. nipplejs move callback writes two scalars.
- *   R9. No THREE. No scene.add. Host is G06 game-area.
+ *   R10. syncSlots(actions) writes data-action + labels on the six overlay
+ *        buttons so area-inputs remaps take effect without rebuilding nipple.
  */
 
 // ─── 6. View / syncRender ────────────────────────────────────────────────────
@@ -195,6 +196,7 @@ export declare class TouchControls {
  *   it('Bomb pointerdown is a tap that A02 can consume as an edge')              // R4
  *   it('hidden overlay snaps axes to 0 and releases buttons')                    // R7
  *   it('dispose calls nipple.destroy and removes the overlay node')              // R1
+ *   it('syncSlots remaps overlay button actions')                                // R10
  *   it('does not import three')                                                  // R9
  *
  * Manual:

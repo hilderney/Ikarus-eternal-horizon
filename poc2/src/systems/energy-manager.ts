@@ -29,6 +29,8 @@ export interface EnergyManagerOptions {
   readonly canRegen?: () => boolean
   /** Post-spend lockout. Default: BALANCE.ship.cooldowns.recoveringMs. */
   readonly regenDelayMs?: number
+  /** Extra regen per second from EnergyCollectorSlot. */
+  readonly regenBonus?: () => number
 }
 
 export class EnergyManager implements EnergyPort {
@@ -37,6 +39,7 @@ export class EnergyManager implements EnergyPort {
   private readonly _pool: EnergyPool
   private readonly _canRegen: () => boolean
   private readonly _regenDelayMaxMs: number
+  private readonly _regenBonus: () => number
   private _regenDelayMs = 0
 
   constructor(options: EnergyManagerOptions) {
@@ -45,6 +48,7 @@ export class EnergyManager implements EnergyPort {
     this._pool = options.pool ?? { current: config.start, max: config.max }
     this._canRegen = options.canRegen ?? (() => true)
     this._regenDelayMaxMs = options.regenDelayMs ?? BALANCE.ship.cooldowns.recoveringMs
+    this._regenBonus = options.regenBonus ?? (() => 0)
   }
 
   get current(): number {
@@ -78,7 +82,10 @@ export class EnergyManager implements EnergyPort {
     if (!this._canRegen() || remain <= 0) {
       return
     }
-    this._pool.current = Math.min(this._pool.max, this._pool.current + this.regenPerSec * remain)
+    this._pool.current = Math.min(
+      this._pool.max,
+      this._pool.current + (this.regenPerSec + this._regenBonus()) * remain,
+    )
   }
 
   dispose(): void {

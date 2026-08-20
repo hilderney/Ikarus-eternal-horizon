@@ -4,6 +4,11 @@
  */
 
 import { BALANCE } from './balancer'
+import {
+  createInputBindings,
+  isKeyboardBound,
+  type InputBindings,
+} from './input-bindings'
 
 /** Exclusive control schemes. Pause (G11) is the picker. Default: keyboard. */
 export type ControlScheme = 'keyboard' | 'mix' | 'gamepad' | 'touch'
@@ -85,6 +90,8 @@ export interface InputStateOptions {
   readonly gamepads?: GamepadSource
   readonly touch?: TouchSource
   readonly scheme?: ControlScheme
+  /** Live remaps. Defaults to a clone of BALANCE. */
+  readonly bindings?: InputBindings
   /** Defaults to BALANCE.haptics.enabled. Tests may override. */
   readonly hapticsEnabled?: boolean
 }
@@ -165,6 +172,7 @@ export class InputState implements InputPort {
   private readonly _touch: TouchSource
   private readonly _preventDefaultCodes: ReadonlySet<string>
   private readonly _hapticsEnabled: boolean
+  private readonly _bindings: InputBindings
   private _scheme: ControlScheme
   private _pad: GamepadSnap | null = null
   private _padAxisX = 0
@@ -177,7 +185,7 @@ export class InputState implements InputPort {
 
   private readonly _onKeyDown = (event: Event): void => {
     const e = event as KeyboardEvent
-    if (this._preventDefaultCodes.has(e.code)) {
+    if (this._preventDefaultCodes.has(e.code) || isKeyboardBound(this._bindings, e.code)) {
       e.preventDefault()
     }
     this._keys.add(e.code)
@@ -229,12 +237,15 @@ export class InputState implements InputPort {
       return
     }
     const e = event as WheelEvent
+    if (e.deltaY === 0) {
+      return
+    }
     e.preventDefault()
-    this._edgeBits |= SWITCH_WEAPON_BIT
+    this._edgeBits |= e.deltaY < 0 ? SWITCH_BOMB_BIT : SWITCH_WEAPON_BIT
   }
 
   private readonly _onContextMenu = (event: Event): void => {
-    if (this._scheme !== 'mix') {
+    if (this._scheme !== 'mix' || this._bindings.mouse.bombButton !== 2) {
       return
     }
     event.preventDefault()
@@ -254,6 +265,7 @@ export class InputState implements InputPort {
     this._gamepads = options.gamepads ?? defaultGamepadSource()
     this._touch = options.touch ?? ZERO_TOUCH
     this._hapticsEnabled = options.hapticsEnabled ?? BALANCE.haptics.enabled
+    this._bindings = options.bindings ?? createInputBindings()
     this._scheme = options.scheme ?? 'keyboard'
 
     this._target.addEventListener('keydown', this._onKeyDown)
@@ -293,12 +305,13 @@ export class InputState implements InputPort {
       }
     }
 
-    const gp = BALANCE.controls.gamepad
+    const gp = this._bindings.gamepad
+    const deadzone = BALANCE.controls.gamepad.deadzone
     if (this._pad) {
       const rawX = this._pad.axes[gp.axes.moveX] ?? 0
       let rawZ = this._pad.axes[gp.axes.moveZ] ?? 0
-      this._padAxisX = applyDeadzone(rawX, gp.deadzone)
-      rawZ = applyDeadzone(rawZ, gp.deadzone)
+      this._padAxisX = applyDeadzone(rawX, deadzone)
+      rawZ = applyDeadzone(rawZ, deadzone)
       this._padAxisZ = gp.invertMoveZ ? -rawZ : rawZ
     } else {
       this._padAxisX = 0
@@ -324,7 +337,7 @@ export class InputState implements InputPort {
         : applyDeadzone(this._touch.axisZ, dz)
     }
 
-    const keys = BALANCE.controls.shipKeys
+    const keys = this._bindings.keyboard
     if (id === 'moveX') {
       let dir = 0
       if (this._keys.has(keys.moveXPlus)) {
@@ -347,14 +360,14 @@ export class InputState implements InputPort {
   }
 
   isPressed(action: InputAction): boolean {
-    if (action === 'pause' && this._keys.has(BALANCE.gameplay.pauseKey)) {
+    if (action === 'pause' && this._keys.has('Escape')) {
       return true
     }
 
-    const gp = BALANCE.controls.gamepad
-    const gameplay = BALANCE.gameplay
-    const mouse = BALANCE.controls.mouse
-    const keys = this._usesKeys()
+    const gp = this._bindings.gamepad
+    const keys = this._bindings.keyboard
+    const mouse = this._bindings.mouse
+    const useKeys = this._usesKeys()
     const mouseOn = this._scheme === 'mix'
     const padOn = this._scheme === 'gamepad'
     const touchOn = this._scheme === 'touch'
@@ -365,39 +378,39 @@ export class InputState implements InputPort {
       case 'fire':
         held =
           held ||
-          (keys && this._keys.has(gameplay.fireKey)) ||
+          (useKeys && this._keys.has(keys.fire)) ||
           (padOn && this._isPadButtonPressed(gp.buttons.fire)) ||
           (mouseOn && this._isMouseDown(mouse.fireButton))
         break
       case 'bomb':
         held =
           held ||
-          (keys && this._keys.has(gameplay.bombKey)) ||
+          (useKeys && this._keys.has(keys.bomb)) ||
           (padOn && this._isPadButtonPressed(gp.buttons.bomb)) ||
           (mouseOn && this._isMouseDown(mouse.bombButton))
         break
       case 'switchWeapon':
         held =
           held ||
-          (keys && this._keys.has(gameplay.switchKey)) ||
+          (useKeys && this._keys.has(keys.switchWeapon)) ||
           (padOn && this._isPadButtonPressed(gp.buttons.switchWeapon))
         break
       case 'switchBomb':
         held =
           held ||
-          (keys && this._keys.has(gameplay.switchBombKey)) ||
-          (padOn && this._isPadButtonPressed(gp.buttons.switchBomb)) ||
-          (mouseOn && this._isMouseDown(mouse.switchBombButton))
+          (useKeys && this._keys.has(keys.switchBomb)) ||
+          (padOn && this._isPadButtonPressed(gp.buttons.switchBomb))
         break
       case 'dash':
         held =
           held ||
-          (keys && this._keys.has(gameplay.dashKey)) ||
+          (useKeys && this._keys.has(keys.dash)) ||
           (padOn && this._isPadButtonPressed(gp.buttons.dash))
         break
       case 'pause':
         held =
           held ||
+          (useKeys && this._keys.has(keys.pause)) ||
           (padOn && this._isPadButtonPressed(gp.buttons.pause))
         break
     }
@@ -448,6 +461,10 @@ export class InputState implements InputPort {
 
   get connectedPadCount(): number {
     return this._connectedPadCount
+  }
+
+  get bindings(): InputBindings {
+    return this._bindings
   }
 
   dispose(): void {

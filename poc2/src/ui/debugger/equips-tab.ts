@@ -122,19 +122,29 @@ export class EquipsTab implements DebuggerTab {
     this._list(form, 'bombs', 'loadout.bombs')
 
     this._group(form, 'Modules')
-    this._equipped(form, 'equippedWings', 'loadout.equippedWings', [...WING_IDS])
+    this._equipped(form, 'equippedWings', 'loadout.equippedWings', [...WING_IDS], (id) => {
+      this._binds.ship.equipWings(id)
+    })
     this._list(form, 'wings', 'loadout.wings')
-    this._equipped(form, 'equippedShield', 'loadout.equippedShield', [...FIT_IDS])
+    this._equipped(form, 'equippedShield', 'loadout.equippedShield', [...FIT_IDS], (id) => {
+      this._binds.ship.equipShield(id)
+    })
     this._list(form, 'shields', 'loadout.shields')
-    this._equipped(form, 'equippedArmor', 'loadout.equippedArmor', [...FIT_IDS])
+    this._equipped(form, 'equippedArmor', 'loadout.equippedArmor', [...FIT_IDS], (id) => {
+      this._binds.ship.equipArmor(id)
+    })
     this._list(form, 'armors', 'loadout.armors')
     this._equipped(form, 'equippedEnergyCollector', 'loadout.equippedEnergyCollector', [
       ...COLLECTOR_IDS,
-    ])
+    ], (id) => {
+      this._binds.ship.equipEnergyCollector(id)
+    })
     this._list(form, 'energyCollectors', 'loadout.energyCollectors')
     this._equipped(form, 'equippedEnergyConverter', 'loadout.equippedEnergyConverter', [
       ...CONVERTER_IDS,
-    ])
+    ], (id) => {
+      this._binds.ship.equipEnergyConverter(id)
+    })
     this._list(form, 'energyConverters', 'loadout.energyConverters')
 
     panel.append(form)
@@ -166,13 +176,13 @@ export class EquipsTab implements DebuggerTab {
     const live = this._binds.ship.snapshot().loadout
     this._binds.ship.equipWeapon(defaults.equippedWeapon)
     this._binds.ship.equipBomb(defaults.equippedBomb)
+    this._binds.ship.equipWings(defaults.equippedWings)
+    this._binds.ship.equipShield(defaults.equippedShield)
+    this._binds.ship.equipArmor(defaults.equippedArmor)
+    this._binds.ship.equipEnergyCollector(defaults.equippedEnergyCollector)
+    this._binds.ship.equipEnergyConverter(defaults.equippedEnergyConverter)
     this._binds.weapons.setLevel(defaults.weaponLevel)
     this._binds.dash.setLevel(defaults.dashLevel)
-    writeLoadoutField(live, 'equippedWings', defaults.equippedWings)
-    writeLoadoutField(live, 'equippedShield', defaults.equippedShield)
-    writeLoadoutField(live, 'equippedArmor', defaults.equippedArmor)
-    writeLoadoutField(live, 'equippedEnergyCollector', defaults.equippedEnergyCollector)
-    writeLoadoutField(live, 'equippedEnergyConverter', defaults.equippedEnergyConverter)
     replaceList(live, 'weapons', defaults.weapons)
     replaceList(live, 'bombs', defaults.bombs)
     replaceList(live, 'wings', defaults.wings)

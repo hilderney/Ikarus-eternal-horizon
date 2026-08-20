@@ -5,6 +5,8 @@
 
 import { create as createNipple } from 'nipplejs'
 import { BALANCE } from '../../core/balancer'
+import type { CombatBindAction } from '../../core/input-bindings'
+import { TOUCH_SLOT_DEFAULTS } from '../../core/input-bindings'
 import type { InputAction } from '../../core/input'
 
 export type TouchAction = InputAction
@@ -46,14 +48,14 @@ export interface TouchControlsOptions {
   readonly stickColor: string
 }
 
-const ACTIONS: readonly { readonly action: TouchAction; readonly label: string }[] = [
-  { action: 'fire', label: 'Fire' },
-  { action: 'bomb', label: 'Bomb' },
-  { action: 'switchWeapon', label: 'Wpn' },
-  { action: 'switchBomb', label: 'Bomb×' },
-  { action: 'dash', label: 'Dash' },
-  { action: 'pause', label: 'Pause' },
-]
+const ACTION_LABELS: Record<CombatBindAction, string> = {
+  fire: 'Fire',
+  bomb: 'Bomb',
+  switchWeapon: 'Wpn',
+  switchBomb: 'Bomb×',
+  dash: 'Dash',
+  pause: 'Pause',
+}
 
 const FIRE_BIT = 1
 const BOMB_BIT = 2
@@ -157,6 +159,9 @@ export class TouchControls {
   private readonly _enabled: 'auto' | boolean
   private readonly _root: HTMLElement
   private readonly _zone: HTMLElement
+  private readonly _cluster: HTMLElement
+  private readonly _buttons: HTMLButtonElement[] = []
+  private readonly _stickColor: string
   private readonly _nipple: NippleHandle
   private _visible = false
   private _disposed = false
@@ -164,6 +169,7 @@ export class TouchControls {
   constructor(options: TouchControlsOptions) {
     this._source = options.source
     this._enabled = options.enabled
+    this._stickColor = options.stickColor
 
     this._root = document.createElement('div')
     this._root.dataset.touchControls = 'overlay'
@@ -191,8 +197,8 @@ export class TouchControls {
       'touch-action:none',
     ].join(';')
 
-    const cluster = document.createElement('div')
-    cluster.style.cssText = [
+    this._cluster = document.createElement('div')
+    this._cluster.style.cssText = [
       'position:absolute',
       'right:0',
       'bottom:0',
@@ -203,12 +209,9 @@ export class TouchControls {
       'pointer-events:none',
     ].join(';')
 
-    for (const entry of ACTIONS) {
+    for (let i = 0; i < TOUCH_SLOT_DEFAULTS.length; i += 1) {
       const btn = document.createElement('button')
       btn.type = 'button'
-      btn.dataset.action = entry.action
-      btn.textContent = entry.label
-      const color = entry.action === 'fire' ? options.stickColor : INDIGO
       btn.style.cssText = [
         `min-width:${BUTTON_MIN_PX}px`,
         `min-height:${BUTTON_MIN_PX}px`,
@@ -216,7 +219,6 @@ export class TouchControls {
         'touch-action:none',
         'border:0',
         'border-radius:10px',
-        `background:${color}`,
         `opacity:${OVERLAY_OPACITY}`,
         'color:#0b1220',
         'font:600 12px/1 system-ui,sans-serif',
@@ -227,19 +229,27 @@ export class TouchControls {
         if (!this._visible) {
           return
         }
-        this._source.setPressed(entry.action, true)
+        const next = btn.dataset.action as TouchAction | undefined
+        if (next) {
+          this._source.setPressed(next, true)
+        }
       }
       const up = (event: Event): void => {
         event.preventDefault()
-        this._source.setPressed(entry.action, false)
+        const next = btn.dataset.action as TouchAction | undefined
+        if (next) {
+          this._source.setPressed(next, false)
+        }
       }
       btn.addEventListener('pointerdown', down)
       btn.addEventListener('pointerup', up)
       btn.addEventListener('pointercancel', up)
-      cluster.append(btn)
+      this._buttons.push(btn)
+      this._cluster.append(btn)
     }
+    this.syncSlots(TOUCH_SLOT_DEFAULTS)
 
-    this._root.append(this._zone, cluster)
+    this._root.append(this._zone, this._cluster)
     options.host.append(this._root)
 
     const factory = options.nipple ?? defaultNippleFactory(options.stickSize, options.stickColor)
@@ -266,6 +276,20 @@ export class TouchControls {
     this._root.style.display = visible ? 'block' : 'none'
     if (!visible) {
       this._releaseAll()
+    }
+  }
+
+  syncSlots(slots: readonly CombatBindAction[]): void {
+    this._releaseAll()
+    for (let i = 0; i < this._buttons.length; i += 1) {
+      const btn = this._buttons[i]
+      const action = slots[i]
+      if (!btn || !action) {
+        continue
+      }
+      btn.dataset.action = action
+      btn.textContent = ACTION_LABELS[action]
+      btn.style.background = action === 'fire' ? this._stickColor : INDIGO
     }
   }
 
@@ -306,8 +330,8 @@ export class TouchControls {
 
   private _releaseAll(): void {
     this._source.setAxis(0, 0)
-    for (const entry of ACTIONS) {
-      this._source.setPressed(entry.action, false)
+    for (const action of TOUCH_SLOT_DEFAULTS) {
+      this._source.setPressed(action, false)
     }
   }
 }

@@ -60,28 +60,28 @@ describe('BALANCE', () => {
     expect(BALANCE.vfx.hitStopFrames).toBe(3)
   })
 
-  it('exposes gamepad W3C map: deadzone 0.18, RT 7, LB 4, Start 9', () => {
+  it('exposes gamepad W3C map: deadzone 0.18, Y 3, X 2, Start 9', () => {
     expect(BALANCE.gameplay.pauseKey).toBe('Escape')
     expect(BALANCE.controls.gamepad.deadzone).toBe(0.18)
     expect(BALANCE.controls.gamepad.triggerThreshold).toBe(0.35)
     expect(BALANCE.controls.gamepad.invertMoveZ).toBe(false)
     expect(BALANCE.controls.gamepad.axes).toEqual({ moveX: 0, moveZ: 1 })
     expect(BALANCE.controls.gamepad.buttons).toEqual({
-      fire: 7,
-      switchWeapon: 4,
-      switchBomb: 5,
+      fire: 3,
+      switchWeapon: 2,
+      switchBomb: 1,
       pause: 9,
-      dash: 6,
+      dash: 5,
       bomb: 0,
-      boost: 6,
-      special: 0,
+      boost: 7,
+      special: 6,
     })
   })
 
   it('exposes D19 action keys, dash, mouse buttons and touch overlay', () => {
-    expect(BALANCE.gameplay.bombKey).toBe('KeyE')
-    expect(BALANCE.gameplay.switchBombKey).toBe('KeyQ')
-    expect(BALANCE.gameplay.dashKey).toBe('ControlLeft')
+    expect(BALANCE.gameplay.bombKey).toBe('KeyT')
+    expect(BALANCE.gameplay.switchBombKey).toBe('KeyY')
+    expect(BALANCE.gameplay.dashKey).toBe('Space')
     expect(BALANCE.controls.dash).toEqual({
       speedMul: DASH_LEVELS[0]?.speedMul,
       durationMs: BALANCE.ship.cooldowns.dashingMs,
@@ -89,7 +89,6 @@ describe('BALANCE', () => {
     expect(BALANCE.controls.mouse).toEqual({
       fireButton: 0,
       bombButton: 2,
-      switchBombButton: 1,
     })
     expect(BALANCE.controls.touch.enabled).toBe('auto')
     expect(BALANCE.controls.touch.stickSize).toBe(120)
@@ -139,6 +138,14 @@ describe('BALANCE', () => {
       expect(BALANCE.ship.stats[key]).toEqual({ current: 100, max: 100 })
     }
     expect(BALANCE.debug.syncHz).toBe(15)
+  })
+
+  it('exposes ship.modules airplane mounts and stat mods', () => {
+    expect(BALANCE.ship.modules.layout.wings).toHaveLength(4)
+    expect(BALANCE.ship.modules.layout.bombs).toHaveLength(2)
+    expect(BALANCE.ship.modules.wings.agility.agility).toBe(25)
+    expect(BALANCE.ship.modules.collector.wide.energyGain).toBe(2)
+    expect(BALANCE.ship.modules.converter.crystal.labFusion).toBe(2)
   })
 
   it('exposes gizmos gridSize 1000 and worldAxisSize 4', () => {

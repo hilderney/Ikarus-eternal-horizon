@@ -19,13 +19,14 @@ Scaffold is done. This phase is the POC-1 “feel” port: move the ship, camera
 - [x] `BALANCE` as the only source of numbers (add `ship.health`, `difficulty`, `score`, `drops`, `vfx`) · `SDD-A01` · [balancer.spec.ts](../.docs/specs/balancer.spec.ts) · **port**
 - [x] Input: keyboard + Gamepad API (left stick / RT fire / LB switch / Start pause) + dual-rumble haptics · `SDD-A02` · [input.spec.ts](../.docs/specs/input.spec.ts) · **port** (+ `D18`)
 - [x] Input D19 follow-up: mouse buttons/wheel + `TouchSource` + `consumePress` (bomb / switchBomb / dash) · `SDD-A02` · [input.spec.ts](../.docs/specs/input.spec.ts) · **new** (`D19`)
+- [x] Live session remaps in `area-inputs` (Keyboard / Mix / Gamepad / Touch) · `SDD-A02` / `SDD-G03` · [input.spec.ts](../.docs/specs/input.spec.ts) · **new**
 - [x] Math helpers + scratch vectors (zero alloc) · `SDD-A03` · [math.spec.ts](../.docs/specs/math.spec.ts) · **new**
 - [x] Game loop: rAF, `dt` clamp 0.05, pause gate, ~15 Hz debugger sidecar · `SDD-A04` · [game-loop.spec.ts](../.docs/specs/game-loop.spec.ts) · **new**
 - [x] Generic `ObjectPool<T>` (exhaustion returns `null`, never allocates) · `SDD-A05` · [object-pool.spec.ts](../.docs/specs/object-pool.spec.ts) · **new**
 - [x] Portrait 9:16 renderer, letterbox, relative paths · `SDD-G09` · [renderer.spec.ts](../.docs/specs/renderer.spec.ts) · **new**
 - [x] Three-area layout `area-inputs · game-area · debugger-area`, collapse ≤760px · `SDD-G06` · [ui-areas.spec.ts](../.docs/specs/ui-areas.spec.ts) · **port**
 - [x] Perspective camera (`YXZ`, live `applyConfig`) · `SDD-B01` · [game-camera.spec.ts](../.docs/specs/game-camera.spec.ts) · **port**
-- [x] Ship as `THREE.Group` (hull, thruster flicker, weapon tip) + **byte sheet** (`debugSnapshot` for G08: 0–255 pools, statuses, loadout) · `SDD-C01` · [ship.spec.ts](../.docs/specs/ship.spec.ts) · **port**
+- [x] Ship as `THREE.Group` (modular airplane: hull hitbox + wings/shield/weapon/bombs/collector/converter) + **byte sheet** (`debugSnapshot` for G08: 0–255 pools, statuses, loadout, slot mods) · `SDD-C01` · [ship.spec.ts](../.docs/specs/ship.spec.ts) · **port**
 - [x] Force motion (`accel`/`decel`/`brake`, `maxSpeed`) + tilt/bank + dash · four schemes via InputPort · `SDD-C02` · [controller.spec.ts](../.docs/specs/controller.spec.ts) · **port** (`D19`)
 - [x] LimitBox: dead-zone follow, edge bounce, auto-recenter to Recenter Point · `SDD-B03` · [limit-box.spec.ts](../.docs/specs/limit-box.spec.ts) · **port**
 - [x] Parallax: 3 layers pinned to camera, stars slide by `parallaxGain` · `SDD-B02` · [parallax.spec.ts](../.docs/specs/parallax.spec.ts) · **port**
@@ -210,7 +211,7 @@ POC-1 listed a shop. GDD meta is Bounty Board + cosmetics, not a mid-run power s
 
 ## Fase 14 — Fechamento / Itch.io
 
-- [x] Debugger: **Ship** (pose, 0–255 pools, statuses) + **Equips** (loadout + weapon level 1–12) two-way ~15 Hz, Reset · `SDD-G08` · [debugger.spec.ts](../.docs/specs/debugger.spec.ts) · **port**
+- [x] Debugger: **Ship** (pose, 0–255 pools, statuses) + **Equips** (loadout + weapon/dash level 1–12 + module slots) two-way ~15 Hz, Reset · `SDD-G08` · [debugger.spec.ts](../.docs/specs/debugger.spec.ts) · **port**
 - [ ] Debugger remaining tabs: Cam / LimitBox / Parallax / Weapons catalog / Energy / Shots / Collision · `SDD-G08`
 - [ ] Ship XYZ label, letterbox-safe · `SDD-G07`
 - [ ] All gameplay numbers still only in `BALANCE` · `SDD-A01` (`RUL-12`)

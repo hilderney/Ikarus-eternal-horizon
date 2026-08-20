@@ -126,4 +126,15 @@ describe('EnergyManager', () => {
     expect(gated.current).toBe(50)
     gated.dispose()
   })
+
+  it('regenBonus from the collector adds to regenPerSec', () => {
+    const energy = new EnergyManager({
+      config: { start: 50, max: 100, regenPerSec: 8 },
+      regenDelayMs: 0,
+      regenBonus: () => 2,
+    })
+    energy.update(1)
+    expect(energy.current).toBe(60)
+    energy.dispose()
+  })
 })

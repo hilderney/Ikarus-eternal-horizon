@@ -88,6 +88,26 @@ export interface ShipCooldowns {
   readonly recoveringMs: number
 }
 
+export interface ModuleMount {
+  readonly position: { readonly x: number; readonly y: number; readonly z: number }
+  readonly size: { readonly w: number; readonly h: number; readonly d: number }
+}
+
+export interface ShipModulesConfig {
+  readonly layout: {
+    readonly wings: readonly [ModuleMount, ModuleMount, ModuleMount, ModuleMount]
+    readonly shield: ModuleMount
+    readonly bombs: readonly [ModuleMount, ModuleMount]
+    readonly collector: ModuleMount
+    readonly converter: ModuleMount
+  }
+  readonly body: Readonly<Record<'light' | 'standard' | 'heavy', { readonly integrity: number; readonly energy: number }>>
+  readonly wings: Readonly<Record<'standard' | 'agility' | 'armored', { readonly agility: number; readonly deflection: number }>>
+  readonly shield: Readonly<Record<'light' | 'standard' | 'heavy', { readonly shield: number; readonly deflection: number }>>
+  readonly collector: Readonly<Record<'passive' | 'wide', { readonly energyGain: number }>>
+  readonly converter: Readonly<Record<'scrap' | 'crystal', { readonly labFusion: number }>>
+}
+
 export interface ShipStatsConfig {
   readonly byteCap: number
   readonly agility: BytePoolConfig
@@ -188,6 +208,7 @@ export interface Balance {
   readonly ship: {
     readonly cooldowns: ShipCooldowns
     readonly stats: ShipStatsConfig
+    readonly modules: ShipModulesConfig
     readonly health: ShipHealthConfig
   }
   readonly debug: DebugConfig
@@ -266,6 +287,11 @@ export declare const BALANCE: Balance
  *   ship.cooldowns              = { flickeringMs: 2000, shootingMs: 500, dashingMs: 500, recoveringMs: 500 }
  *   ship.stats.byteCap          = 255
  *   ship.stats.{agility,deflection,integrity,shield,precision,energy} = { current: 100, max: 100 }
+ *   ship.modules.body           = light {-10, +20} / standard {0,0} / heavy {+25, -10}  // integrity, energy
+ *   ship.modules.wings          = standard {0,0} / agility {+25,+5} / armored {+5,+25}  // agility, deflection
+ *   ship.modules.shield         = light {15,5} / standard {25,10} / heavy {40,18}       // shield, deflection
+ *   ship.modules.collector      = passive {energyGain: 1} / wide {2}
+ *   ship.modules.converter      = scrap {labFusion: 1} / crystal {2}
  *   debug.syncHz                = 15  // G08 sidecar; same as loop.sidecarHz
  *   weapons.loadout             = ['laser', 'plasma']  // WPN-03; catalog holds all four
  *   weapons.catalog             = WEAPONS from catalog.ts (D02 extract; A01 re-exports)

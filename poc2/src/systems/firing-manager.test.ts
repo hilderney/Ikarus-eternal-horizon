@@ -53,7 +53,7 @@ function makeWeapon(id: WeaponId, onUpdate?: (ctx: BehaviourCtx) => void): Weapo
 }
 
 describe('FiringManager', () => {
-  it('holding Space calls weapon.update with holding true', () => {
+  it('holding fire calls weapon.update with holding true', () => {
     const ctxs: BehaviourCtx[] = []
     const created: WeaponPort[] = []
     const manager = new FiringManager({
@@ -126,7 +126,7 @@ describe('FiringManager', () => {
     manager.dispose()
   })
 
-  it('holding RT (isPressed fire) calls weapon.update with holding true', () => {
+  it('holding Y (isPressed fire) calls weapon.update with holding true', () => {
     const ctxs: BehaviourCtx[] = []
     const manager = new FiringManager({
       input: inputStub({ fire: true }),
@@ -147,7 +147,7 @@ describe('FiringManager', () => {
     manager.dispose()
   })
 
-  it('KeyF edge cycles the loadout once per press', () => {
+  it('KeyG edge cycles the loadout once per press', () => {
     const created: WeaponId[] = []
     const switchState = { switchWeapon: false }
     const manager = new FiringManager({
@@ -325,9 +325,9 @@ describe('FiringManager', () => {
     manager.dispose()
   })
 
-  it('fireKey/switchKey default to Space and KeyF like POC-1 firing.ts', () => {
-    expect(BALANCE.gameplay.fireKey).toBe('Space')
-    expect(BALANCE.gameplay.switchKey).toBe('KeyF')
+  it('fireKey/switchKey default to KeyF and KeyG', () => {
+    expect(BALANCE.gameplay.fireKey).toBe('KeyF')
+    expect(BALANCE.gameplay.switchKey).toBe('KeyG')
   })
 
   it('does not call rumble fireLaser on a Laser pulse', () => {

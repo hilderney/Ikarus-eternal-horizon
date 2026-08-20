@@ -1,6 +1,7 @@
 import './style.css'
 import { BALANCE } from './core/balancer'
 import { InputState, buildPreventDefaultCodes } from './core/input'
+import { createInputBindings } from './core/input-bindings'
 import { GameLoop } from './core/loop'
 import { GameCamera } from './gameobjects/camera/game-camera'
 import { GameRenderer } from './render/renderer'
@@ -23,9 +24,11 @@ const gameCamera = new GameCamera(cameraConfig)
 const areas = new UiAreas()
 const renderer = new GameRenderer({ camera: gameCamera })
 const touch = createTouchPad()
+const bindings = createInputBindings()
 const input = new InputState({
   preventDefaultCodes: buildPreventDefaultCodes(),
   touch,
+  bindings,
 })
 const touchOverlay = new TouchControls({
   host: areas.game,
@@ -54,7 +57,9 @@ const run = new RunScene({
     cameraConfig,
   }),
   input,
-  inputMap: createInputMap(),
+  inputMap: createInputMap(bindings, () => {
+    touchOverlay.syncSlots(bindings.touch.slots)
+  }),
   createResult: () => ({
     id: 'result',
     mount() {

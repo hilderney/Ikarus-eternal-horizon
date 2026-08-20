@@ -8,6 +8,11 @@ import {
   type GamepadSnap,
   type GamepadSource,
 } from './input'
+import {
+  assignGamepadButton,
+  assignKeyboard,
+  createInputBindings,
+} from './input-bindings'
 
 function makeTarget(): EventTarget {
   const el = document.createElement('div')
@@ -142,7 +147,7 @@ describe('InputState keyboard', () => {
   it('calls preventDefault on listed codes and not on others', () => {
     const { input, target } = createTestInput()
     const prevented = dispatchKey(target, 'keydown', 'KeyW')
-    const allowed = dispatchKey(target, 'keydown', 'KeyG')
+    const allowed = dispatchKey(target, 'keydown', 'KeyH')
     expect(prevented.defaultPrevented).toBe(true)
     expect(allowed.defaultPrevented).toBe(false)
     input.dispose()
@@ -246,10 +251,9 @@ describe('InputState gamepad', () => {
     input.dispose()
   })
 
-  it('isPressed fire is true when RT value >= triggerThreshold', () => {
-    const threshold = BALANCE.controls.gamepad.triggerThreshold
+  it('isPressed fire is true when Y is pressed', () => {
     const buttons = makeButtons(10)
-    buttons[7] = { value: threshold, pressed: false }
+    buttons[3] = { value: 0, pressed: true }
     const input = new InputState({
       target: makeTarget(),
       preventDefaultCodes: [],
@@ -261,17 +265,17 @@ describe('InputState gamepad', () => {
     input.dispose()
   })
 
-  it('isPressed fire is true when Space is down with no pad', () => {
+  it('isPressed fire is true when KeyF is down with no pad', () => {
     const { input, target } = createTestInput({ getGamepads: () => [] })
     input.update(0.016)
-    dispatchKey(target, 'keydown', 'Space')
+    dispatchKey(target, 'keydown', 'KeyF')
     expect(input.isPressed('fire')).toBe(true)
     input.dispose()
   })
 
-  it('isPressed switchWeapon is true when LB is pressed', () => {
+  it('isPressed switchWeapon is true when X is pressed', () => {
     const buttons = makeButtons(10)
-    buttons[4] = { value: 0, pressed: true }
+    buttons[2] = { value: 0, pressed: true }
     const input = new InputState({
       target: makeTarget(),
       preventDefaultCodes: [],
@@ -419,14 +423,15 @@ describe('InputState D19 mouse + touch', () => {
     input.dispose()
   })
 
-  it('wheel notch consumePress switchWeapon once per delta', () => {
+  it('wheel up consumePress switchBomb once; wheel down switchWeapon once', () => {
     const { input, target } = createTestInput()
     input.setScheme('mix')
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: -120, bubbles: true, cancelable: true }))
+    expect(input.consumePress('switchBomb')).toBe(true)
+    expect(input.consumePress('switchBomb')).toBe(false)
     target.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }))
     expect(input.consumePress('switchWeapon')).toBe(true)
     expect(input.consumePress('switchWeapon')).toBe(false)
-    target.dispatchEvent(new WheelEvent('wheel', { deltaY: -80, bubbles: true, cancelable: true }))
-    expect(input.consumePress('switchWeapon')).toBe(true)
     input.dispose()
   })
 
@@ -466,15 +471,15 @@ describe('InputState D19 mouse + touch', () => {
     input.dispose()
   })
 
-  it('consumePress dash is true for ControlLeft and for LT', () => {
+  it('consumePress dash is true for Space and for RB', () => {
     const { input, target } = createTestInput({ getGamepads: () => [] })
-    dispatchKey(target, 'keydown', 'ControlLeft')
+    dispatchKey(target, 'keydown', 'Space')
     expect(input.consumePress('dash')).toBe(true)
     expect(input.consumePress('dash')).toBe(false)
     input.dispose()
 
     const buttons = makeButtons(10)
-    buttons[6] = { value: 1, pressed: true }
+    buttons[5] = { value: 0, pressed: true }
     const padInput = new InputState({
       target: makeTarget(),
       preventDefaultCodes: [],
@@ -513,15 +518,14 @@ describe('InputState scheme', () => {
     input.dispose()
   })
 
-  it('gamepad scheme ignores Space fire and uses RT', () => {
+  it('gamepad scheme ignores keyboard fire and uses Y', () => {
     const buttons = makeButtons(10)
     const { input, target } = createTestInput({ getGamepads: () => [makePad({ buttons })] })
     input.setScheme('gamepad')
     input.update(0.016)
-    dispatchKey(target, 'keydown', 'Space')
+    dispatchKey(target, 'keydown', 'KeyF')
     expect(input.isPressed('fire')).toBe(false)
-    const threshold = BALANCE.controls.gamepad.triggerThreshold
-    buttons[7] = { value: threshold, pressed: false }
+    buttons[3] = { value: 0, pressed: true }
     input.update(0.016)
     expect(input.isPressed('fire')).toBe(true)
     input.dispose()
@@ -553,6 +557,44 @@ describe('InputState scheme', () => {
     dispatchKey(target, 'keydown', 'Escape')
     expect(input.isPressed('pause')).toBe(true)
     expect(input.consumePress('pause')).toBe(true)
+    input.dispose()
+  })
+})
+
+describe('InputState live remaps', () => {
+  it('keyboard fire follows bindings.keyboard.fire', () => {
+    const bindings = createInputBindings()
+    const target = makeTarget()
+    const input = new InputState({
+      target,
+      preventDefaultCodes: buildPreventDefaultCodes(),
+      bindings,
+    })
+    dispatchKey(target, 'keydown', 'KeyF')
+    expect(input.isPressed('fire')).toBe(true)
+    dispatchKey(target, 'keyup', 'KeyF')
+    assignKeyboard(bindings, 'fire', 'KeyG')
+    dispatchKey(target, 'keydown', 'KeyF')
+    expect(input.isPressed('fire')).toBe(false)
+    dispatchKey(target, 'keydown', 'KeyG')
+    expect(input.isPressed('fire')).toBe(true)
+    input.dispose()
+  })
+
+  it('gamepad fire follows remapped button index', () => {
+    const bindings = createInputBindings()
+    assignGamepadButton(bindings, 'fire', 1)
+    const buttons = makeButtons(10)
+    buttons[1] = { value: 1, pressed: true }
+    const input = new InputState({
+      target: makeTarget(),
+      preventDefaultCodes: [],
+      gamepads: { getGamepads: () => [makePad({ buttons })] },
+      bindings,
+    })
+    input.setScheme('gamepad')
+    input.update(0.016)
+    expect(input.isPressed('fire')).toBe(true)
     input.dispose()
   })
 })

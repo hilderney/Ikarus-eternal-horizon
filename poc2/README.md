@@ -7,7 +7,7 @@ The active build. POC2 grows the tuned prototype into a codebase that expands **
 **Behavior reference:** [`poc/README.md`](../poc/README.md) — POC-1, frozen. Camera, parallax, limit-box, ship feel and the four weapons are **ported without behavior change**; that document is the tuning contract.
 **Backlog:** [`todo.md`](./todo.md) — one entry per SDD card.
 
-**Stack:** TypeScript · Vite · Three.js. nipplejs joins at `SDD-G12` (touch stick). Yuka joins at `SDD-E01` (enemy steering), Howler post-G1 (audio). No library is installed before the card that needs it.
+**Stack:** TypeScript · Vite · Three.js · nipplejs (touch stick, `SDD-G12`). Yuka joins at `SDD-E01` (enemy steering), Howler post-G1 (audio). No library is installed before the card that needs it.
 
 ---
 
@@ -25,13 +25,30 @@ npm run test       # vitest run
 npm run verify     # all three — the gate every card must pass (hub §6.1)
 ```
 
-`npm run verify` is green on an empty scaffold, so it stays a real signal from the first card onward.
+`npm run verify` (`typecheck` + `lint` + `test`) is the gate every card must pass (hub §6.1).
 
 ---
 
 ## State
 
-**Stages A–B, C01–C03, G06, G09, G03 and G12 are done.** Fase 0 is playable (`npm run dev`): ship + camera + parallax + limit-box. Combat (Stage D) and Title flow (G01) are next. Follow the build order in the hub §5 / the graph in §10.
+Fase 0 is playable (`npm run dev` in this folder). **Done:** Stages A–B, C01–C03, D01–D03, D04 catalog + thin plasma, E04, thin E07, G03, G06, G08 Ship + Equips, G09, G12, G11 scheme picker.
+
+**You can:** fly the modular airplane (WASD / stick / nipple), dash L1–L12 (barrel roll on laterals), hold F/Y/Fire for Laser, G/X/Wpn to Plasma (no splash until F01), pause (Esc/Start) to pick Keyboard / Mix / Gamepad / Touch, remap binds in `area-inputs`. DEV debugger: Ship sheet + Equips (weapon/dash levels, modules). Energy is `ship.stats.energy`; collector `energyGain` adds to regen.
+
+**Next:** F01 collision, remaining G08 tabs, wire C03 onto integrity/shield bytes, G11 inventory/restart/quit, G01 Title flow. D05/D06 stay catalog-only until G2. Follow hub §5 / the graph in §10.
+
+---
+
+## Play (defaults)
+
+| Scheme | Move | Fire | Bomb | Switch wpn | Switch bomb | Dash | Pause |
+|---|---|---|---|---|---|---|---|
+| Keyboard | WASD | F | T | G | Y | Space | Esc |
+| Mix | WASD | F or LMB | T or RMB | G or wheel↓ | Y or wheel↑ | Space | Esc |
+| Gamepad | Left stick | Y | A | X | B | RB | Start (Esc still works) |
+| Touch | Left stick | overlay Fire | Bomb | Wpn | Bomb× | Dash | Pause |
+
+Click a bind in the left column, then press the new key / mouse button / pad button. Collisions swap. **Reset binds** restores `BALANCE`. Overlay button slots remap on the Touch tab.
 
 ---
 
@@ -62,14 +79,14 @@ poc2/
   eslint.config.js               # named-exports-only, type-imports, strict equality
   vitest.config.ts               # src/**/*.test.ts
   src/
-    main.ts                      # bootstrap (walking skeleton until SDD-G01/G03)
-    style.css                    # three-area layout, ≤760px collapse
-    core/                        # balancer · input · math · loop            (A01-A04)
+    main.ts                      # boot Run + pause overlay (G01 Title still pending)
+    style.css                    # three-area layout, ≤760px collapse, input-map, debugger
+    core/                        # balancer · input · input-bindings · math · loop  (A01-A04)
     pools/                       # object-pool                                (A05)
     gameobjects/
       camera/  parallax/  limit-box/  gizmos/                                (B01-B04)
-      ship/         # ship · ship-health                                     (C01, C03)
-      controller/   # player-controller · camera-controller                   (C02)
+      ship/         # ship · ship-modules · ship-health                      (C01, C03)
+      controller/   # player-controller · camera-controller · dash-levels     (C02)
       weapon/       # weapon · catalog · registry · laser-levels · behaviours (D02, D04-D06)
       shot/         # weapon-shot · enemy-shot · bomb-shot                    (D01, E03)
       enemy/  meteor/                                                        (E01, E02)
@@ -77,9 +94,10 @@ poc2/
     systems/                     # managers: energy · shot · enemy · meteor · firing
                                  # collision · drop · difficulty · damage-resolver
                                  # vfx · run-state · score                    (D03, E04-E07, F01-F05, G10)
-    scenes/                      # scene-controller · title · run · result · rankings · pause
+    scenes/                      # scene-controller · title · run · run-world · result · rankings · pause
                                  #                                           (G01-G05, G11)
-    ui/                          # areas · hud · debugger/                    (G06-G08)
+    ui/                          # areas · hud · debugger/ · touch-controls/ · input-map/
+                                 #                                           (G06-G08, G12)
     render/                      # renderer                                   (G09)
     audio/                       # reserved (post-G1, Howler)
     assets/                      # reserved

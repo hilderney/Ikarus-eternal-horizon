@@ -7,7 +7,8 @@
 
 **Status:** pre-production (Gate G0) · **Stack:** TypeScript · Vite · Three.js · Yuka · Howler
 **Operational source of truth:** [`.docs/plans/planning.spec.MD`](.docs/plans/planning.spec.MD) (canonical names, decisions, gates, traceable requirements, SDD build order)
-**Builds:** [`poc/`](poc/README.md) — POC-1, frozen playable reference · [`poc2/`](poc2/README.md) — active build
+**Builds:** [`poc/`](poc/README.md) — POC-1, frozen playable reference · [`poc2/`](poc2/README.md) — active build (`npm run dev` in `poc2/`)
+**POC2 now:** fly the modular airplane, fire Laser (switch to Plasma), dash, pause to pick a scheme, remap binds in the left column. Collision / HUD / Title flow are still next.
 **This document supersedes GDD v2.0.** All mechanical systems from v2.0 are preserved; this revision folds in the full lore bible and the narrative-delivery systems (HUD storytelling, Bounty Board, item flavor text, sector staging, boss narrative beats) that were previously parked as "open worldbuilding questions."
 
 ---
@@ -198,16 +199,19 @@ Enemy chatter and allied radio traffic exist specifically to sell how insane Ika
 
 ### 5.1 Control Scheme
 
-| Action | Keyboard (POC2 play) | Gamepad (W3C standard, POC2) | Mouse |
-|---|---|---|---|
-| Movement | WASD | Left stick (axes 0/1, deadzone 0.18) | Pointer follow (Q07 deferred) |
-| Jet / thruster | reserved (`SHIP-08`) | LT (button 6) | — |
-| Switch weapon | F | LB (button 4) | Scroll |
-| Primary fire | Space | RT (button 7, analog threshold 0.35) | Right click |
-| Special Ordnance | — | South / A (button 0) | Left click |
-| Pause (inventory / craft / skills) | Esc | Start (button 9) | — |
+POC2 uses **four exclusive schemes** (`D19`). One is active at a time. Default is **Keyboard**. Pause (Esc / Start) picks the scheme. The left column (`area-inputs`) remaps what each key / mouse button / pad button / overlay slot does for the current session. `BALANCE` stays the default table; Escape always pauses.
 
-Keyboard and gamepad **coexist** — no mode toggle (`D18`). Dual-rumble haptics play on shield hit, hull hit, shield break and ship destroy (`BALANCE.haptics`). Persistent remap and Steam Input stay **G3** (`SHIP-13`). Long-term GDD keys (J / K / L) remain a later remap, not the POC2 default.
+| Action | Keyboard | Mix (keyboard + mouse) | Gamepad (W3C standard) | Touch |
+|---|---|---|---|---|
+| Movement | WASD | WASD | Left stick (axes 0/1, deadzone 0.18) | Left nipple stick |
+| Primary fire | Space | Space **or** Left click | RT (button 7, analog ≥ 0.35) | Fire |
+| Special Ordnance / bomb | E | E **or** Right click | South / A (button 0) | Bomb |
+| Switch weapon | F | F **or** wheel | LB (button 4) | Wpn |
+| Switch bomb | Q | Q **or** Middle click | RB (button 5) | Bomb× |
+| Dash | Left Ctrl | Left Ctrl | LT (button 6) | Dash |
+| Pause | Esc | Esc | Start (button 9) **or** Esc | Pause |
+
+Camera debug rig stays IJKL / UO + Shift (not combat). Pointer-steer (mouse moves the ship) stays deferred. Dedicated jet reserve stays `SHIP-08`; dash spends the shared Energy pool. Dual-rumble presets live in `BALANCE.haptics` (wired when F04/F05 land). Persistent save of remaps and Steam Input stay **G3** (`SHIP-13`).
 
 ### 5.2 HUD
 
@@ -244,7 +248,9 @@ Keyboard and gamepad **coexist** — no mode toggle (`D18`). Dual-rumble haptics
 | **Missiles** | Special Ordnance charges |
 | **Inventory** | Resources and equipment |
 
-**Jet/thruster:** temporary boost with its own reserve, recharging when unused.
+POC2 already mounts the craft as a **modular airplane**: Body (integrity + energy, hull hitbox), Wings ×4 (agility + deflection), Shield on top (shield + deflection), Weapon on the nose (+ level), Bombs on side pylons (+ level), Energy Collector on the tail (energy gain), Energy Converter as the cockpit (`labFusion` craft/convert speed, stored for G11). Equips tab and `BALANCE.ship.modules` drive the live sheet.
+
+**Dash (G0):** short dodge from `consumePress('dash')`, levels 1–12, spends shared Energy. Lateral dash barrel-rolls 360°. **Jet/thruster** with its own reserve stays `SHIP-08`.
 
 ### 6.2 Damage and Degradation
 
@@ -542,10 +548,10 @@ Four product gates, each shipping a playable vertical slice.
 
 | Gate | Deliverable | Exit criteria |
 |---|---|---|
-| **G0** Vertical Slice | Local playable prototype | X/Y movement, pooled Laser, one enemy, simple health, score, death and restart, wireframe visuals |
+| **G0** Vertical Slice | Local playable prototype | X/Y movement, pooled Laser, one enemy, simple health, score, death and restart, wireframe visuals. **POC2 in progress:** movement + dash, Laser/Plasma fire (no hits until collision), modular ship, four schemes + live remap, pause scheme picker, DEV debugger (Ship / Equips) |
 | **G1** Itch Prototype | Web build on Itch.io | `index.html` at root with relative paths and responsive canvas, Force Field vs Integrity, Metal Scrap repair in the CraftSlot, asteroid drops, local best score, essential audio, pooled bullets and particles |
 | **G2** Professional Build | Full product | Complete bestiary, 50/100/500 milestones, Mega Asteroid, Boss General, full arsenal and Special Ordnance, Energy economy, Survivor mode, low-poly neon art, event audio, **Bounty Board contracts, AI Narrator/Ikarus voice lines, sector band staging, item flavor text**, balance numbers locked |
-| **G3** Steam 1.0 | Publishable PC build | Steam runtime, **gamepad remap** + Steam Input (play + rumble already in G0/`D18`), 8 leaderboards, 15–30 achievements, Steam Cloud, store assets, Steam Deck checklist |
+| **G3** Steam 1.0 | Publishable PC build | Steam runtime, **persistent remap** + Steam Input (session remap + four schemes already in POC2; rumble presets in `BALANCE.haptics`), 8 leaderboards, 15–30 achievements, Steam Cloud, store assets, Steam Deck checklist |
 
 **Ordering rule:** never start required work for the next gate while the current one is incomplete, aside from short technical spikes. Narrative-delivery systems (HUD storytelling, contracts, flavor text) are explicitly G2 scope — G0/G1 stay mechanical so the core loop gets validated before it gets dressed.
 
@@ -600,7 +606,7 @@ Detailed, versioned planning lives in `.docs/`, with `#tag/*` markers for fast s
 | Path | Scope |
 |---|---|
 | [`poc/README.md`](poc/README.md) | POC-1 — **frozen** playable reference; documents the tuned camera/parallax/limit-box/ship/weapons behavior the port must reproduce |
-| [`poc2/README.md`](poc2/README.md) | POC2 — the active build, written against the architecture contract |
+| [`poc2/README.md`](poc2/README.md) | POC2 — active build: how to run, what is playable, default binds, architecture rules |
 | [`poc2/todo.md`](poc2/todo.md) | The live backlog: one entry per SDD card, in build order |
 
 Requirements are traceable per domain (`SHIP-01`, `WPN-04`, `RUL-09`, `LORE-01`, `BNTY-01`, …). The canonical English index, with each ID mapped to the SDD card that satisfies it, is §3.5 of the hub — that index is what feeds task generation.

@@ -97,7 +97,6 @@ export interface GamepadConfig {
 export interface MouseControlConfig {
   readonly fireButton: number
   readonly bombButton: number
-  readonly switchBombButton: number
 }
 
 export interface TouchControlConfig {
@@ -198,6 +197,49 @@ export interface ShipCooldowns {
   readonly shootingMs: number
   readonly dashingMs: number
   readonly recoveringMs: number
+}
+
+export interface ModuleMount {
+  readonly position: Vec3Params
+  readonly size: { readonly w: number; readonly h: number; readonly d: number }
+}
+
+export interface BodyModuleMods {
+  readonly integrity: number
+  readonly energy: number
+}
+
+export interface WingModuleMods {
+  readonly agility: number
+  readonly deflection: number
+}
+
+export interface ShieldModuleMods {
+  readonly shield: number
+  readonly deflection: number
+}
+
+export interface CollectorModuleMods {
+  readonly energyGain: number
+}
+
+export interface ConverterModuleMods {
+  readonly labFusion: number
+}
+
+export interface ShipModulesConfig {
+  readonly layout: {
+    readonly wings: readonly [ModuleMount, ModuleMount, ModuleMount, ModuleMount]
+    readonly shield: ModuleMount
+    readonly bombs: readonly [ModuleMount, ModuleMount]
+    readonly collector: ModuleMount
+    readonly converter: ModuleMount
+  }
+  readonly body: Readonly<Record<'light' | 'standard' | 'heavy', BodyModuleMods>>
+  readonly wings: Readonly<Record<'standard' | 'agility' | 'armored', WingModuleMods>>
+  readonly shield: Readonly<Record<'light' | 'standard' | 'heavy', ShieldModuleMods>>
+  readonly collector: Readonly<Record<'passive' | 'wide', CollectorModuleMods>>
+  readonly converter: Readonly<Record<'scrap' | 'crystal', ConverterModuleMods>>
 }
 
 export interface ShipStatsConfig {
@@ -331,6 +373,7 @@ export interface Balance {
     readonly inventory: ShipInventoryConfig
     readonly cooldowns: ShipCooldowns
     readonly stats: ShipStatsConfig
+    readonly modules: ShipModulesConfig
     readonly health: ShipHealthConfig
   }
   readonly camera: CameraConfig
@@ -356,6 +399,47 @@ const SHIP_COOLDOWNS: ShipCooldowns = {
   recoveringMs: 500,
 }
 
+const SHIP_MODULES: ShipModulesConfig = {
+  layout: {
+    wings: [
+      { position: { x: -1.15, y: 0, z: 0.18 }, size: { w: 1.1, h: 0.06, d: 0.38 } },
+      { position: { x: 1.15, y: 0, z: 0.18 }, size: { w: 1.1, h: 0.06, d: 0.38 } },
+      { position: { x: -0.85, y: 0.02, z: -0.55 }, size: { w: 0.55, h: 0.05, d: 0.22 } },
+      { position: { x: 0.85, y: 0.02, z: -0.55 }, size: { w: 0.55, h: 0.05, d: 0.22 } },
+    ],
+    shield: { position: { x: 0, y: 0.58, z: 0 }, size: { w: 0.72, h: 0.05, d: 0.95 } },
+    bombs: [
+      { position: { x: -0.95, y: 0.2, z: 0.06 }, size: { w: 0.14, h: 0.12, d: 0.32 } },
+      { position: { x: 0.95, y: 0.2, z: 0.06 }, size: { w: 0.14, h: 0.12, d: 0.32 } },
+    ],
+    collector: { position: { x: 0, y: 0.04, z: 0.92 }, size: { w: 0.48, h: 0.2, d: 0.24 } },
+    converter: { position: { x: 0, y: 0.58, z: -0.42 }, size: { w: 0.42, h: 0.14, d: 0.38 } },
+  },
+  body: {
+    light: { integrity: -10, energy: 20 },
+    standard: { integrity: 0, energy: 0 },
+    heavy: { integrity: 25, energy: -10 },
+  },
+  wings: {
+    standard: { agility: 0, deflection: 0 },
+    agility: { agility: 25, deflection: 5 },
+    armored: { agility: 5, deflection: 25 },
+  },
+  shield: {
+    light: { shield: 15, deflection: 5 },
+    standard: { shield: 25, deflection: 10 },
+    heavy: { shield: 40, deflection: 18 },
+  },
+  collector: {
+    passive: { energyGain: 1 },
+    wide: { energyGain: 2 },
+  },
+  converter: {
+    scrap: { labFusion: 1 },
+    crystal: { labFusion: 2 },
+  },
+}
+
 const BALANCE_DATA: Balance = {
   layout: {
     playfield: { width: 540, height: 960 },
@@ -372,12 +456,12 @@ const BALANCE_DATA: Balance = {
     catalog: WEAPONS,
   },
   gameplay: {
-    fireKey: 'Space',
-    switchKey: 'KeyF',
+    fireKey: 'KeyF',
+    switchKey: 'KeyG',
     pauseKey: 'Escape',
-    bombKey: 'KeyE',
-    switchBombKey: 'KeyQ',
-    dashKey: 'ControlLeft',
+    bombKey: 'KeyT',
+    switchBombKey: 'KeyY',
+    dashKey: 'Space',
     energy: {
       start: 100,
       max: 100,
@@ -432,20 +516,19 @@ const BALANCE_DATA: Balance = {
       invertMoveZ: false,
       axes: { moveX: 0, moveZ: 1 },
       buttons: {
-        fire: 7,
-        switchWeapon: 4,
-        switchBomb: 5,
+        fire: 3,
+        switchWeapon: 2,
+        switchBomb: 1,
         pause: 9,
-        dash: 6,
+        dash: 5,
         bomb: 0,
-        boost: 6,
-        special: 0,
+        boost: 7,
+        special: 6,
       },
     },
     mouse: {
       fireButton: 0,
       bombButton: 2,
-      switchBombButton: 1,
     },
     touch: {
       enabled: 'auto',
@@ -474,11 +557,11 @@ const BALANCE_DATA: Balance = {
     followBox: {
       position: { x: 0, y: 0, z: -3 },
       color: 0xf0ab4a,
-      opacity: 0.1,
-      centerLine: { color: 0x50e3c2, opacity: 0.1 },
+      opacity: 0.02,
+      centerLine: { color: 0x50e3c2, opacity: 0.02 },
       restLine: {
         color: 0x2d6bff,
-        opacity: 0.9,
+        opacity: 0.1,
         position: { x: 0, y: 0, z: -1 },
         width: 2,
         height: 4,
@@ -508,6 +591,7 @@ const BALANCE_DATA: Balance = {
       precision: { current: 100, max: 100 },
       energy: { current: 100, max: 100 },
     },
+    modules: SHIP_MODULES,
     health: {
       integrityMax: 100,
       shieldMax: 50,

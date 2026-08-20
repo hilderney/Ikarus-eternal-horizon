@@ -117,6 +117,7 @@ export interface RunWorldFactory {
 
 export interface InputMapPort {
   mount(host: HTMLElement): void
+  update?(dt: number): void
   dispose(): void
 }
 
@@ -185,7 +186,10 @@ export declare class RunScene implements ScenePort {
  *       on the hot path (no `[]` / `{}` / `new` in `update` / `syncRender`).
  *   R7. `areas.setMode('run')` on mount. Canvas is the only child this scene
  *       adds to `game-area` (HUD overlays are G07, positioned over the canvas
- *       rect, not replacing it).
+ *       rect, not replacing it). `area-inputs` hosts the editable InputMap
+ *       (keyboard / mix / gamepad / touch). Remaps write live InputBindings
+ *       that A02 reads; BALANCE stays the default table. `update(dt)` polls
+ *       pad-listen. Escape still pauses.
  *   R8. Debugger factory is skipped when it returns null (Q09 production).
  *   R9. Pause (G11) does not call `dispose`. Unpause continues the same
  *       instances. This class does not consume Esc.
@@ -224,9 +228,11 @@ export declare class RunScene implements ScenePort {
  *            screen is the three-area shell with a portrait 9:16 pane in the
  *            middle. Death must cut to Result without a hitch (pillar 5).
  * Leveling:  weapon levels D02; hull levels C03 — this scene only hosts them.
- * Graphics:  canvas pixel-crisp, letterboxed; area-inputs shows the live
- *            key map (WASD / stick / Space+RT / F+LB / Esc+Start) in the same neon chrome
- *            as Title (`--neon` #4de2ff, monospace). No extra vignette here
+ * Graphics:  canvas pixel-crisp, letterboxed; area-inputs shows an editable
+ *            map per scheme (Keyboard / Mix / Gamepad / Touch). Click a bind
+ *            then press a key, mouse button, or pad button. Touch slots pick
+ *            overlay actions. Reset restores BALANCE defaults. Neon chrome
+ *            (`--neon` #4de2ff, monospace). No extra vignette here
  *            (F05 owns hull vignette).
  * Pillars:   1 visible risk (HUD) · 4 legibility at speed · 5 one more kill
  */

@@ -374,12 +374,12 @@ Change types: **port** (move with no behavior change) · **class-ify** (same beh
 
 #### `SDD-C01` Ship
 - **Folder:** `src/gameobjects/ship/` · spec [ship.spec.ts](../specs/ship.spec.ts)
-- **Scope:** `class Ship extends THREE.Group`. Modular mounts + **ship sheet** for G08: pose, **byte stats 0–255** (agility, deflection, integrity, shield, precision, energy — spawn `current=max=100`, cap 255), statuses (`flickering` / `shooting` / `dashing` / `recovering` from `BALANCE.ship.cooldowns`), loadout (equipped + owned lists: weapons, bombs, wings, shield fits, armor, energy collector, energy converter). `debugSnapshot(): ShipDebugPort`. D03 writes `stats.energy`. Hull combat still uses C03 until that card consumes integrity/shield.
+- **Scope:** `class Ship extends THREE.Group`. Modular airplane rig + **ship sheet** for G08: pose, **byte stats 0–255**, statuses from `BALANCE.ship.cooldowns`, loadout, **slots** (Body integrity/energy, Wings agility/deflection ×4, Shield shield/deflection on top, Weapon nose + level, Bombs twin pylons + level, Collector tail + energyGain, Converter cockpit + labFusion). Body hull is the hitbox. `debugSnapshot(): ShipDebugPort`. D03 writes `stats.energy` and adds collector `energyGain` to regen.
 - **Requires:** A01, A03.
 - **Lib:** **Three.js** (`Group`, `Mesh`, `BoxGeometry`, `ConeGeometry`, `SphereGeometry`, `MeshBasicMaterial`)
 - **View:** neon wireframe hull + accent box + thruster cone (additive) + equipment tip sphere.
 - **Rules:** nothing outside the ship mutates its slots or its inventory; destruction always disposes all children; G08 must bind the sheet, not a second table.
-- **Maps:** `SHIP-01`, `SHIP-03`, `SHIP-06`, `RES-05`. **Acceptance:** ship moves within bounds; weapon change updates the tip; no GPU leaks on dispose; debugger can read the full ship sheet.
+- **Maps:** `SHIP-01`, `SHIP-03`, `SHIP-06`, `RES-05`, `SHIP-10` (slot mods). **Acceptance:** ship moves within bounds; weapon change updates the tip; modules sit on the body; no GPU leaks on dispose; debugger can read the full ship sheet.
 
 #### `SDD-C02` Controller
 - **Folder:** `src/gameobjects/controller/`

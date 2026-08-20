@@ -6,13 +6,23 @@
 import type { Scene } from 'three'
 import { BALANCE } from '../core/balancer'
 import type { InputPort } from '../core/input'
+import type { InputBindings } from '../core/input-bindings'
 import type { GameCamera } from '../gameobjects/camera/game-camera'
 import { CameraController } from '../gameobjects/controller/camera-controller'
 import { PlayerController } from '../gameobjects/controller/player-controller'
 import { Gizmos } from '../gameobjects/gizmos/gizmos'
 import { LimitBox } from '../gameobjects/limit-box/limit-box'
 import { ParallaxField } from '../gameobjects/parallax/parallax-field'
-import { Ship, type BombId, type WeaponId } from '../gameobjects/ship/ship'
+import {
+  Ship,
+  type ArmorId,
+  type BombId,
+  type EnergyCollectorId,
+  type EnergyConverterId,
+  type ShieldFitId,
+  type WeaponId,
+  type WingId,
+} from '../gameobjects/ship/ship'
 import { ShipHealth } from '../gameobjects/ship/ship-health'
 import { WeaponShot } from '../gameobjects/shot/weapon-shot'
 import { Weapon } from '../gameobjects/weapon/weapon'
@@ -25,6 +35,7 @@ import type { MutableTouchSource, TouchControls } from '../ui/touch-controls/tou
 import { Debugger, type DebuggerBinds } from '../ui/debugger/debugger'
 import { EquipsTab } from '../ui/debugger/equips-tab'
 import { ShipTab } from '../ui/debugger/ship-tab'
+import { InputMap } from '../ui/input-map/input-map'
 import type {
   CameraHandle,
   Disposable,
@@ -110,6 +121,7 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       config: BALANCE.gameplay.energy,
       pool: ship.stats.energy,
       canRegen: () => ship.status.recovering,
+      regenBonus: () => ship.energyGain,
     })
     const weaponCapacity = Math.max(
       ...BALANCE.weapons.loadout.map((id) => BALANCE.weapons.catalog[id].poolSize),
@@ -385,11 +397,27 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
             }
             ship.equipBomb(0, id as BombId, 1)
           },
+          equipWings: (id) => {
+            ship.equipWings(id as WingId | null)
+          },
+          equipShield: (id) => {
+            ship.equipShield(id as ShieldFitId | null)
+          },
+          equipArmor: (id) => {
+            ship.equipBody(id as ArmorId | null)
+          },
+          equipEnergyCollector: (id) => {
+            ship.equipEnergyCollector(id as EnergyCollectorId | null)
+          },
+          equipEnergyConverter: (id) => {
+            ship.equipEnergyConverter(id as EnergyConverterId | null)
+          },
         },
         weapons: {
           level: () => world.firing.weaponLevel(),
           setLevel: (level) => {
             world.firing.setWeaponLevel(level)
+            world.ship.setWeaponLevel(level)
           },
         },
         dash: {
@@ -424,28 +452,9 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
   }
 }
 
-export function createInputMap(): {
-  mount(host: HTMLElement): void
-  dispose(): void
-} {
-  const root = document.createElement('div')
-  root.className = 'input-map'
-  root.textContent = [
-    'WASD  move',
-    'IJKL  camera  U/O up/down',
-    'Shift+IJKL camera rot',
-    'Space fire / RT   F / LB switch',
-    'F wpn   Q bomb×',
-    'Esc pause / scheme',
-    'Pad: stick · RT fire · A bomb',
-    'LT dash · LB/RB switch · Start',
-  ].join('\n')
-  return {
-    mount(host: HTMLElement) {
-      host.replaceChildren(root)
-    },
-    dispose() {
-      root.remove()
-    },
-  }
+export function createInputMap(
+  bindings?: InputBindings,
+  onChange?: () => void,
+): InputMap {
+  return new InputMap({ bindings, onChange })
 }

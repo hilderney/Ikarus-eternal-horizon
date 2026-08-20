@@ -52,12 +52,13 @@ describe('Ship', () => {
     expect(ship).toBeInstanceOf(Group)
     expect(ship.children).toHaveLength(4)
     expect(ship.weaponTip).toBeInstanceOf(Mesh)
-    expect(ship.weaponTip.parent).toBe(ship)
+    expect(ship.weaponTip.parent?.name).toBe('modules')
     expect(ship.weaponTip.geometry).toBeInstanceOf(SphereGeometry)
     expect(
       ship.children.filter((child) => child instanceof Mesh && child.geometry instanceof BoxGeometry),
     ).toHaveLength(2)
     expect(thrusterOf(ship).parent).toBe(ship)
+    expect(ship.hitbox).toBe(hullOf(ship))
     ship.dispose()
   })
 
@@ -167,8 +168,13 @@ describe('Ship', () => {
 
   it('dispose() disposes hull, accent, thruster and tip geometry and material', () => {
     const ship = makeShip()
-    const meshes = ship.children.filter((child): child is Mesh => child instanceof Mesh)
-    expect(meshes).toHaveLength(4)
+    const meshes: Mesh[] = []
+    ship.traverse((child) => {
+      if (child instanceof Mesh) {
+        meshes.push(child)
+      }
+    })
+    expect(meshes.length).toBeGreaterThanOrEqual(4)
     let geoHits = 0
     let matHits = 0
     for (const mesh of meshes) {
@@ -189,8 +195,8 @@ describe('Ship', () => {
       }
     }
     ship.dispose()
-    expect(geoHits).toBe(4)
-    expect(matHits).toBe(4)
+    expect(geoHits).toBe(meshes.length)
+    expect(matHits).toBe(meshes.length)
   })
 
   it('update/syncRender allocate no objects', () => {
@@ -400,21 +406,86 @@ describe('Ship', () => {
     ship.dispose()
   })
 
-  it('wings/shields/armors/collectors/converters start empty', () => {
+  it('wings and body spawn standard; other module slots start empty', () => {
     const ship = makeShip()
     const { loadout } = ship
     expect(loadout.equippedBomb).toBeNull()
     expect(loadout.bombs).toEqual([])
-    expect(loadout.equippedWings).toBeNull()
-    expect(loadout.wings).toEqual([])
+    expect(loadout.equippedWings).toBe('standard')
+    expect(loadout.wings).toEqual(['standard'])
     expect(loadout.equippedShield).toBeNull()
     expect(loadout.shields).toEqual([])
-    expect(loadout.equippedArmor).toBeNull()
-    expect(loadout.armors).toEqual([])
+    expect(loadout.equippedArmor).toBe('standard')
+    expect(loadout.armors).toEqual(['standard'])
     expect(loadout.equippedEnergyCollector).toBeNull()
     expect(loadout.energyCollectors).toEqual([])
     expect(loadout.equippedEnergyConverter).toBeNull()
     expect(loadout.energyConverters).toEqual([])
+    expect(loadout.weaponLevel).toBe(1)
+    expect(loadout.bombLevel).toBe(1)
+    ship.dispose()
+  })
+
+  it('mounts four wings, twin bombs, shield, collector and cockpit on the body', () => {
+    const ship = makeShip()
+    const modules = ship.children.find((child) => child.name === 'modules')
+    expect(modules).toBeDefined()
+    const wings = modules?.children.filter((child) => child.userData.slot === 'wing') ?? []
+    const bombs = modules?.children.filter((child) => child.userData.slot === 'bomb') ?? []
+    expect(wings).toHaveLength(4)
+    expect(bombs).toHaveLength(2)
+    expect(wings.every((wing) => wing.visible)).toBe(true)
+    expect(bombs.every((bomb) => bomb.visible)).toBe(false)
+    const shield = modules?.children.find((child) => child.userData.slot === 'shield')
+    const collector = modules?.children.find((child) => child.userData.slot === 'collector')
+    const converter = modules?.children.find((child) => child.userData.slot === 'converter')
+    expect(shield?.visible).toBe(false)
+    expect(collector?.visible).toBe(false)
+    expect(converter?.visible).toBe(false)
+    expect(ship.weaponTip.userData.slot).toBe('weapon')
+    expect(ship.weaponTip.visible).toBe(false)
+    ship.equipWeapon(0, 'laser')
+    expect(ship.weaponTip.visible).toBe(true)
+    ship.dispose()
+  })
+
+  it('body and wing modules change integrity/energy and agility/deflection', () => {
+    const ship = makeShip()
+    expect(ship.stats.agility.max).toBe(100)
+    expect(ship.stats.integrity.max).toBe(100)
+    ship.equipWings('agility')
+    expect(ship.stats.agility.max).toBe(125)
+    expect(ship.stats.deflection.max).toBe(105)
+    ship.equipBody('heavy')
+    expect(ship.stats.integrity.max).toBe(125)
+    expect(ship.stats.energy.max).toBe(90)
+    ship.dispose()
+  })
+
+  it('shield, collector and converter write shield/deflection, energyGain and labFusion', () => {
+    const ship = makeShip()
+    ship.equipShield('heavy')
+    expect(ship.stats.shield.max).toBe(140)
+    expect(ship.stats.deflection.max).toBe(118)
+    ship.equipEnergyCollector('wide')
+    expect(ship.energyGain).toBe(2)
+    ship.equipEnergyConverter('crystal')
+    expect(ship.labFusion).toBe(2)
+    const modules = ship.children.find((child) => child.name === 'modules')
+    expect(modules?.children.find((child) => child.userData.slot === 'shield')?.visible).toBe(true)
+    expect(modules?.children.find((child) => child.userData.slot === 'collector')?.visible).toBe(true)
+    expect(modules?.children.find((child) => child.userData.slot === 'converter')?.visible).toBe(true)
+    ship.dispose()
+  })
+
+  it('hitbox stays the hull when modules are equipped', () => {
+    const ship = makeShip()
+    const hull = hullOf(ship)
+    ship.equipWings('armored')
+    ship.equipShield('heavy')
+    ship.equipBomb(0, 'pulseNova', 1)
+    expect(ship.hitbox).toBe(hull)
+    expect(ship.hitbox.geometry).toBeInstanceOf(BoxGeometry)
     ship.dispose()
   })
 })

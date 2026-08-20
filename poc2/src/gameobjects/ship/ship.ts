@@ -14,6 +14,12 @@ import {
 import type { Material } from 'three'
 import { BALANCE } from '../../core/balancer'
 import { DEG2RAD } from '../../core/math'
+import {
+  createShipModules,
+  moduleModsFor,
+  syncModuleVisibility,
+  type ShipModuleParts,
+} from './ship-modules'
 
 export type ResourceId = 'metalScrap' | 'prismaticCrystal' | 'denseCore' | 'darkMatter'
 
@@ -98,6 +104,8 @@ export interface ShipLoadout {
   energyCollectors: readonly EnergyCollectorId[]
   equippedEnergyConverter: EnergyConverterId | null
   energyConverters: readonly EnergyConverterId[]
+  weaponLevel: number
+  bombLevel: number
 }
 
 /** G08 Ship tab binds this. Pose is live transform; stats are the byte sheet. */
@@ -243,6 +251,10 @@ export class Ship extends Group {
   private readonly _thruster: Mesh
   private readonly _hull: Mesh
   private readonly _accent: Mesh
+  private readonly _modules: ShipModuleParts
+  private readonly _baseStats: ShipStats
+  private _energyGain = 0
+  private _labFusion = 0
   private _flickerTime = 0
   private _flickerRemainMs = 0
   private _dashRemainMs = 0
@@ -269,22 +281,32 @@ export class Ship extends Group {
       precision: clonePool(pools.precision),
       energy: clonePool(pools.energy),
     }
+    this._baseStats = {
+      agility: clonePool(pools.agility),
+      deflection: clonePool(pools.deflection),
+      integrity: clonePool(pools.integrity),
+      shield: clonePool(pools.shield),
+      precision: clonePool(pools.precision),
+      energy: clonePool(pools.energy),
+    }
     this._status = new ShipStatusState()
     this._loadout = {
       equippedWeapon: null,
       weapons: [...BALANCE.weapons.loadout],
       equippedBomb: null,
       bombs: [],
-      equippedWings: null,
-      wings: [],
+      equippedWings: 'standard',
+      wings: ['standard'],
       equippedShield: null,
       shields: [],
-      equippedArmor: null,
-      armors: [],
+      equippedArmor: 'standard',
+      armors: ['standard'],
       equippedEnergyCollector: null,
       energyCollectors: [],
       equippedEnergyConverter: null,
       energyConverters: [],
+      weaponLevel: 1,
+      bombLevel: 1,
     }
     this._debugPort = {
       position: this.transform.position,
@@ -342,8 +364,27 @@ export class Ship extends Group {
     this.weaponTip = new Mesh(tipGeo, tipMat)
     this.weaponTip.position.set(0, 0, -(visual.size.d / 2 + 0.25))
     this.weaponTip.scale.setScalar(0.12)
+    this.weaponTip.userData.slot = 'weapon'
 
-    this.add(this._hull, this._accent, this._thruster, this.weaponTip)
+    this._modules = createShipModules({
+      wire: visual.wireframeColor,
+      accent: visual.accentColor,
+    })
+    this._modules.group.add(this.weaponTip)
+    this.add(this._hull, this._accent, this._thruster, this._modules.group)
+    this._applyModules()
+  }
+
+  get hitbox(): Mesh {
+    return this._hull
+  }
+
+  get energyGain(): number {
+    return this._energyGain
+  }
+
+  get labFusion(): number {
+    return this._labFusion
   }
 
   get hardpoints(): readonly WeaponSlot[] {
@@ -367,6 +408,28 @@ export class Ship extends Group {
     return this._loadout
   }
 
+  weaponLevel(): number {
+    return this._loadout.weaponLevel
+  }
+
+  setWeaponLevel(level: number): void {
+    if (!Number.isInteger(level) || level < 1 || level > 12) {
+      return
+    }
+    this._loadout.weaponLevel = level
+  }
+
+  bombLevel(): number {
+    return this._loadout.bombLevel
+  }
+
+  setBombLevel(level: number): void {
+    if (!Number.isInteger(level) || level < 1 || level > 12) {
+      return
+    }
+    this._loadout.bombLevel = level
+  }
+
   applyTransform(transform: ShipTransform): void {
     this.transform.position.x = transform.position.x
     this.transform.position.y = transform.position.y
@@ -387,18 +450,47 @@ export class Ship extends Group {
 
   equipWeapon(slotIndex: number, id: WeaponId): void {
     this._hardpoints[slotIndex]?.setEquipped(id)
+    this._applyModules()
   }
 
   unequipWeapon(slotIndex: number): void {
     this._hardpoints[slotIndex]?.setEquipped(null)
+    this._applyModules()
   }
 
   equipBomb(slotIndex: number, id: BombId, charges: number): void {
     this._ordnance[slotIndex]?.setOrdnance(id, charges)
+    this._applyModules()
   }
 
   unequipBomb(slotIndex: number): void {
     this._ordnance[slotIndex]?.setOrdnance(null, 0)
+    this._applyModules()
+  }
+
+  equipWings(id: WingId | null): void {
+    this._loadout.equippedWings = id
+    this._applyModules()
+  }
+
+  equipShield(id: ShieldFitId | null): void {
+    this._loadout.equippedShield = id
+    this._applyModules()
+  }
+
+  equipBody(id: ArmorId | null): void {
+    this._loadout.equippedArmor = id
+    this._applyModules()
+  }
+
+  equipEnergyCollector(id: EnergyCollectorId | null): void {
+    this._loadout.equippedEnergyCollector = id
+    this._applyModules()
+  }
+
+  equipEnergyConverter(id: EnergyConverterId | null): void {
+    this._loadout.equippedEnergyConverter = id
+    this._applyModules()
   }
 
   attachEquipment(item: Equipment): void {
@@ -457,6 +549,15 @@ export class Ship extends Group {
     this._disposeMesh(this._accent)
     this._disposeMesh(this._thruster)
     this._disposeMesh(this.weaponTip)
+    for (const wing of this._modules.wings) {
+      this._disposeMesh(wing)
+    }
+    this._disposeMesh(this._modules.shield)
+    for (const bomb of this._modules.bombs) {
+      this._disposeMesh(bomb)
+    }
+    this._disposeMesh(this._modules.collector)
+    this._disposeMesh(this._modules.converter)
     this.clear()
   }
 
@@ -468,6 +569,32 @@ export class Ship extends Group {
   private _refreshLoadout(): void {
     this._loadout.equippedWeapon = this._hardpoints[0]?.equipped ?? null
     this._loadout.equippedBomb = this._ordnance[0]?.equipped ?? null
+  }
+
+  private _applyModules(): void {
+    this._refreshLoadout()
+    const mods = moduleModsFor(this._loadout)
+    const cap = BALANCE.ship.stats.byteCap
+    this._writePool(this.stats.agility, this._baseStats.agility, mods.agility, cap)
+    this._writePool(this.stats.deflection, this._baseStats.deflection, mods.deflection, cap)
+    this._writePool(this.stats.integrity, this._baseStats.integrity, mods.integrity, cap)
+    this._writePool(this.stats.shield, this._baseStats.shield, mods.shield, cap)
+    this._writePool(this.stats.energy, this._baseStats.energy, mods.energy, cap)
+    this._energyGain = mods.energyGain
+    this._labFusion = mods.labFusion
+    syncModuleVisibility(this._modules, this._loadout)
+    this.weaponTip.visible = this._loadout.equippedWeapon !== null
+  }
+
+  private _writePool(pool: BytePool, base: BytePool, delta: number, cap: number): void {
+    const nextMax = Math.max(0, Math.min(cap, base.max + delta))
+    const grown = nextMax - pool.max
+    pool.max = nextMax
+    if (grown > 0) {
+      pool.current = Math.min(cap, pool.current + grown)
+    } else {
+      pool.current = Math.min(pool.current, nextMax)
+    }
   }
 
   private _pulse(flag: 'flickering' | 'dashing' | 'shooting', on: boolean, durationMs: number): void {

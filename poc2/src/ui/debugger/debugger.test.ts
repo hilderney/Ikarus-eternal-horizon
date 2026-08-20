@@ -102,6 +102,21 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
     equipBomb(id) {
       sheet.loadout.equippedBomb = id
     },
+    equipWings(id) {
+      sheet.loadout.equippedWings = id
+    },
+    equipShield(id) {
+      sheet.loadout.equippedShield = id
+    },
+    equipArmor(id) {
+      sheet.loadout.equippedArmor = id
+    },
+    equipEnergyCollector(id) {
+      sheet.loadout.equippedEnergyCollector = id
+    },
+    equipEnergyConverter(id) {
+      sheet.loadout.equippedEnergyConverter = id
+    },
   }
   return {
     ship,

@@ -56,6 +56,8 @@ export interface DebuggerShipBind {
       energyCollectors: readonly string[]
       equippedEnergyConverter: string | null
       energyConverters: readonly string[]
+      weaponLevel?: number
+      bombLevel?: number
     }
   }
   applyTransform(): void
@@ -64,6 +66,11 @@ export interface DebuggerShipBind {
   setShooting(value: boolean): void
   equipWeapon(id: string | null): void
   equipBomb(id: string | null): void
+  equipWings(id: string | null): void
+  equipShield(id: string | null): void
+  equipArmor(id: string | null): void
+  equipEnergyCollector(id: string | null): void
+  equipEnergyConverter(id: string | null): void
 }
 
 export interface DebuggerWeaponsBind {

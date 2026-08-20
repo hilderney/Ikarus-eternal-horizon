@@ -126,6 +126,11 @@ export interface DebuggerShipBind {
   setShooting(value: boolean): void
   equipWeapon(id: string | null): void
   equipBomb(id: string | null): void
+  equipWings(id: string | null): void
+  equipShield(id: string | null): void
+  equipArmor(id: string | null): void
+  equipEnergyCollector(id: string | null): void
+  equipEnergyConverter(id: string | null): void
 }
 
 export interface DebuggerWeaponsBind {
@@ -253,7 +258,8 @@ export declare class WeaponsTab implements DebuggerTab {
  *   R5. ShipTab shows pose, six byte pools, three statuses. EquipsTab shows
  *       every loadout field plus equipped weapon level (LASER_LEVELS 1–12)
  *       via FiringManager.setWeaponLevel and dash level (DASH_LEVELS 1–12)
- *       via PlayerController.setDashLevel. Neither invents a second table.
+ *       via PlayerController.setDashLevel. Module selects call Ship.equip*
+ *       so BALANCE.ship.modules mods apply. Neither invents a second table.
  *   R6. Q09: when `enabled === false`, mount writes nothing into the host
  *       and sync/reset are no-ops.
  *   R7. Memory: DOM created on mount, removed on dispose. Per-frame
