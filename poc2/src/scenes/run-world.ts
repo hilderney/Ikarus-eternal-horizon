@@ -14,7 +14,7 @@ import { Gizmos } from '../gameobjects/gizmos/gizmos'
 import { LimitBox } from '../gameobjects/limit-box/limit-box'
 import { BattleField } from '../gameobjects/battle-field/battle-field'
 import { EnemyGate } from '../gameobjects/enemy-gate/enemy-gate'
-import { warriorMaxSpeed } from '../gameobjects/enemy/warrior'
+import { warriorMaxForce, warriorMaxSpeed } from '../gameobjects/enemy/warrior'
 import { SpawnArea } from '../gameobjects/spawn-area/spawn-area'
 import { ParallaxField } from '../gameobjects/parallax/parallax-field'
 import {
@@ -42,6 +42,7 @@ import '../gameobjects/weapon/behaviours/beam'
 import '../gameobjects/weapon/behaviours/mjolnir'
 import { EnergyManager } from '../systems/energy-manager'
 import { EnemyManager } from '../systems/enemy-manager'
+import type { EnemyGroup } from '../systems/enemy-group'
 import { FiringManager } from '../systems/firing-manager'
 import { ShotManager } from '../systems/shot-manager'
 import { CollisionManager, type ColliderPort, type HitPair } from '../systems/collision-manager'
@@ -52,12 +53,17 @@ import { ShipCombatProxy } from '../systems/ship-combat-proxy'
 import { Layer } from '../systems/layers'
 import { ObjectPool } from '../pools/object-pool'
 import type { MutableTouchSource, TouchControls } from '../ui/touch-controls/touch-controls'
-import { Debugger, type DebuggerBinds } from '../ui/debugger/debugger'
+import {
+  Debugger,
+  type DebuggerBinds,
+  type DebuggerGroupSnapshot,
+} from '../ui/debugger/debugger'
 import { CamTab } from '../ui/debugger/cam-tab'
 import { EquipsTab } from '../ui/debugger/equips-tab'
 import { ShipTab } from '../ui/debugger/ship-tab'
 import { SpawnAreaTab } from '../ui/debugger/spawn-area-tab'
 import { EnemyTab } from '../ui/debugger/enemy-tab'
+import { SquadTab } from '../ui/debugger/squad-tab'
 import { ParallaxTab } from '../ui/debugger/parallax-tab'
 import { InputMap } from '../ui/input-map/input-map'
 import type {
@@ -86,6 +92,27 @@ export interface RunWorldOptions {
     far: number
     aspect: number
   }
+}
+
+/** Refresh the reused Squad-tab readout buffer (DEV debugger only). */
+function syncGroupSnapshots(
+  groups: readonly EnemyGroup[],
+  out: DebuggerGroupSnapshot[],
+): readonly DebuggerGroupSnapshot[] {
+  for (let i = 0; i < out.length; i += 1) {
+    const group = groups[i]
+    const snap = out[i]
+    if (!group || !snap) {
+      continue
+    }
+    snap.id = group.id
+    snap.active = group.active
+    snap.members = group.memberCount()
+    snap.objective = group.objective
+    snap.formation = group.formation
+    snap.healthPct = group.healthRatio() * 100
+  }
+  return out
 }
 
 function noopStep(): Steppable & Disposable & RenderSyncable {
@@ -676,6 +703,17 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
       }
       const isGateSide = (side: number) => side === 3
       const volumeAt = (side: number) => (isGateSide(side) ? world.enemyGate : areaAt(side))
+      const groupSnapshots: DebuggerGroupSnapshot[] = world.enemies
+        .squad()
+        .groups()
+        .map((group) => ({
+          id: group.id,
+          active: false,
+          members: 0,
+          objective: 'patrol',
+          formation: 'vWing',
+          healthPct: 0,
+        }))
       const binds: DebuggerBinds = {
         ship: {
           snapshot: () => {
@@ -805,26 +843,36 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
               live.color = defaults.color
               live.contactDamage = defaults.contactDamage
               live.maxSpeed = warriorMaxSpeed(defaults.agility)
+              live.maxForce = warriorMaxForce(defaults.agility)
               live.agility = defaults.agility
               live.intelligence = defaults.intelligence
               live.reachSpeedMul = defaults.reachSpeedMul
+              live.turnRateDeg = defaults.turnRateDeg
+              live.shieldMax = defaults.shieldMax
+              live.shieldRegenPerSec = defaults.shieldRegenPerSec
               live.targets = [...defaults.targets]
               Object.assign(live.weapon, defaults.weapon)
               Object.assign(live.status, defaults.status)
-              live.strategy.swapBaseMs = defaults.strategy.swapBaseMs
-              live.strategy.turnRateDeg = defaults.strategy.turnRateDeg
-              Object.assign(live.strategy.weights, defaults.strategy.weights)
-              Object.assign(live.strategy.mods.hitted, defaults.strategy.mods.hitted)
-              Object.assign(live.strategy.mods.hitting, defaults.strategy.mods.hitting)
-              Object.assign(live.strategy.mods.in_range, defaults.strategy.mods.in_range)
-              Object.assign(live.strategy.mods.passed_opponent, defaults.strategy.mods.passed_opponent)
-              Object.assign(live.strategy.loopAround, defaults.strategy.loopAround)
+              Object.assign(live.formation, defaults.formation)
+              Object.assign(live.morale, defaults.morale)
+              Object.assign(live.affinity, defaults.affinity)
               world.enemies.applyLiveSheetToActive()
               return
             }
             world.enemies.resetLiveSheet()
           },
           liveStatus: () => world.enemies.firstActiveStatus(),
+        },
+        squad: {
+          config: () => world.enemies.squad().liveConfig(),
+          resetConfig: () => {
+            world.enemies.squad().resetLiveConfig()
+          },
+          groupCount: () => world.enemies.squad().groups().length,
+          groups: () => syncGroupSnapshots(world.enemies.squad().groups(), groupSnapshots),
+          activeGroups: () => world.enemies.squad().activeGroupCount(),
+          trackedShips: () => world.enemies.squad().trackedCount(),
+          rogueShips: () => world.enemies.squad().rogueCount(),
         },
         parallax: {
           layerCount: () => world.parallax.layerCount(),
@@ -903,6 +951,7 @@ export function createRunWorld(options: RunWorldOptions): RunWorldFactory {
           new ShipTab(binds),
           new EquipsTab(binds),
           new EnemyTab(binds),
+          new SquadTab(binds),
           new CamTab(binds),
           new SpawnAreaTab(binds),
           new ParallaxTab(binds),

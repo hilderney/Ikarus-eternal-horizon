@@ -5,6 +5,7 @@
 import { BALANCE } from '../../core/balancer'
 import type { EnemyStatusSnapshot } from '../../gameobjects/enemy/enemy'
 import type { EditableWarriorSheet } from '../../gameobjects/enemy/warrior'
+import type { EditableSquadConfig } from '../../systems/squad-config'
 import type { WeaponId } from '../../gameobjects/weapon/catalog'
 import type { ParallaxLayerConfig } from '../../gameobjects/parallax/parallax-layer'
 import type { WeaponLevelSnapshot, WeaponLevelSnapshotField } from '../../gameobjects/weapon/weapon-levels'
@@ -12,6 +13,7 @@ export type DebuggerTabId =
   | 'ship'
   | 'equips'
   | 'enemy'
+  | 'squad'
   | 'cam'
   | 'limit-box'
   | 'spawn-area'
@@ -118,8 +120,28 @@ export interface DebuggerEnemyBind {
   /** Push sheet onto active enemies (pose/rotation of the player ship untouched). */
   applyToActive(): void
   resetSheet(defaults?: EditableWarriorSheet): void
-  /** Snapshot of the first active enemy (statuses / chase strategy). */
+  /** Snapshot of the first active enemy (statuses / AI state / slot). */
   liveStatus(): EnemyStatusSnapshot | null
+}
+
+/** Live readout of one EnemyGroup for the Squad tab (reused buffer). */
+export interface DebuggerGroupSnapshot {
+  id: number
+  active: boolean
+  members: number
+  objective: string
+  formation: string
+  healthPct: number
+}
+
+export interface DebuggerSquadBind {
+  config(): EditableSquadConfig
+  resetConfig(): void
+  groupCount(): number
+  groups(): readonly DebuggerGroupSnapshot[]
+  activeGroups(): number
+  trackedShips(): number
+  rogueShips(): number
 }
 
 export interface DebuggerParallaxBind {
@@ -167,6 +189,7 @@ export interface DebuggerBinds {
   readonly dash: DebuggerLevelBind
   readonly spawnArea: DebuggerSpawnAreaBind
   readonly enemy: DebuggerEnemyBind
+  readonly squad: DebuggerSquadBind
   readonly parallax: DebuggerParallaxBind
   readonly camera: DebuggerCameraBind
   readonly recenterPoint: DebuggerRecenterPointBind
@@ -191,6 +214,7 @@ const TAB_LABELS: Record<DebuggerTabId, string> = {
   ship: 'Ship',
   equips: 'Equips',
   enemy: 'Enemy',
+  squad: 'Squad',
   cam: 'Cam',
   'limit-box': 'LimitBox',
   'spawn-area': 'SpawnArea',

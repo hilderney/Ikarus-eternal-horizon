@@ -6,16 +6,27 @@ import {
   patchWeaponStat,
   weaponLevelSnapshot,
 } from '../../gameobjects/weapon/weapon-levels'
-import type { DebuggerBinds, DebuggerShipBind } from './debugger'
+import type {
+  DebuggerBinds,
+  DebuggerGroupSnapshot,
+  DebuggerShipBind,
+} from './debugger'
 import { Debugger } from './debugger'
 import { CamTab } from './cam-tab'
 import { EquipsTab } from './equips-tab'
 import { EnemyTab } from './enemy-tab'
+import { SquadTab } from './squad-tab'
 import { ShipTab } from './ship-tab'
 import { SpawnAreaTab } from './spawn-area-tab'
 import { ParallaxTab } from './parallax-tab'
 import type { ParallaxLayerConfig } from '../../gameobjects/parallax/parallax-layer'
-import { cloneWarriorSheet, warriorMaxSpeed, WARRIOR } from '../../gameobjects/enemy/warrior'
+import {
+  cloneWarriorSheet,
+  warriorMaxForce,
+  warriorMaxSpeed,
+  WARRIOR,
+} from '../../gameobjects/enemy/warrior'
+import { cloneSquadConfig, DEFAULT_SQUAD_CONFIG } from '../../systems/squad-config'
 import shipTabSource from './ship-tab.ts?raw'
 import equipsTabSource from './equips-tab.ts?raw'
 
@@ -93,6 +104,11 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
   let weaponConfig = copyWeaponConfig(WEAPONS[activeWeapon])
   applyWeaponLevel(weaponConfig, weaponLevel)
   const enemySheet = cloneWarriorSheet(WARRIOR)
+  const squadConfig = cloneSquadConfig(DEFAULT_SQUAD_CONFIG)
+  const squadGroups: DebuggerGroupSnapshot[] = [
+    { id: 0, active: true, members: 3, objective: 'patrol', formation: 'vWing', healthPct: 100 },
+    { id: 1, active: false, members: 0, objective: 'patrol', formation: 'vWing', healthPct: 0 },
+  ]
   let spawnLeft = {
     offset: { x: -140, y: 0, z: -140 },
     size: { x: 10, y: 2, z: 10 },
@@ -202,7 +218,6 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
     moveSpeed: 12,
     rotSpeed: 45,
   }
-  let cameraApplyCount = 0
   const recenterLive = {
     position: { x: 0, y: 0, z: -1 },
     width: 2,
@@ -328,24 +343,34 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
         enemySheet.color = src.color
         enemySheet.contactDamage = src.contactDamage
         enemySheet.maxSpeed = warriorMaxSpeed(src.agility)
+        enemySheet.maxForce = warriorMaxForce(src.agility)
         enemySheet.agility = src.agility
         enemySheet.intelligence = src.intelligence
         enemySheet.reachSpeedMul = src.reachSpeedMul
+        enemySheet.turnRateDeg = src.turnRateDeg
+        enemySheet.shieldMax = src.shieldMax
+        enemySheet.shieldRegenPerSec = src.shieldRegenPerSec
         enemySheet.targets = [...src.targets]
         Object.assign(enemySheet.weapon, src.weapon)
         Object.assign(enemySheet.status, src.status)
-        enemySheet.strategy.swapBaseMs = src.strategy.swapBaseMs
-        enemySheet.strategy.turnRateDeg = src.strategy.turnRateDeg
-        Object.assign(enemySheet.strategy.weights, src.strategy.weights)
-        Object.assign(enemySheet.strategy.mods.hitted, src.strategy.mods.hitted)
-        Object.assign(enemySheet.strategy.mods.hitting, src.strategy.mods.hitting)
-        Object.assign(enemySheet.strategy.mods.in_range, src.strategy.mods.in_range)
-        Object.assign(enemySheet.strategy.mods.passed_opponent, src.strategy.mods.passed_opponent)
-        Object.assign(enemySheet.strategy.loopAround, src.strategy.loopAround)
+        Object.assign(enemySheet.formation, src.formation)
+        Object.assign(enemySheet.morale, src.morale)
+        Object.assign(enemySheet.affinity, src.affinity)
       },
       liveStatus() {
         return null
       },
+    },
+    squad: {
+      config: () => squadConfig,
+      resetConfig() {
+        Object.assign(squadConfig, cloneSquadConfig(DEFAULT_SQUAD_CONFIG))
+      },
+      groupCount: () => squadGroups.length,
+      groups: () => squadGroups,
+      activeGroups: () => squadGroups.filter((group) => group.active).length,
+      trackedShips: () => 0,
+      rogueShips: () => 0,
     },
     parallax: {
       layerCount: () => parallaxLayers.length,
@@ -413,7 +438,7 @@ function makeBinds(sheet: LiveSheet): DebuggerBinds {
         cameraLive.rotSpeed = value
       },
       apply() {
-        cameraApplyCount += 1
+        // No real camera behind these binds.
       },
     },
     recenterPoint: {
@@ -835,6 +860,58 @@ describe('EnemyTab', () => {
     hp.dispatchEvent(new Event('input', { bubbles: true }))
     expect(binds.enemy.sheet().hp).toBe(9)
     expect(sheet.position.x).toBe(poseX)
+    dbg.dispose()
+  })
+
+  it('edits the squad-driven formation knobs live', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new EnemyTab(binds)],
+      enabled: true,
+    })
+    const boost = bind(host, 'formation.boostDistance', 'number')
+    boost.value = '15'
+    boost.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.enemy.sheet().formation.boostDistance).toBe(15)
+
+    const fury = bind(host, 'morale.furyProximitySec', 'number')
+    fury.value = '4'
+    fury.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.enemy.sheet().morale.furyProximitySec).toBe(4)
+    dbg.dispose()
+  })
+})
+
+describe('SquadTab', () => {
+  it('edits squad tuning live and resets it back to the balance defaults', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const binds = makeBinds(makeSheet())
+    const dbg = new Debugger({
+      host,
+      binds,
+      tabs: [new SquadTab(binds)],
+      enabled: true,
+    })
+    expect(host.querySelector('[data-tab="squad"]')).not.toBeNull()
+
+    const radius = bind(host, 'squad.circleRadius', 'number')
+    radius.value = '12'
+    radius.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.squad.config().circleRadius).toBe(12)
+
+    const tick = bind(host, 'squad.tickHz', 'number')
+    tick.value = '10'
+    tick.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(binds.squad.config().tickHz).toBe(10)
+
+    binds.squad.resetConfig()
+    expect(binds.squad.config().circleRadius).toBe(DEFAULT_SQUAD_CONFIG.circleRadius)
+    expect(binds.squad.config().tickHz).toBe(DEFAULT_SQUAD_CONFIG.tickHz)
     dbg.dispose()
   })
 })

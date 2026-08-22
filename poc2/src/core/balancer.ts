@@ -9,6 +9,8 @@ import { WEAPONS } from '../gameobjects/weapon/catalog'
 import type { WeaponConfig, WeaponId, WeaponProfile } from '../gameobjects/weapon/catalog'
 import { WARRIOR } from '../gameobjects/enemy/warrior'
 import type { WarriorSheet } from '../gameobjects/enemy/warrior'
+import { DEFAULT_SQUAD_CONFIG } from '../systems/squad-config'
+import type { SquadConfig } from '../systems/squad-config'
 
 export type { WeaponConfig, WeaponId, WeaponProfile }
 export type WeaponCatalogEntry = WeaponConfig
@@ -238,6 +240,8 @@ export interface EnemyConfig {
   /** @deprecated Prefer warrior sheet; kept as combat fallback snapshot. */
   readonly generic: EnemyGenericConfig
   readonly warrior: WarriorSheet
+  /** Macro AI: groups, formations, staggered ticks (post-gate). */
+  readonly squad: SquadConfig
   readonly despawn: EnemyDespawnConfig
   readonly poolSize: number
   /** EnemyShot pool capacity (E03/E04). */
@@ -878,9 +882,9 @@ const BALANCE_DATA: Balance = {
       visible: true,
       color: 0xff2222,
       opacity: 0.55,
-      intervalSec: 3,
+      intervalSec: 1.2,
       lanesX: [-4, -2, 0, 2, 4],
-      maxActive: 1,
+      maxActive: 8,
     },
     spawnRight: {
       offset: { x: 160, y: 50, z: -140 },
@@ -888,9 +892,9 @@ const BALANCE_DATA: Balance = {
       visible: true,
       color: 0xff2222,
       opacity: 0.55,
-      intervalSec: 3,
+      intervalSec: 1.2,
       lanesX: [-4, -2, 0, 2, 4],
-      maxActive: 1,
+      maxActive: 8,
     },
     spawnFront: {
       offset: { x: 0, y: 100, z: -140 },
@@ -898,9 +902,9 @@ const BALANCE_DATA: Balance = {
       visible: true,
       color: 0xff2222,
       opacity: 0.55,
-      intervalSec: 3,
+      intervalSec: 1.2,
       lanesX: [-4, -2, 0, 2, 4],
-      maxActive: 1,
+      maxActive: 8,
     },
     gate: {
       offset: { x: 0, y: 0, z: -90 },
@@ -926,8 +930,9 @@ const BALANCE_DATA: Balance = {
       contactDamage: WARRIOR.contactDamage,
     },
     warrior: WARRIOR,
+    squad: DEFAULT_SQUAD_CONFIG,
     despawn: { zNear: 30, zFar: -160, halfX: 240 },
-    poolSize: 32,
+    poolSize: 48,
     shotPoolSize: 64,
   },
   battlefield: {

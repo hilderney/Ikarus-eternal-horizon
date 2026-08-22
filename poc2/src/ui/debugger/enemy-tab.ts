@@ -2,8 +2,12 @@
  * SDD-G08 Enemy tab — archetype sheet (Warrior) editable live. No ship pose.
  */
 
-import { warriorMaxSpeed, type EditableWarriorSheet } from '../../gameobjects/enemy/warrior'
-import { ENEMY_STATUS_CATALOG } from '../../systems/enemy-strategy'
+import {
+  warriorMaxForce,
+  warriorMaxSpeed,
+  type EditableWarriorSheet,
+} from '../../gameobjects/enemy/warrior'
+import { ENEMY_AI_STATE_CATALOG, ENEMY_STATUS_CATALOG } from '../../systems/enemy-strategy'
 import type { DebuggerBinds, DebuggerTab } from './debugger'
 
 interface NumberHandle {
@@ -29,11 +33,33 @@ type Handle = NumberHandle | TextHandle | BoolHandle
 
 type SheetNumberKey =
   | 'hp'
+  | 'shieldMax'
+  | 'shieldRegenPerSec'
   | 'radius'
   | 'contactDamage'
   | 'agility'
   | 'intelligence'
   | 'reachSpeedMul'
+  | 'turnRateDeg'
+
+type FormationNumberKey =
+  | 'slotTolerance'
+  | 'boostDistance'
+  | 'boostAgilityMul'
+  | 'hoverAmp'
+  | 'hoverHz'
+  | 'imperfectionRadius'
+
+type MoraleNumberKey =
+  | 'furyProximityRadius'
+  | 'furyProximitySec'
+  | 'furyAgilityMul'
+  | 'retaliationHits'
+  | 'retaliationWindowMs'
+  | 'fleeGroupHealthPct'
+  | 'fleeAgilityMul'
+
+type AffinityNumberKey = 'gainPerSec' | 'decayPerSec' | 'radius' | 'loyalty'
 
 type WeaponNumberKey =
   | 'rate'
@@ -84,6 +110,8 @@ export class EnemyTab implements DebuggerTab {
 
     this._group(form, 'Combat sheet')
     this._sheetScalar(form, 'hp', 'hp', 1, 50, 1)
+    this._sheetScalar(form, 'shieldMax', 'shieldMax', 0, 30, 1)
+    this._sheetScalar(form, 'shieldRegenPerSec', 'shieldRegenPerSec', 0, 5, 0.05)
     this._sheetScalar(form, 'radius', 'radius', 0.1, 3, 0.05)
     this._sheetScalar(form, 'contactDamage', 'contactDamage', 0, 40, 1)
     this._sheetScalar(form, 'agility', 'agility', 0, 100, 1)
@@ -92,8 +120,14 @@ export class EnemyTab implements DebuggerTab {
       'maxSpeed',
       () => `agility/10 = ${formatNum(warriorMaxSpeed(enemy.sheet().agility))}`,
     )
+    this._readOnly(
+      form,
+      'maxForce',
+      () => `agility/5 = ${formatNum(warriorMaxForce(enemy.sheet().agility))}`,
+    )
     this._sheetScalar(form, 'intelligence', 'intelligence', 0, 100, 1)
     this._sheetScalar(form, 'reachSpeedMul', 'reachSpeedMul', 1, 8, 0.1)
+    this._sheetScalar(form, 'turnRateDeg', 'turnRateDeg', 15, 360, 5)
 
     this._group(form, 'Fixed weapon')
     this._weaponScalar(form, 'rate', 'weapon.rate', 0.1, 8, 0.05)
@@ -172,11 +206,42 @@ export class EnemyTab implements DebuggerTab {
       enemy.applyToActive()
     })
 
+    this._group(form, 'Formation & agility')
+    this._formationScalar(form, 'slotTolerance', 'formation.slotTolerance', 0.2, 6, 0.1)
+    this._formationScalar(form, 'boostDistance', 'formation.boostDistance', 1, 40, 0.5)
+    this._formationScalar(form, 'boostAgilityMul', 'formation.boostAgilityMul', 1, 5, 0.1)
+    this._formationScalar(form, 'hoverAmp', 'formation.hoverAmp', 0, 2, 0.05)
+    this._formationScalar(form, 'hoverHz', 'formation.hoverHz', 0, 3, 0.05)
+    this._formationScalar(form, 'imperfectionRadius', 'formation.imperfectionRadius', 0, 2, 0.05)
+
+    this._group(form, 'Fury / Flee triggers')
+    this._moraleScalar(form, 'furyProximityRadius', 'morale.furyProximityRadius', 1, 60, 0.5)
+    this._moraleScalar(form, 'furyProximitySec', 'morale.furyProximitySec', 0.2, 10, 0.1)
+    this._moraleScalar(form, 'furyAgilityMul', 'morale.furyAgilityMul', 1, 5, 0.1)
+    this._moraleScalar(form, 'retaliationHits', 'morale.retaliationHits', 1, 10, 1)
+    this._moraleScalar(form, 'retaliationWindowMs', 'morale.retaliationWindowMs', 100, 5000, 50)
+    this._moraleScalar(form, 'fleeGroupHealthPct', 'morale.fleeGroupHealthPct', 0, 100, 1)
+    this._moraleScalar(form, 'fleeAgilityMul', 'morale.fleeAgilityMul', 1, 5, 0.1)
+
+    this._group(form, 'Affinity migration')
+    this._affinityScalar(form, 'gainPerSec', 'affinity.gainPerSec', 0, 3, 0.05)
+    this._affinityScalar(form, 'decayPerSec', 'affinity.decayPerSec', 0, 3, 0.05)
+    this._affinityScalar(form, 'radius', 'affinity.radius', 1, 80, 0.5)
+    this._affinityScalar(form, 'loyalty', 'affinity.loyalty', 0, 1, 0.01)
+
     this._group(form, 'Live statuses (first active)')
-    this._readOnly(form, 'catalog', () => ENEMY_STATUS_CATALOG.join(' | '))
-    this._readOnly(form, 'chaseStrategy', () => {
+    this._readOnly(form, 'aiStates', () => ENEMY_AI_STATE_CATALOG.join(' | '))
+    this._readOnly(form, 'aiState', () => enemy.liveStatus()?.aiState ?? '—')
+    this._readOnly(form, 'group', () => {
       const snap = enemy.liveStatus()
-      return snap?.chaseStrategy ?? '—'
+      if (!snap) {
+        return '—'
+      }
+      return snap.groupId < 0 ? 'rogue' : `#${snap.groupId} slot ${snap.slotIndex}`
+    })
+    this._readOnly(form, 'shield', () => {
+      const snap = enemy.liveStatus()
+      return snap ? `${formatNum(snap.shield)} / ${formatNum(snap.shieldMax)}` : '—'
     })
     for (const id of ENEMY_STATUS_CATALOG) {
       this._readOnly(form, id, () => {
@@ -191,93 +256,10 @@ export class EnemyTab implements DebuggerTab {
               ? snap.hitting
               : id === 'in_range'
                 ? snap.in_range
-                : id === 'passed_opponent'
-                  ? snap.passed_opponent
-                  : snap.fixed_movement_strategy
+                : snap.passed_opponent
         return on ? 'ON' : 'off'
       })
     }
-
-    this._group(form, 'Strategy weights %')
-    this._weight(form, 'straight')
-    this._weight(form, 'engage')
-    this._weight(form, 'flee')
-    this._weight(form, 'loop_around')
-    this._scalar(
-      form,
-      'swapBaseMs',
-      'strategy.swapBaseMs',
-      500,
-      10000,
-      50,
-      () => enemy.sheet().strategy.swapBaseMs,
-      (value) => {
-        enemy.sheet().strategy.swapBaseMs = value
-        enemy.applyToActive()
-      },
-    )
-    this._scalar(
-      form,
-      'turnRateDeg',
-      'strategy.turnRateDeg',
-      15,
-      360,
-      5,
-      () => enemy.sheet().strategy.turnRateDeg,
-      (value) => {
-        enemy.sheet().strategy.turnRateDeg = value
-        enemy.applyToActive()
-      },
-    )
-    this._readOnly(form, 'holdMs', () => {
-      const sheet = enemy.sheet()
-      return String(Math.max(250, sheet.strategy.swapBaseMs - sheet.intelligence))
-    })
-    this._scalar(
-      form,
-      'loop.radius',
-      'strategy.loopAround.radius',
-      2,
-      40,
-      0.5,
-      () => enemy.sheet().strategy.loopAround.radius,
-      (value) => {
-        enemy.sheet().strategy.loopAround.radius = value
-        enemy.applyToActive()
-      },
-    )
-    this._scalar(
-      form,
-      'loop.speedMul',
-      'strategy.loopAround.speedMul',
-      1,
-      3,
-      0.05,
-      () => enemy.sheet().strategy.loopAround.speedMul,
-      (value) => {
-        enemy.sheet().strategy.loopAround.speedMul = value
-        enemy.applyToActive()
-      },
-    )
-    this._scalar(
-      form,
-      'loop.retreatZ',
-      'strategy.loopAround.retreatZ',
-      0,
-      30,
-      0.5,
-      () => enemy.sheet().strategy.loopAround.retreatZ,
-      (value) => {
-        enemy.sheet().strategy.loopAround.retreatZ = value
-        enemy.applyToActive()
-      },
-    )
-
-    this._group(form, 'Status mods (additive %)')
-    this._modGroup(form, 'hitted')
-    this._modGroup(form, 'hitting')
-    this._modGroup(form, 'in_range')
-    this._modGroup(form, 'passed_opponent')
 
     this._group(form, 'Live')
     const row = document.createElement('div')
@@ -376,6 +358,7 @@ export class EnemyTab implements DebuggerTab {
         this._binds.enemy.sheet()[key] = value
         if (key === 'agility') {
           this._binds.enemy.sheet().maxSpeed = warriorMaxSpeed(value)
+          this._binds.enemy.sheet().maxForce = warriorMaxForce(value)
         }
         this._binds.enemy.applyToActive()
       },
@@ -496,42 +479,73 @@ export class EnemyTab implements DebuggerTab {
     this._handles.push({ kind: 'text', el: input, read })
   }
 
-  private _weight(host: HTMLElement, key: 'straight' | 'engage' | 'flee' | 'loop_around'): void {
+  private _formationScalar(
+    host: HTMLElement,
+    key: FormationNumberKey,
+    path: string,
+    min: number,
+    max: number,
+    step: number,
+  ): void {
     this._scalar(
       host,
       key,
-      `strategy.weights.${key}`,
-      0,
-      100,
-      1,
-      () => this._binds.enemy.sheet().strategy.weights[key],
+      path,
+      min,
+      max,
+      step,
+      () => this._binds.enemy.sheet().formation[key],
       (value) => {
-        this._binds.enemy.sheet().strategy.weights[key] = value
+        this._binds.enemy.sheet().formation[key] = value
         this._binds.enemy.applyToActive()
       },
     )
   }
 
-  private _modGroup(
+  private _moraleScalar(
     host: HTMLElement,
-    status: 'hitted' | 'hitting' | 'in_range' | 'passed_opponent',
+    key: MoraleNumberKey,
+    path: string,
+    min: number,
+    max: number,
+    step: number,
   ): void {
-    const keys = ['straight', 'engage', 'flee', 'loop_around'] as const
-    for (const key of keys) {
-      this._scalar(
-        host,
-        `${status}.${key}`,
-        `strategy.mods.${status}.${key}`,
-        -100,
-        100,
-        1,
-        () => this._binds.enemy.sheet().strategy.mods[status][key] ?? 0,
-        (value) => {
-          this._binds.enemy.sheet().strategy.mods[status][key] = value
-          this._binds.enemy.applyToActive()
-        },
-      )
-    }
+    this._scalar(
+      host,
+      key,
+      path,
+      min,
+      max,
+      step,
+      () => this._binds.enemy.sheet().morale[key],
+      (value) => {
+        this._binds.enemy.sheet().morale[key] = value
+        this._binds.enemy.applyToActive()
+      },
+    )
+  }
+
+  private _affinityScalar(
+    host: HTMLElement,
+    key: AffinityNumberKey,
+    path: string,
+    min: number,
+    max: number,
+    step: number,
+  ): void {
+    this._scalar(
+      host,
+      key,
+      path,
+      min,
+      max,
+      step,
+      () => this._binds.enemy.sheet().affinity[key],
+      (value) => {
+        this._binds.enemy.sheet().affinity[key] = value
+        this._binds.enemy.applyToActive()
+      },
+    )
   }
 
   private _flag(
@@ -593,20 +607,12 @@ function cloneSheet(src: EditableWarriorSheet): EditableWarriorSheet {
     ...src,
     targets: [...src.targets],
     maxSpeed: warriorMaxSpeed(src.agility),
+    maxForce: warriorMaxForce(src.agility),
     weapon: { ...src.weapon },
     status: { ...src.status },
-    strategy: {
-      swapBaseMs: src.strategy.swapBaseMs,
-      turnRateDeg: src.strategy.turnRateDeg,
-      weights: { ...src.strategy.weights },
-      mods: {
-        hitted: { ...src.strategy.mods.hitted },
-        hitting: { ...src.strategy.mods.hitting },
-        in_range: { ...src.strategy.mods.in_range },
-        passed_opponent: { ...src.strategy.mods.passed_opponent },
-      },
-      loopAround: { ...src.strategy.loopAround },
-    },
+    formation: { ...src.formation },
+    morale: { ...src.morale },
+    affinity: { ...src.affinity },
   }
 }
 

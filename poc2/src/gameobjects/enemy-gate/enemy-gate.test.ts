@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Mesh, SphereGeometry } from 'three'
+import { SphereGeometry, type Mesh } from 'three'
 import { BALANCE } from '../../core/balancer'
 import { EnemyGate } from './enemy-gate'
 

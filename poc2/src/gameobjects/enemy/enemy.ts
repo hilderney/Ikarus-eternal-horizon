@@ -1,8 +1,13 @@
 /**
  * SDD-E01 Enemy — Warrior gunship (pooled).
- * Phases: reachGate (curve A→B) → chase (weighted strategies).
- * Status: hitted / hitting / in_range / passed_opponent.
- * Shots always travel +Z.
+ *
+ * Two lives in one craft:
+ *  - `birth`: scripted spawn → EnemyGate curve (unchanged reach animation).
+ *  - squad life: steering agent on the gate plane. It seeks the slot its
+ *    EnemyGroup reserved for it, hovers once settled, BOOSTs back when it drops
+ *    out of formation, and can go rogue (FURY / FLEE) on deterministic triggers.
+ *
+ * Shots always leave along the smoothed nose heading, inside the fire cone.
  */
 
 import {
@@ -15,15 +20,27 @@ import type { BoxGeometry } from 'three'
 import { BALANCE } from '../../core/balancer'
 import { DEG2RAD, clamp, damp, distXZ } from '../../core/math'
 import type { ShotAcquirePort } from '../../systems/shot-manager'
-import { EnemyMovementManager, type MoveStrategyId } from '../../systems/enemy-movement-manager'
+import { EnemyMovementManager } from '../../systems/enemy-movement-manager'
+import type { EnemyGroup } from '../../systems/enemy-group'
+import type { AffinityTuning, SquadRegistryPort } from '../../systems/enemy-squad-manager'
+import type { SquadConfig } from '../../systems/squad-config'
 import {
-  effectiveStrategyWeights,
   isInsideFireCone,
-  pickChaseStrategy,
-  strategyHoldMs,
-  type ActiveStatuses,
-  type ChaseStrategyId,
+  isRogueState,
+  type ShipAiState,
 } from '../../systems/enemy-strategy'
+import {
+  addArrive,
+  addAvoidRogue,
+  addContainmentX,
+  addFlee,
+  addSeek,
+  addSeparation,
+  clampSpeed,
+  resetAcc,
+  truncate,
+  type SteerAcc,
+} from '../../systems/steering'
 import type { ReachPreviewSide } from '../../systems/reach-path'
 import { Layer } from '../../systems/layers'
 import type { ShotSpawn } from '../shot/weapon-shot'
@@ -31,13 +48,13 @@ import {
   cloneWarriorSheet,
   warriorAgilityLambda,
   warriorEngageRange,
+  warriorMaxForce,
   warriorMaxSpeed,
   type EditableWarriorSheet,
   type WarriorSheet,
 } from './warrior'
 
 export type TeamId = 'player' | 'enemy'
-export type EnemyMovePhase = 'reachGate' | 'chase'
 
 export interface SeekTargetPort {
   readonly x: number
@@ -59,6 +76,7 @@ export interface EnemyOptions {
   readonly seekTarget: SeekTargetPort
   readonly gateTarget: SeekTargetPort
   readonly shots?: ShotAcquirePort
+  readonly squad?: SquadRegistryPort
 }
 
 export interface EnemyStatusSnapshot {
@@ -66,9 +84,15 @@ export interface EnemyStatusSnapshot {
   hitting: boolean
   in_range: boolean
   passed_opponent: boolean
-  fixed_movement_strategy: boolean
-  chaseStrategy: ChaseStrategyId | null
+  aiState: ShipAiState
+  groupId: number
+  slotIndex: number
+  shield: number
+  shieldMax: number
 }
+
+/** Below this the craft is considered parked and keeps its previous nose. */
+const MIN_HEADING_SPEED = 0.05
 
 export class Enemy extends Mesh {
   readonly team: TeamId = 'enemy'
@@ -76,11 +100,17 @@ export class Enemy extends Mesh {
   active = false
   hp = 0
   hpMax = 0
+  shield = 0
+  shieldMax = 0
   x = 0
   y = 0
   z = 0
+  vx = 0
+  vz = 0
   radius = 0
   contactDamage = 0
+  /** One slot per group id; written by the squad affinity tick. */
+  readonly affinity: Float32Array
   readonly vehicle = {
     position: { x: 0, y: 0, z: 0 },
     maxSpeed: 0,
@@ -92,16 +122,20 @@ export class Enemy extends Mesh {
   private readonly _seek: SeekTargetPort
   private readonly _gate: SeekTargetPort
   private readonly _shots: ShotAcquirePort | null
+  private readonly _squad: SquadRegistryPort | null
   private readonly _mat: MeshBasicMaterial
   private readonly _rangeMat: MeshBasicMaterial
   private readonly _rangeMesh: Mesh
   private readonly _movement = new EnemyMovementManager()
   private readonly _pos = { x: 0, y: 0, z: 0 }
+  private readonly _acc: SteerAcc = { x: 0, z: 0 }
+  private readonly _vel: SteerAcc = { x: 0, z: 0 }
+  private readonly _slotWorld = { x: 0, z: 0 }
+  private readonly _gateAim = { x: 0, y: 0, z: 0 }
   private _killed = false
-  private _phase: EnemyMovePhase = 'reachGate'
+  private _aiState: ShipAiState = 'birth'
   private _cruiseSpeed = 0
   private _currentSpeed = 0
-  private _arriveRadius = 8
   private _reachSpeedMul = 3
   private _agilityLambda = 3.5
   private _intelligence = 60
@@ -109,16 +143,24 @@ export class Enemy extends Mesh {
   private _sheet: EditableWarriorSheet = cloneWarriorSheet(BALANCE.enemy.warrior)
   private _entryOffsetX = 0
   private _pathSide: ReachPreviewSide = 'front'
-  private readonly _gateAim = { x: 0, y: 0, z: 0 }
+
+  private _group: EnemyGroup | null = null
+  private _slotIndex = -1
+  private _slotSeeded = false
+  private _slotLocalX = 0
+  private _slotLocalZ = 0
+  private _offsetX = 0
+  private _offsetZ = 0
+  private _hoverPhase = 0
+  private _hoverT = 0
 
   private _hittedMs = 0
   private _hittingMs = 0
   private _inRange = false
   private _passedOpponent = false
-  private _fixedMovementStrategy = false
-  private _chaseStrategy: ChaseStrategyId | null = null
-  private _strategyHoldMs = 0
-  private _statusFingerprint = ''
+  private _proximityMs = 0
+  private _hitStreak = 0
+  private _hitStreakMs = 0
   private _rand: () => number = Math.random
 
   constructor(options: EnemyOptions) {
@@ -133,7 +175,9 @@ export class Enemy extends Mesh {
     this._seek = options.seekTarget
     this._gate = options.gateTarget
     this._shots = options.shots ?? null
+    this._squad = options.squad ?? null
     this.contactDamage = BALANCE.enemy.warrior.contactDamage
+    this.affinity = new Float32Array(Math.max(1, BALANCE.enemy.squad.maxGroups))
 
     const rangeGeo = new CircleGeometry(1, 48)
     rangeGeo.rotateX(-Math.PI / 2)
@@ -151,8 +195,8 @@ export class Enemy extends Mesh {
     this.visible = false
   }
 
-  phase(): EnemyMovePhase {
-    return this._phase
+  aiState(): ShipAiState {
+    return this._aiState
   }
 
   currentSpeed(): number {
@@ -163,22 +207,67 @@ export class Enemy extends Mesh {
     return this._sheet
   }
 
+  facingY(): number {
+    return this._movement.facingY()
+  }
+
   statusSnapshot(): EnemyStatusSnapshot {
     return {
       hitted: this._hittedMs > 0,
       hitting: this._hittingMs > 0,
       in_range: this._inRange,
       passed_opponent: this._passedOpponent,
-      fixed_movement_strategy: this._fixedMovementStrategy,
-      chaseStrategy: this._chaseStrategy,
+      aiState: this._aiState,
+      groupId: this._group?.id ?? -1,
+      slotIndex: this._slotIndex,
+      shield: this.shield,
+      shieldMax: this.shieldMax,
     }
   }
 
-  chaseStrategy(): ChaseStrategyId | null {
-    return this._chaseStrategy
+  /* ---- SquadShipPort ------------------------------------------------- */
+
+  isRogue(): boolean {
+    return isRogueState(this._aiState)
   }
 
-  /** Live-apply sheet combat stats without resetting pose / phase (debugger). */
+  currentGroup(): EnemyGroup | null {
+    return this._group
+  }
+
+  affinityTuning(): AffinityTuning {
+    return this._sheet.affinity
+  }
+
+  slotIndex(): number {
+    return this._slotIndex
+  }
+
+  /** The group hands out (or revokes) a slot id; never a pose. */
+  assignSlot(group: EnemyGroup | null, index: number): void {
+    this._group = group
+    this._slotIndex = index
+    if (!group || index < 0) {
+      this._slotSeeded = false
+      return
+    }
+    if (!this._slotSeeded) {
+      this._slotLocalX = group.slotOffsetX(index)
+      this._slotLocalZ = group.slotOffsetZ(index)
+      this._slotSeeded = true
+    }
+  }
+
+  onMigrationStart(): void {
+    if (this.isRogue()) {
+      return
+    }
+    this._aiState = 'migrating'
+  }
+
+  /* -------------------------------------------------------------------- */
+
+  /** Live-apply sheet combat stats without resetting pose / state (debugger). */
   applyLiveSheet(sheet: WarriorSheet | EditableWarriorSheet): void {
     if (!this.active) {
       return
@@ -187,9 +276,12 @@ export class Enemy extends Mesh {
     this._sheet = cloneWarriorSheet(sheet)
     this.hpMax = sheet.hp
     this.hp = Math.max(0, Math.min(sheet.hp, sheet.hp * ratio))
+    this.shieldMax = sheet.shieldMax
+    this.shield = Math.min(this.shield, this.shieldMax)
     this.radius = sheet.radius
     this.contactDamage = sheet.contactDamage
     this._sheet.maxSpeed = warriorMaxSpeed(sheet.agility)
+    this._sheet.maxForce = warriorMaxForce(sheet.agility)
     this._cruiseSpeed = this._sheet.maxSpeed
     this.vehicle.maxSpeed = this._cruiseSpeed
     this._reachSpeedMul = sheet.reachSpeedMul
@@ -197,8 +289,7 @@ export class Enemy extends Mesh {
     this._intelligence = sheet.intelligence
     this._mat.color.setHex(sheet.color)
     this.scale.setScalar(this.radius * 2)
-    this._movement.setLoopParams(this._sheet.strategy.loopAround)
-    this._movement.setTurnRate(this._sheet.strategy.turnRateDeg)
+    this._movement.setTurnRate(this._sheet.turnRateDeg)
     this._syncRangeVisual()
   }
 
@@ -208,35 +299,46 @@ export class Enemy extends Mesh {
 
   activate(spawn: EnemySpawn): void {
     const sheet = cloneWarriorSheet(spawn.sheet ?? BALANCE.enemy.warrior)
-    const gate = BALANCE.enemy.gate
     this._sheet = sheet
     this.hpMax = sheet.hp
     this.hp = this.hpMax
+    this.shieldMax = sheet.shieldMax
+    this.shield = this.shieldMax
     this.radius = sheet.radius
     this.contactDamage = sheet.contactDamage
     this._sheet.maxSpeed = warriorMaxSpeed(sheet.agility)
+    this._sheet.maxForce = warriorMaxForce(sheet.agility)
     this._cruiseSpeed = this._sheet.maxSpeed
     this.vehicle.maxSpeed = this._cruiseSpeed
-    this._arriveRadius = gate.arriveRadius
     this._reachSpeedMul = sheet.reachSpeedMul
     this._agilityLambda = warriorAgilityLambda(sheet.agility)
     this._intelligence = sheet.intelligence
     this._entryOffsetX = spawn.gateEntryOffsetX ?? 0
     this._pathSide = spawn.pathSide ?? 'front'
-    this._phase = sheet.targets[0] === 'enemyGate' ? 'reachGate' : 'chase'
+    this._aiState = sheet.targets[0] === 'enemyGate' ? 'birth' : 'formation'
     this._currentSpeed = this._cruiseSpeed
     this._fireAcc = 0
     this._hittedMs = 0
     this._hittingMs = 0
     this._inRange = false
     this._passedOpponent = false
-    this._fixedMovementStrategy = false
-    this._chaseStrategy = null
-    this._strategyHoldMs = 0
-    this._statusFingerprint = ''
+    this._proximityMs = 0
+    this._hitStreak = 0
+    this._hitStreakMs = 0
+    this._group = null
+    this._slotIndex = -1
+    this._slotSeeded = false
+    this._slotLocalX = 0
+    this._slotLocalZ = 0
+    this._hoverT = 0
+    this._hoverPhase = this._rand() * Math.PI * 2
+    this.affinity.fill(0)
+    this._rollImperfection()
     this.x = spawn.x
     this.y = spawn.y
     this.z = spawn.z
+    this.vx = 0
+    this.vz = 0
     this.vehicle.position.x = spawn.x
     this.vehicle.position.y = spawn.y
     this.vehicle.position.z = spawn.z
@@ -246,30 +348,30 @@ export class Enemy extends Mesh {
     this._mat.opacity = 1
     this._mat.color.setHex(sheet.color)
     this.scale.setScalar(this.radius * 2)
-    this._movement.setLoopParams(sheet.strategy.loopAround)
-    this._movement.setTurnRate(sheet.strategy.turnRateDeg)
+    this._movement.reset()
+    this._movement.setTurnRate(sheet.turnRateDeg)
     this._syncRangeVisual()
 
-    this._movement.reset()
-    if (this._phase === 'reachGate') {
-      this._movement.setStrategy('synchronizedLerp')
+    if (this._aiState === 'birth') {
       const aim = this._refreshGateAim()
-      this._movement.beginJourney(
+      this._movement.beginBirth(
         { x: spawn.x, y: spawn.y, z: spawn.z },
         { x: aim.x, y: aim.y, z: aim.z },
         this._cruiseSpeed * this._reachSpeedMul,
         this._pathSide,
       )
     } else {
-      this._beginChaseStrategy(true)
+      this._joinSquad()
     }
   }
 
   deactivate(): void {
+    this._squad?.unregister(this)
     this.active = false
     this.visible = false
     this.hp = 0
-    this._phase = 'reachGate'
+    this.shield = 0
+    this._aiState = 'birth'
     this._currentSpeed = 0
     this._fireAcc = 0
     this._entryOffsetX = 0
@@ -278,8 +380,14 @@ export class Enemy extends Mesh {
     this._hittingMs = 0
     this._inRange = false
     this._passedOpponent = false
-    this._fixedMovementStrategy = false
-    this._chaseStrategy = null
+    this._proximityMs = 0
+    this._hitStreak = 0
+    this._hitStreakMs = 0
+    this._group = null
+    this._slotIndex = -1
+    this._slotSeeded = false
+    this.vx = 0
+    this.vz = 0
     this._rangeMesh.visible = false
     this._movement.reset()
   }
@@ -305,37 +413,10 @@ export class Enemy extends Mesh {
 
     this._tickStatus(dt)
 
-    const targetSpeed =
-      this._phase === 'reachGate' ? this._cruiseSpeed * this._reachSpeedMul : this._cruiseSpeed
-    this._currentSpeed = damp(this._currentSpeed, targetSpeed, this._agilityLambda, dt)
-    this.vehicle.maxSpeed = this._currentSpeed
-
-    if (this._phase === 'chase') {
-      this._maybeSwapStrategy(dt)
-    }
-
-    this._pos.x = this.x
-    this._pos.y = this.y
-    this._pos.z = this.z
-    const aim = this._phase === 'reachGate' ? this._refreshGateAim() : this._seek
-    const { arrived } = this._movement.update({
-      position: this._pos,
-      dt,
-      currentSpeed: this._currentSpeed,
-      target: { x: aim.x, y: aim.y, z: aim.z },
-      arriveRadius: this._arriveRadius,
-      agilityLambda: this._agilityLambda,
-    })
-    this.x = this._pos.x
-    this.y = this._pos.y
-    this.z = this._pos.z
-
-    if (this._phase === 'reachGate' && arrived) {
-      this._phase = 'chase'
-      this._beginChaseStrategy(true)
-    } else if (this._phase === 'chase' && arrived && this._chaseStrategy === 'loop_around') {
-      this._fixedMovementStrategy = false
-      this._beginChaseStrategy(true)
+    if (this._aiState === 'birth') {
+      this._updateBirth(dt)
+    } else {
+      this._updateSquad(dt)
     }
 
     this.vehicle.position.x = this.x
@@ -387,25 +468,44 @@ export class Enemy extends Mesh {
     if (dealt > 0) {
       this.notifyHitted()
     }
-    this.hp -= dealt
+
+    let absorbed = 0
+    let shieldBroke = false
+    let remaining = dealt
+    if (this.shield > 0) {
+      absorbed = Math.min(this.shield, remaining)
+      this.shield -= absorbed
+      remaining -= absorbed
+      if (this.shield <= 0) {
+        this.shield = 0
+        shieldBroke = true
+      }
+    }
+
+    this._registerHitStreak(shieldBroke)
+    this.hp -= remaining
     if (this.hp <= 0) {
       this.hp = 0
       this._killed = true
       this.active = false
       this.visible = false
+      this._squad?.unregister(this)
       return {
-        absorbedByShield: 0,
-        dealtToHull: dealt,
-        shieldBroke: false,
+        absorbedByShield: absorbed,
+        dealtToHull: remaining,
+        shieldBroke,
         hullLevelChanged: false,
         destroyed: false,
         killed: true,
       }
     }
+    if (shieldBroke) {
+      this._enterRogue('flee')
+    }
     return {
-      absorbedByShield: 0,
-      dealtToHull: dealt,
-      shieldBroke: false,
+      absorbedByShield: absorbed,
+      dealtToHull: remaining,
+      shieldBroke,
       hullLevelChanged: false,
       destroyed: false,
       killed: false,
@@ -433,29 +533,336 @@ export class Enemy extends Mesh {
     this._rangeMat.dispose()
   }
 
-  private _activeStatuses(): ActiveStatuses {
-    return {
-      hitted: this._hittedMs > 0,
-      hitting: this._hittingMs > 0,
-      in_range: this._inRange,
-      passed_opponent: this._passedOpponent,
-      fixed_movement_strategy: this._fixedMovementStrategy,
+  /* ---- birth ---------------------------------------------------------- */
+
+  private _updateBirth(dt: number): void {
+    const targetSpeed = this._cruiseSpeed * this._reachSpeedMul
+    this._currentSpeed = damp(this._currentSpeed, targetSpeed, this._agilityLambda, dt)
+    this.vehicle.maxSpeed = this._currentSpeed
+
+    this._pos.x = this.x
+    this._pos.y = this.y
+    this._pos.z = this.z
+    const aim = this._refreshGateAim()
+    const { arrived } = this._movement.updateBirth({
+      position: this._pos,
+      dt,
+      target: aim,
+      agilityLambda: this._agilityLambda,
+    })
+    this.x = this._pos.x
+    this.y = this._pos.y
+    this.z = this._pos.z
+
+    if (arrived) {
+      const heading = this._movement.facingY()
+      this.vx = Math.sin(heading) * this._currentSpeed
+      this.vz = Math.cos(heading) * this._currentSpeed
+      this._joinSquad()
     }
   }
 
-  private _statusKey(active: ActiveStatuses): string {
-    return [
-      active.hitted ? 1 : 0,
-      active.hitting ? 1 : 0,
-      active.in_range ? 1 : 0,
-      active.passed_opponent ? 1 : 0,
-    ].join('')
+  private _joinSquad(): void {
+    this._aiState = 'formation'
+    this._squad?.register(this)
+  }
+
+  /* ---- squad life ----------------------------------------------------- */
+
+  private _updateSquad(dt: number): void {
+    if (dt <= 0) {
+      return
+    }
+    const cfg = this._squad?.liveConfig() ?? BALANCE.enemy.squad
+    const boosting = this._aiState === 'boost' || this._aiState === 'migrating'
+    const agilityMul = this._agilityMultiplier()
+    const maxForce = Math.max(0.1, this._sheet.maxForce * agilityMul)
+    const acc = this._acc
+    resetAcc(acc)
+
+    let speedMul = 1
+    if (this._aiState === 'fury') {
+      addSeek(
+        acc,
+        this.x,
+        this.z,
+        this._seek.x,
+        this._seek.z,
+        this.vx,
+        this.vz,
+        this._cruiseSpeed * agilityMul,
+      )
+    } else if (this._aiState === 'flee') {
+      this._steerFlee(acc, agilityMul)
+    } else {
+      speedMul = this._steerFormation(acc, cfg, dt, boosting, agilityMul)
+      addContainmentX(
+        acc,
+        this.x,
+        this._arenaMinX(),
+        this._arenaMaxX(),
+        cfg.containmentInsetX,
+        cfg.containmentExp,
+        cfg.containmentWeight,
+      )
+    }
+
+    truncate(acc, maxForce)
+
+    const vel = this._vel
+    vel.x = this.vx + acc.x * dt
+    vel.z = this.vz + acc.z * dt
+    clampSpeed(vel, this._cruiseSpeed * agilityMul * speedMul)
+    this.vx = vel.x
+    this.vz = vel.z
+
+    this.x += this.vx * dt
+    this.z += this.vz * dt
+    this.y = damp(this.y, this._gate.y, this._agilityLambda, dt)
+
+    this._currentSpeed = Math.hypot(this.vx, this.vz)
+    this.vehicle.maxSpeed = this._currentSpeed
+    if (this._currentSpeed > MIN_HEADING_SPEED) {
+      this._movement.turnToward(Math.atan2(this.vx, this.vz), dt, this._agilityLambda)
+    }
+
+    // Triggers run on the freshly integrated pose (and a valid slot target).
+    this._tickTriggers(dt)
+  }
+
+  /**
+   * Slot arrive + hover + local traffic. Returns the curvature speed multiplier
+   * that keeps outer ships synchronised through the group's turns.
+   */
+  private _steerFormation(
+    acc: SteerAcc,
+    cfg: SquadConfig,
+    dt: number,
+    boosting: boolean,
+    agilityMul: number,
+  ): number {
+    const group = this._group
+    if (!group || this._slotIndex < 0) {
+      // Slot-less craft holds the line until the squad hands one out.
+      addSeek(
+        acc,
+        this.x,
+        this.z,
+        this.x,
+        this._seek.z - cfg.interceptStandoffZ,
+        this.vx,
+        this.vz,
+        this._cruiseSpeed * agilityMul,
+      )
+      return 1
+    }
+
+    const form = this._sheet.formation
+    this._slotLocalX = damp(
+      this._slotLocalX,
+      group.slotOffsetX(this._slotIndex) + this._offsetX,
+      cfg.slotLerpRate,
+      dt,
+    )
+    this._slotLocalZ = damp(
+      this._slotLocalZ,
+      group.slotOffsetZ(this._slotIndex) + this._offsetZ,
+      cfg.slotLerpRate,
+      dt,
+    )
+
+    const settled = !boosting
+    const hover = settled
+      ? Math.sin(this._hoverPhase + this._hoverT * Math.PI * 2 * form.hoverHz) * form.hoverAmp
+      : 0
+    group.localToWorld(this._slotLocalX + hover, this._slotLocalZ, this._slotWorld)
+
+    addArrive(
+      acc,
+      this.x,
+      this.z,
+      this._slotWorld.x,
+      this._slotWorld.z,
+      this.vx,
+      this.vz,
+      this._cruiseSpeed * agilityMul,
+      Math.max(0.1, form.slotTolerance * 2),
+    )
+
+    if (!boosting) {
+      this._addLocalTraffic(acc, cfg, group)
+    }
+
+    const base = Math.max(0.1, this._cruiseSpeed * agilityMul)
+    const delta = (-this._slotLocalX * group.omega) / base
+    return 1 + clamp(delta, -0.5, 0.75) * cfg.curvatureScale
+  }
+
+  /** Formation ships give way: mates keep spacing, rogues get a wide berth. */
+  private _addLocalTraffic(acc: SteerAcc, cfg: SquadConfig, group: EnemyGroup): void {
+    const mates = group.memberCount()
+    for (let i = 0; i < mates; i += 1) {
+      const mate = group.memberAt(i)
+      if (!mate || mate === this) {
+        continue
+      }
+      addSeparation(
+        acc,
+        this.x,
+        this.z,
+        mate.x,
+        mate.z,
+        cfg.shipSeparationRadius,
+        cfg.shipSeparationWeight,
+      )
+    }
+    const squad = this._squad
+    if (!squad) {
+      return
+    }
+    const rogues = squad.rogueCount()
+    for (let i = 0; i < rogues; i += 1) {
+      const rogue = squad.rogueAt(i)
+      if (!rogue || rogue === this) {
+        continue
+      }
+      addAvoidRogue(
+        acc,
+        this.x,
+        this.z,
+        rogue.x,
+        rogue.z,
+        rogue.vx,
+        rogue.vz,
+        cfg.rogueAvoidRadius,
+        cfg.rogueAvoidWeight,
+      )
+    }
+  }
+
+  /** Break for the nearest screen edge, pushing away from the player. */
+  private _steerFlee(acc: SteerAcc, agilityMul: number): void {
+    const speed = this._cruiseSpeed * agilityMul
+    const edgeX = this.x >= this._seek.x ? this._arenaMaxX() : this._arenaMinX()
+    addFlee(acc, this.x, this.z, this._seek.x, this._seek.z, this.vx, this.vz, speed)
+    addSeek(acc, this.x, this.z, edgeX, this.z, this.vx, this.vz, speed)
+  }
+
+  private _agilityMultiplier(): number {
+    if (this._aiState === 'fury') {
+      return Math.max(1, this._sheet.morale.furyAgilityMul)
+    }
+    if (this._aiState === 'flee') {
+      return Math.max(1, this._sheet.morale.fleeAgilityMul)
+    }
+    if (this._aiState === 'boost' || this._aiState === 'migrating') {
+      return Math.max(1, this._sheet.formation.boostAgilityMul)
+    }
+    return 1
+  }
+
+  /** Deterministic state transitions: BOOST distance, FURY and FLEE triggers. */
+  private _tickTriggers(dt: number): void {
+    const dtMs = dt * 1000
+    this._hoverT += dt
+    if (this._hitStreakMs > 0) {
+      this._hitStreakMs = Math.max(0, this._hitStreakMs - dtMs)
+      if (this._hitStreakMs === 0) {
+        this._hitStreak = 0
+      }
+    }
+
+    if (this.isRogue()) {
+      return
+    }
+
+    const morale = this._sheet.morale
+    const toPlayer = distXZ(this.x, this.z, this._seek.x, this._seek.z)
+    if (toPlayer <= morale.furyProximityRadius) {
+      this._proximityMs += dtMs
+      if (this._proximityMs >= morale.furyProximitySec * 1000) {
+        this._enterRogue('fury')
+        return
+      }
+    } else {
+      this._proximityMs = 0
+    }
+
+    const group = this._group
+    if (group) {
+      const ratio = group.healthRatio()
+      if (group.isLastSurvivor(this) || ratio * 100 < morale.fleeGroupHealthPct) {
+        this._enterRogue('flee')
+        return
+      }
+    }
+
+    if (this._slotIndex < 0 || !group) {
+      return
+    }
+    const form = this._sheet.formation
+    const toSlot = distXZ(this.x, this.z, this._slotWorld.x, this._slotWorld.z)
+    if (this._aiState === 'formation' && toSlot > form.boostDistance) {
+      this._aiState = 'boost'
+      return
+    }
+    if (
+      (this._aiState === 'boost' || this._aiState === 'migrating') &&
+      toSlot <= form.slotTolerance
+    ) {
+      this._aiState = 'formation'
+    }
+  }
+
+  private _enterRogue(state: 'fury' | 'flee'): void {
+    if (this.isRogue() || this._aiState === 'birth') {
+      return
+    }
+    this._aiState = state
+    this._squad?.detachFromGroup(this)
+    this._group = null
+    this._slotIndex = -1
+    this._slotSeeded = false
+  }
+
+  /** Rapid consecutive hits that never break the shield trigger retaliation. */
+  private _registerHitStreak(shieldBroke: boolean): void {
+    const morale = this._sheet.morale
+    if (shieldBroke) {
+      this._hitStreak = 0
+      this._hitStreakMs = 0
+      return
+    }
+    this._hitStreak = this._hitStreakMs > 0 ? this._hitStreak + 1 : 1
+    this._hitStreakMs = Math.max(1, morale.retaliationWindowMs)
+    if (this._hitStreak >= Math.max(1, morale.retaliationHits)) {
+      this._enterRogue('fury')
+    }
+  }
+
+  private _rollImperfection(): void {
+    const r = Math.max(0, this._sheet.formation.imperfectionRadius)
+    const angle = this._rand() * Math.PI * 2
+    const dist = Math.sqrt(this._rand()) * r
+    this._offsetX = Math.cos(angle) * dist
+    this._offsetZ = Math.sin(angle) * dist
+  }
+
+  private _arenaMinX(): number {
+    return this._squad?.arenaMinX() ?? -BALANCE.enemy.squad.arenaHalfX
+  }
+
+  private _arenaMaxX(): number {
+    return this._squad?.arenaMaxX() ?? BALANCE.enemy.squad.arenaHalfX
   }
 
   private _tickStatus(dt: number): void {
     const dtMs = dt * 1000
     if (this._hittedMs > 0) {
       this._hittedMs = Math.max(0, this._hittedMs - dtMs)
+    }
+    if (this._hittedMs === 0) {
+      this._regenShield(dt)
     }
     if (this._hittingMs > 0) {
       this._hittingMs = Math.max(0, this._hittingMs - dtMs)
@@ -466,61 +873,11 @@ export class Enemy extends Mesh {
     this._passedOpponent = this.z >= this._seek.z
   }
 
-  private _maybeSwapStrategy(dt: number): void {
-    // Loop locks strategy until the maneuver finishes.
-    if (this._fixedMovementStrategy) {
+  private _regenShield(dt: number): void {
+    if (this.shieldMax <= 0 || this.shield >= this.shieldMax) {
       return
     }
-    if (this._chaseStrategy === null) {
-      this._beginChaseStrategy(true)
-      return
-    }
-
-    this._strategyHoldMs -= dt * 1000
-    const active = this._activeStatuses()
-    const key = this._statusKey(active)
-    const statusChanged = key !== this._statusFingerprint
-    this._statusFingerprint = key
-
-    let swap = this._strategyHoldMs <= 0
-    if (!swap && statusChanged && this._rand() * 100 < this._intelligence) {
-      swap = true
-    }
-    if (swap) {
-      this._beginChaseStrategy(true)
-    }
-  }
-
-  private _beginChaseStrategy(force: boolean): void {
-    if (this._fixedMovementStrategy && !force) {
-      return
-    }
-
-    const weights = effectiveStrategyWeights(
-      this._sheet.strategy.weights,
-      this._sheet.strategy.mods,
-      this._activeStatuses(),
-    )
-    const next = pickChaseStrategy(weights, this._rand)
-    if (!force && next === this._chaseStrategy) {
-      this._strategyHoldMs = strategyHoldMs(
-        this._intelligence,
-        this._sheet.strategy.swapBaseMs,
-      )
-      return
-    }
-    this._chaseStrategy = next
-    this._fixedMovementStrategy = next === 'loop_around'
-    this._strategyHoldMs = strategyHoldMs(this._intelligence, this._sheet.strategy.swapBaseMs)
-    this._statusFingerprint = this._statusKey(this._activeStatuses())
-    this._movement.setLoopParams(this._sheet.strategy.loopAround)
-    this._movement.setTurnRate(this._sheet.strategy.turnRateDeg)
-    this._movement.setStrategy(next as MoveStrategyId)
-    this._movement.beginJourney(
-      { x: this.x, y: this.y, z: this.z },
-      { x: this._seek.x, y: this._seek.y, z: this._seek.z },
-      this._cruiseSpeed,
-    )
+    this.shield = Math.min(this.shieldMax, this.shield + this._sheet.shieldRegenPerSec * dt)
   }
 
   private _syncRangeVisual(): void {
@@ -539,7 +896,7 @@ export class Enemy extends Mesh {
   }
 
   private _tryFire(dt: number): void {
-    if (this._phase !== 'chase' || !this._shots) {
+    if (this._aiState === 'birth' || !this._shots) {
       return
     }
     const weapon = this._sheet.weapon

@@ -1,6 +1,9 @@
 /**
  * SDD-E05 EnemyManager — left / right / front spawn + EnemyGate rush + pool.
  * Outside BattleField ⇒ deactivate + pool.release (reuse; no mesh destroy / GC spike).
+ *
+ * Owns the EnemySquadManager: groups are stepped before the ships each frame so
+ * every craft steers against a fresh centroid and slot.
  */
 
 import { BoxGeometry } from 'three'
@@ -15,6 +18,7 @@ import {
 } from '../gameobjects/enemy/warrior'
 import type { SpawnArea } from '../gameobjects/spawn-area/spawn-area'
 import { ObjectPool } from '../pools/object-pool'
+import { EnemySquadManager } from './enemy-squad-manager'
 import type { ShotAcquirePort } from './shot-manager'
 
 export type SpawnSide = 'left' | 'right' | 'front'
@@ -64,6 +68,7 @@ export class EnemyManager {
   private readonly _shots: ShotAcquirePort | null
   private readonly _colliders: EnemyManagerOptions['colliders'] | null
   private readonly _geo: BoxGeometry
+  private readonly _squad: EnemySquadManager
   private readonly _pool: ObjectPool<Enemy>
   private readonly _liveSheet: EditableWarriorSheet = cloneWarriorSheet(WARRIOR)
   private readonly _acc: Record<SpawnSide, number> = { left: 0, right: 0, front: 0 }
@@ -85,6 +90,7 @@ export class EnemyManager {
     this._colliders = options.colliders ?? null
     this._geo = new BoxGeometry(1, 1, 1)
     const capacity = options.capacity ?? BALANCE.enemy.poolSize
+    this._squad = new EnemySquadManager({ capacity })
     this._pool = new ObjectPool<Enemy>({
       capacity,
       factory: () => {
@@ -93,6 +99,7 @@ export class EnemyManager {
           seekTarget: this._seek,
           gateTarget: this._gateTarget,
           shots: this._shots ?? undefined,
+          squad: this._squad,
         })
         this._scene.add(enemy)
         return enemy
@@ -113,6 +120,11 @@ export class EnemyManager {
     return this._pool.activeCount
   }
 
+  /** Macro AI hub (groups, formations, affinity) — debugger + tests. */
+  squad(): EnemySquadManager {
+    return this._squad
+  }
+
   /** Live Warrior sheet used by new spawns and the Enemy debugger tab. */
   liveSheet(): EditableWarriorSheet {
     return this._liveSheet
@@ -125,18 +137,9 @@ export class EnemyManager {
       targets: [...fresh.targets],
       weapon: { ...fresh.weapon },
       status: { ...fresh.status },
-      strategy: {
-        swapBaseMs: fresh.strategy.swapBaseMs,
-        turnRateDeg: fresh.strategy.turnRateDeg,
-        weights: { ...fresh.strategy.weights },
-        mods: {
-          hitted: { ...fresh.strategy.mods.hitted },
-          hitting: { ...fresh.strategy.mods.hitting },
-          in_range: { ...fresh.strategy.mods.in_range },
-          passed_opponent: { ...fresh.strategy.mods.passed_opponent },
-        },
-        loopAround: { ...fresh.strategy.loopAround },
-      },
+      formation: { ...fresh.formation },
+      morale: { ...fresh.morale },
+      affinity: { ...fresh.affinity },
     })
     this._applyLiveSheetToActive()
   }
@@ -213,6 +216,9 @@ export class EnemyManager {
       }
     }
 
+    const bounds = this._battleField.worldBounds()
+    this._squad.update(dt, this._seek.x, this._seek.z, bounds.minX, bounds.maxX)
+
     this._pool.forEachActive((enemy) => {
       if (!this._battleField.contains(enemy.x, enemy.z)) {
         this._pool.release(enemy)
@@ -240,6 +246,7 @@ export class EnemyManager {
     }
     this._disposed = true
     this._pool.dispose()
+    this._squad.reset()
     this._geo.dispose()
   }
 

@@ -126,7 +126,7 @@ describe('EnemyManager', () => {
   })
 
   it('keeps at most sum of all side maxActive live enemies', () => {
-    const parts = makeManager(8)
+    const parts = makeManager(BALANCE.enemy.poolSize)
     parts.spawnLeft.setIntervalSec(0.1)
     parts.spawnRight.setIntervalSec(0.1)
     parts.spawnFront.setIntervalSec(0.1)
